@@ -192,6 +192,7 @@ int main(int argc, char * argv[])
 	int intmode=0; // Interrupt Mode
 	bool reti=false; // was the last opcode RETI?  (some hardware detects this, eg. PIO)
 	bool waitline=false; // raised by the ULA to apply contention
+	int waitlim=1; // internal; max dT to allow while WAIT is active
 	
 	enum {OFF,IN,OUT} tris=OFF;
 	unsigned short int portno=0; // Address lines for IN/OUT
@@ -230,7 +231,7 @@ int main(int argc, char * argv[])
 		Tstates++;
 		dT++;
 		if(waitline)
-			dT=min(dT, 1);
+			dT=min(dT, waitlim);
 		switch(M)
 		{
 			case 0: // M0 = OCF(4)
@@ -265,6 +266,8 @@ int main(int argc, char * argv[])
 						M++;
 					}
 					dT=-2;
+					(*Refresh)++;
+					waitlim=1;
 				}
 			break;
 			case 1: // M1
@@ -372,6 +375,14 @@ int main(int argc, char * argv[])
 												dT=-1;
 											}
 										break;
+										case 2: // x3 z3 y2 == OUT (n),A: M1=OD(3)
+											if(dT>=2)
+											{
+												internal[1]=RAM[(*PC)++];
+												M++;
+												dT=-1;
+											}
+										break;
 										case 6: // x3 z3 y6 == DI
 											IFF[0]=IFF[1]=false;
 											M=0;
@@ -459,6 +470,17 @@ int main(int argc, char * argv[])
 												*PC=I16;
 												M=0;
 												dT=-1;
+											}
+										break;
+										case 2: // x3 z3 y2 == OUT (n),A: M2=PW(4)
+											if(dT>=1)
+											{
+												tris=OUT;
+												portno=(regs[3]<<8)+internal[1];
+												ioval=regs[3];
+												M=0;
+												dT=-3;
+												waitlim=-1;
 											}
 										break;
 										default: // x3 z3 y?
