@@ -30,9 +30,22 @@ od;
 unsigned char tbl_r[8];
 unsigned char tbl_rp[4];
 unsigned char tbl_rp2[4];
-unsigned char tbl_hl[3];
-unsigned short int *tbl_phl[3];
+
+// Names/ptrs for the common regs; these tricks rely on the system being little-endian
+#define PC (unsigned short int *)regs
+#define AF (unsigned short int *)(regs+2)
+#define BC (unsigned short int *)(regs+4)
+#define DE (unsigned short int *)(regs+6)
+#define HL (unsigned short int *)(regs+8)
+#define Ix (unsigned short int *)(regs+10)
+#define Iy (unsigned short int *)(regs+12)
+#define Intvec (unsigned char *)(regs+15)
+#define Refresh (unsigned char *)(regs+14)
+#define SP (unsigned short int *)(regs+16)
+
+#define I16 ((internal[2]<<8)+internal[1]) // 16 bit literal from internal registers
 
 int parity(unsigned short int num);
 
 void op_alu(od ods, unsigned char regs[27], unsigned char operand);
+void op_add16(od ods, unsigned char regs[27], int shiftstate);

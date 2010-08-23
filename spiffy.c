@@ -50,11 +50,11 @@
 #define min(a,b)	((a)>(b)?(b):(a))
 
 // z80 core error messages
-#define ZERR0	"spiffy: encountered bad shift state %u (x%hhu z%hhu y%hhu) in z80 core\n", shiftstate, ods.x, ods.z, ods.y
-#define ZERR1	"spiffy: encountered bad opcode s%u x%hhu in z80 core\n", shiftstate, ods.x
-#define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu in z80 core\n", shiftstate, ods.x, ods.z
-#define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu in z80 core\n", shiftstate, ods.x, ods.y
-#define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu in z80 core\n", shiftstate, ods.x, ods.z, ods.y
+#define ZERR0	"spiffy: encountered bad shift state %u (x%hhu z%hhu y%hhu M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, M
+#define ZERR1	"spiffy: encountered bad opcode s%u x%hhu (M%u) in z80 core\n", shiftstate, ods.x, M
+#define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu (M%u) in z80 core\n", shiftstate, ods.x, ods.z, M
+#define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu (M%u) in z80 core\n", shiftstate, ods.x, ods.y, M
+#define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, M
 #define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core\n", M
 
 typedef struct _pos
@@ -162,20 +162,8 @@ int main(int argc, char * argv[])
 	// R: Memory Refresh
 	// SP: Stack Pointer
 	// afbcdehl: Alternate register set (EX/EXX)
-	unsigned char regs[27]; // the [26] is for internal use
+	unsigned char regs[27]; // the [26] is for internal use, but is deprecated (as we now have the internal[] unnamed registers)
 	memset(regs, 0, sizeof(regs));
-	
-	// Names/ptrs for the common regs
-	unsigned short int *PC = (unsigned short int *)regs;
-	unsigned short int *AF = (unsigned short int *)(regs+2);
-	unsigned short int *BC = (unsigned short int *)(regs+4);
-	unsigned short int *DE = (unsigned short int *)(regs+6);
-	unsigned short int *HL = (unsigned short int *)(regs+8);
-	unsigned short int *Ix = (unsigned short int *)(regs+10);
-	unsigned short int *Iy = (unsigned short int *)(regs+12);
-	unsigned char *Intvec = regs+15;
-	unsigned char *Refresh = regs+14; /* Memory Refresh counting NOT IMPLEMENTED YET */
-	unsigned short int *SP = (unsigned short int *)(regs+16);
 	
 	// Fill in register decoding tables
 	// tbl_r: B C D E H L (HL) A
@@ -197,14 +185,6 @@ int main(int argc, char * argv[])
 	tbl_rp2[1]=6;
 	tbl_rp2[2]=8;
 	tbl_rp2[3]=2;
-	// tbl_hl: HL Ix Iy
-	tbl_hl[0]=8;
-	tbl_hl[1]=10;
-	tbl_hl[2]=12;
-	// tbl_phl: *HL *Ix *Iy
-	tbl_phl[0]=HL;
-	tbl_phl[1]=Ix;
-	tbl_phl[2]=Iy;
 	
 	bool IFF[2]; // Interrupts Flip Flops
 	bool block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
@@ -280,22 +260,43 @@ int main(int argc, char * argv[])
 				dT=4;
 			break;
 			case 1: // M1
-				switch(ods.x)
+				if(shiftstate&0x01)
 				{
-					case 2: // x2
-						if(shiftstate&0x01)
-						{
-							fprintf(stderr, ZERR1);
-							errupt++;
-						}
-						else if(shiftstate&0x02)
-						{
-							fprintf(stderr, ZERR1);
-							errupt++;
-						}
-						else
-						{
-							// x2 s0/4/8 == alu[y] A,r[z]
+					fprintf(stderr, ZERR1);
+					errupt++;
+				}
+				else if(shiftstate&0x02)
+				{
+					fprintf(stderr, ZERR1);
+					errupt++;
+				}
+				else
+				{
+					switch(ods.x)
+					{
+						case 0: // x0
+							switch(ods.z)
+							{
+								case 1: // x0 z1
+									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M1=ODL(3)
+									{
+										internal[1]=RAM[(*PC)++];
+										M++;
+										dT=3;
+									}
+									else // x0 z1 q1 == ADD HL,rp[p]: M1=IO(4)
+									{
+										M++;
+										dT=4;
+									}
+								break;
+								default: // x0 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						case 2: // x2 == alu[y] A,r[z]
 							if(ods.z==6) // r[z]=(HL), M1=MR(3)
 							{
 								internal[1]=RAM[*HL];
@@ -308,73 +309,117 @@ int main(int argc, char * argv[])
 								dT=0;
 								M++;
 							}
-						}
-					break;
-					case 3: // x3
-						switch(ods.z)
-						{
-							case 3: // x3 z3
-								switch(ods.y)
-								{
-									case 6: // x3 z3 y6
-										switch(shiftstate)
-										{
-											case 0: // x3 z3 y6 s0 == DI
-												IFF[0]=IFF[1]=false;
-												dT=0;
-												M=0;
-											break;
-											default: // x3 z3 y6 s?
-												fprintf(stderr, ZERR0);
-												errupt++;
-											break;
-										}
-									break;
-									default: // x3 z3 y?
-										fprintf(stderr, ZERR3);
-										errupt++;
-									break;
-								}
-							break;
-							default: // x3 z?
-								fprintf(stderr, ZERR2);
-								errupt++;
-							break;
-						}
-					break;
-					default: // x?
-						fprintf(stderr, ZERR1);
-						errupt++;
-					break;
+						break;
+						case 3: // x3
+							switch(ods.z)
+							{
+								case 3: // x3 z3
+									switch(ods.y)
+									{
+										case 0: // x3 z3 y0 == JP nn: M1=ODL(3)
+											internal[1]=RAM[(*PC)++];
+											M++;
+											dT=3;
+										break;
+										case 6: // x3 z3 y6 == DI
+											IFF[0]=IFF[1]=false;
+											dT=0;
+											M=0;
+										break;
+										default: // x3 z3 y?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								default: // x3 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default: // x?
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 			break;
 			case 2: // M2
-				switch(ods.x)
+				if(shiftstate&0x01)
 				{
-					case 2: // x2
-						if(shiftstate&0x01)
-						{
-							fprintf(stderr, ZERR1);
-							errupt++;
-						}
-						else if(shiftstate&0x02)
-						{
-							fprintf(stderr, ZERR1);
-							errupt++;
-						}
-						else
-						{
+					fprintf(stderr, ZERR1);
+					errupt++;
+				}
+				else if(shiftstate&0x02)
+				{
+					fprintf(stderr, ZERR1);
+					errupt++;
+				}
+				else
+				{
+					switch(ods.x)
+					{
+						case 0: // x0
+							switch(ods.z)
+							{
+								case 1:
+									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M2=ODH(3)
+									{
+										internal[2]=RAM[(*PC)++];
+										regs[tbl_rp[ods.p]]=I16;
+										M=0;
+										dT=3;
+									}
+									else // x0 z1 q1 == ADD HL,rp[p]: M2=IO(3)
+									{
+										op_add16(ods, regs, shiftstate);
+										M=0;
+										dT=3;
+									}
+								break;
+								default:
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						case 2: // x2
 							// x2 s0/4/8 == alu[y] A,r[z]
 							// M2=IO(0)
 							op_alu(ods, regs, internal[1]);
 							M=0;
 							dT=0;
-						}
-					break;
-					default: // x?
-						fprintf(stderr, ZERR1);
-						errupt++;
-					break;
+						break;
+						case 3: // x3
+							switch(ods.z)
+							{
+								case 3: // x3 z3
+									switch(ods.y)
+									{
+										case 0: // x3 z3 y0 == JP nn: M2=ODH(3)
+											internal[2]=RAM[(*PC)++];
+											M=0;
+											dT=3;
+											*PC=I16;
+										break;
+										default: // x3 z3 y?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								default: // x3 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default: // x?
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 			break;
 			default: // M?
@@ -608,9 +653,6 @@ bool cc(unsigned char which, unsigned char flags)
 
 void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, unsigned char internal[3], int shiftstate, bool * IFF, int intmode)
 {
-	unsigned short int *PC = (unsigned short int *)regs;
-	unsigned short int *HL = (unsigned short int *)(regs+8);
-	unsigned short int *SP = (unsigned short int *)(regs+16);
 	int i;
 	printf("\nState:\n");
 	printf("P C  A F  B C  D E  H L  I x  I y  I R  S P  a f  b c  d e  h l  IFF IM\n");

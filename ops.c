@@ -102,6 +102,21 @@ void op_alu(od ods, unsigned char regs[27], unsigned char operand) // ALU[y] A,o
 	}
 }
 
+void op_add16(od ods, unsigned char regs[27], int shiftstate) // ADD HL(IxIy),rp2[p]
+{
+	// ADD dd,ss: dd+=ss, F=(X   0?)=[  5?3 0C].  Note: It's not the same as ADC
+	unsigned short int *DD = (shiftstate&4)?Ix:(shiftstate&8)?Iy:HL;
+	unsigned short int *SS = (unsigned short int *)(regs+tbl_rp2[ods.p]);
+	if(ods.p==2) SS=DD;
+	signed long int res = (*DD)+(*SS);
+	signed short int hd=((*DD)&0x0fff)+((*SS)&0x0fff);
+	regs[2]&=(FS+FZ+FP); // SZP unaffected
+	regs[2]|=((res&0x2800)/0x100); // 53 cf bits 13,11 of res
+	regs[2]|=(hd>0x0fff?FH:0); // H true if half-carry (here be dragons)
+	regs[2]|=(res>0xffff?FC:0); // C if carry
+	*DD=res;
+}
+
 int parity(unsigned short int num)
 {
 	int i,p=1;
