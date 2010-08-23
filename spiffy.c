@@ -432,7 +432,8 @@ int main(int argc, char * argv[])
 										if(dT>=2)
 										{
 											internal[2]=RAM[(*PC)++];
-											regs[tbl_rp[ods.p]]=I16;
+											regs[tbl_rp[ods.p]]=internal[1];
+											regs[tbl_rp[ods.p]+1]=internal[2];
 											M=0;
 											dT=-1;
 										}
