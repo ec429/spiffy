@@ -231,7 +231,7 @@ int main(int argc, char * argv[])
 		switch(M)
 		{
 			case 0: // M0 = OCF(4)
-				if(dT>=4)
+				if(dT>=2)
 				{
 					internal[0]=RAM[(*PC)++];
 					if((internal[0]==0xCB)&&(!shiftstate&0x02)) // ED CB is an instruction, not a shift
@@ -261,7 +261,7 @@ int main(int argc, char * argv[])
 						ods=od_bits(internal[0]);
 						M++;
 					}
-					dT=0;
+					dT=-2;
 				}
 			break;
 			case 1: // M1
