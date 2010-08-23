@@ -226,38 +226,43 @@ int main(int argc, char * argv[])
 	while(!errupt)
 	{
 		block_ints=false;
+		Tstates++;
+		dT++;
 		switch(M)
 		{
 			case 0: // M0 = OCF(4)
-				internal[0]=RAM[(*PC)++];
-				if((internal[0]==0xCB)&&(!shiftstate&0x02)) // ED CB is an instruction, not a shift
+				if(dT>=4)
 				{
-					shiftstate|=0x01;
-					block_ints=true;
+					internal[0]=RAM[(*PC)++];
+					if((internal[0]==0xCB)&&(!shiftstate&0x02)) // ED CB is an instruction, not a shift
+					{
+						shiftstate|=0x01;
+						block_ints=true;
+					}
+					else if((internal[0]==0xED)&&!(shiftstate&0x01)) // CB ED is an instruction, not a shift
+					{
+						shiftstate=0x02; // ED may not combine
+						block_ints=true;
+					}
+					else if(internal[0]==0xDD)
+					{
+						shiftstate&=~(0x0A); // ED,FD may not combine with DD
+						shiftstate|=0x04;
+						block_ints=true;
+					}
+					else if(internal[0]==0xFD)
+					{
+						shiftstate&=~(0x06); // DD,ED may not combine with FD
+						shiftstate|=0x08;
+						block_ints=true;
+					}
+					else
+					{
+						ods=od_bits(internal[0]);
+						M++;
+					}
+					dT=0;
 				}
-				else if((internal[0]==0xED)&&!(shiftstate&0x01)) // CB ED is an instruction, not a shift
-				{
-					shiftstate=0x02; // ED may not combine
-					block_ints=true;
-				}
-				else if(internal[0]==0xDD)
-				{
-					shiftstate&=~(0x0A); // ED,FD may not combine with DD
-					shiftstate|=0x04;
-					block_ints=true;
-				}
-				else if(internal[0]==0xFD)
-				{
-					shiftstate&=~(0x06); // DD,ED may not combine with FD
-					shiftstate|=0x08;
-					block_ints=true;
-				}
-				else
-				{
-					ods=od_bits(internal[0]);
-					M++;
-				}
-				dT=4;
 			break;
 			case 1: // M1
 				if(shiftstate&0x01)
@@ -280,14 +285,20 @@ int main(int argc, char * argv[])
 								case 1: // x0 z1
 									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M1=ODL(3)
 									{
-										internal[1]=RAM[(*PC)++];
-										M++;
-										dT=3;
+										if(dT>=3)
+										{
+											internal[1]=RAM[(*PC)++];
+											M++;
+											dT=0;
+										}
 									}
 									else // x0 z1 q1 == ADD HL,rp[p]: M1=IO(4)
 									{
-										M++;
-										dT=4;
+										if(dT>=4)
+										{
+											M++;
+											dT=0;
+										}
 									}
 								break;
 								default: // x0 z?
@@ -299,14 +310,16 @@ int main(int argc, char * argv[])
 						case 2: // x2 == alu[y] A,r[z]
 							if(ods.z==6) // r[z]=(HL), M1=MR(3)
 							{
-								internal[1]=RAM[*HL];
-								dT=3;
-								M++;
+								if(dT>=3)
+								{
+									internal[1]=RAM[*HL];
+									M++;
+									dT=0;
+								}
 							}
 							else // M1=IO(0)
 							{
 								internal[1]=regs[tbl_r[ods.z]];
-								dT=0;
 								M++;
 							}
 						break;
@@ -317,13 +330,15 @@ int main(int argc, char * argv[])
 									switch(ods.y)
 									{
 										case 0: // x3 z3 y0 == JP nn: M1=ODL(3)
-											internal[1]=RAM[(*PC)++];
-											M++;
-											dT=3;
+											if(dT>=3)
+											{
+												internal[1]=RAM[(*PC)++];
+												M++;
+												dT=0;
+											}
 										break;
 										case 6: // x3 z3 y6 == DI
 											IFF[0]=IFF[1]=false;
-											dT=0;
 											M=0;
 										break;
 										default: // x3 z3 y?
@@ -366,16 +381,22 @@ int main(int argc, char * argv[])
 								case 1:
 									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M2=ODH(3)
 									{
-										internal[2]=RAM[(*PC)++];
-										regs[tbl_rp[ods.p]]=I16;
-										M=0;
-										dT=3;
+										if(dT>=3)
+										{
+											internal[2]=RAM[(*PC)++];
+											regs[tbl_rp[ods.p]]=I16;
+											M=0;
+											dT=0;
+										}
 									}
 									else // x0 z1 q1 == ADD HL,rp[p]: M2=IO(3)
 									{
-										op_add16(ods, regs, shiftstate);
-										M=0;
-										dT=3;
+										if(dT>=3)
+										{
+											op_add16(ods, regs, shiftstate);
+											M=0;
+											dT=0;
+										}
 									}
 								break;
 								default:
@@ -389,7 +410,6 @@ int main(int argc, char * argv[])
 							// M2=IO(0)
 							op_alu(ods, regs, internal[1]);
 							M=0;
-							dT=0;
 						break;
 						case 3: // x3
 							switch(ods.z)
@@ -398,10 +418,13 @@ int main(int argc, char * argv[])
 									switch(ods.y)
 									{
 										case 0: // x3 z3 y0 == JP nn: M2=ODH(3)
-											internal[2]=RAM[(*PC)++];
-											M=0;
-											dT=3;
-											*PC=I16;
+											if(dT>=3)
+											{
+												internal[2]=RAM[(*PC)++];
+												*PC=I16;
+												M=0;
+												dT=0;
+											}
 										break;
 										default: // x3 z3 y?
 											fprintf(stderr, ZERR3);
@@ -427,7 +450,6 @@ int main(int argc, char * argv[])
 				errupt++;
 			break;
 		}
-		Tstates+=dT;
 		if(debug)
 			show_state(RAM, regs, Tstates, M, internal, shiftstate, IFF, intmode);
 		if(Tstates>=69888)
