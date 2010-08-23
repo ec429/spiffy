@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <SDL.h>
 #include <SDL/SDL_audio.h>
+#include "ops.h"
 
 // SDL surface params
 #define OSIZ_X	320
@@ -49,33 +50,12 @@
 #define min(a,b)	((a)>(b)?(b):(a))
 
 // z80 core error messages
-#define ZERR0	"spiffy: encountered bad shift state %u in z80 core\n", shiftstate
+#define ZERR0	"spiffy: encountered bad shift state %u (x%hhu z%hhu y%hhu) in z80 core\n", shiftstate, ods.x, ods.z, ods.y
 #define ZERR1	"spiffy: encountered bad opcode s%u x%hhu in z80 core\n", shiftstate, ods.x
 #define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu in z80 core\n", shiftstate, ods.x, ods.z
 #define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu in z80 core\n", shiftstate, ods.x, ods.y
 #define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu in z80 core\n", shiftstate, ods.x, ods.z, ods.y
 #define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core\n", M
-
-// Flags... [7]SZ5H3PNC[0]
-#define FS 0x80
-#define FZ 0x40
-#define F5 0x20
-#define FH 0x10
-#define F3 0x08
-#define FP 0x04
-#define FV FP // oVerflow and Parity are same flag
-#define FN 0x02
-#define FC 0x01
-
-typedef struct
-{
-	unsigned char x;
-	unsigned char y;
-	unsigned char z;
-	unsigned char p;
-	unsigned char q;
-}
-od;
 
 typedef struct _pos
 {
@@ -92,16 +72,8 @@ void mixaudio(void *portfe, Uint8 *stream, int len);
 
 // helper fns
 void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, unsigned char internal[3], int shiftstate, bool * IFF, int intmode);
-int parity(unsigned short int num);
 od od_bits(unsigned char opcode);
 bool cc(unsigned char which, unsigned char flags);
-
-// decoding tables (registers)
-unsigned char tbl_r[8];
-unsigned char tbl_rp[4];
-unsigned char tbl_rp2[4];
-unsigned char tbl_hl[3];
-unsigned short int *tbl_phl[3];
 
 unsigned long int ramtop;
 
@@ -248,7 +220,6 @@ int main(int argc, char * argv[])
 	int Fstate=0; // FLASH state
 	
 	bool trace=true, debug=true; // trace I/O? Generate debugging info?
-	unsigned short int pcmax=*PC; // this is used for debugging to indicate reached lines
 	
 	SDL_Flip(screen);
 	
@@ -260,9 +231,9 @@ int main(int argc, char * argv[])
 	int Tstates=0;
 	int dT=0;
 	
-	int M=0;
+	int M=0; // note: my M-cycles do not correspond to official labelling
 	unsigned char internal[3]={0,0,0}; // Internal Z80 registers
-	od bits;
+	od ods;
 	
 	int shiftstate=0;	// The 'shift state' resulting from prefixes
 						// bits as follows: 1=CB 2=ED 4=DD 8=FD
@@ -303,10 +274,108 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-					bits=od_bits(internal[0]);
+					ods=od_bits(internal[0]);
 					M++;
 				}
 				dT=4;
+			break;
+			case 1: // M1
+				switch(ods.x)
+				{
+					case 2: // x2
+						if(shiftstate&0x01)
+						{
+							fprintf(stderr, ZERR1);
+							errupt++;
+						}
+						else if(shiftstate&0x02)
+						{
+							fprintf(stderr, ZERR1);
+							errupt++;
+						}
+						else
+						{
+							// x2 s0/4/8 == alu[y] A,r[z]
+							if(ods.z==6) // r[z]=(HL), M1=MR(3)
+							{
+								internal[1]=RAM[*HL];
+								dT=3;
+								M++;
+							}
+							else // M1=IO(0)
+							{
+								internal[1]=regs[tbl_r[ods.z]];
+								dT=0;
+								M++;
+							}
+						}
+					break;
+					case 3: // x3
+						switch(ods.z)
+						{
+							case 3: // x3 z3
+								switch(ods.y)
+								{
+									case 6: // x3 z3 y6
+										switch(shiftstate)
+										{
+											case 0: // x3 z3 y6 s0 == DI
+												IFF[0]=IFF[1]=false;
+												dT=0;
+												M=0;
+											break;
+											default: // x3 z3 y6 s?
+												fprintf(stderr, ZERR0);
+												errupt++;
+											break;
+										}
+									break;
+									default: // x3 z3 y?
+										fprintf(stderr, ZERR3);
+										errupt++;
+									break;
+								}
+							break;
+							default: // x3 z?
+								fprintf(stderr, ZERR2);
+								errupt++;
+							break;
+						}
+					break;
+					default: // x?
+						fprintf(stderr, ZERR1);
+						errupt++;
+					break;
+				}
+			break;
+			case 2: // M2
+				switch(ods.x)
+				{
+					case 2: // x2
+						if(shiftstate&0x01)
+						{
+							fprintf(stderr, ZERR1);
+							errupt++;
+						}
+						else if(shiftstate&0x02)
+						{
+							fprintf(stderr, ZERR1);
+							errupt++;
+						}
+						else
+						{
+							// x2 s0/4/8 == alu[y] A,r[z]
+							// M2=IO(0)
+							op_alu(ods, regs, internal[1]);
+							M=0;
+							dT=0;
+						}
+					break;
+					default: // x?
+						fprintf(stderr, ZERR1);
+						errupt++;
+					break;
+				}
 			break;
 			default: // M?
 				fprintf(stderr, ZERRM);
@@ -314,9 +383,8 @@ int main(int argc, char * argv[])
 			break;
 		}
 		Tstates+=dT;
-		if(debug && (*PC>pcmax))
+		if(debug)
 			show_state(RAM, regs, Tstates, M, internal, shiftstate, IFF, intmode);
-		pcmax=max(pcmax, *PC);
 		if(Tstates>=69888)
 		{
 			SDL_Flip(screen);
@@ -505,16 +573,6 @@ void mixaudio(void *portfe, Uint8 *stream, int len)
 	}
 }
 #endif
-
-int parity(unsigned short int num)
-{
-	int i,p=1;
-	for(i=0;i<16;i++)
-	{
-		p+=((num&(1<<i))?1:0); // It's the naive way, I know, but it's not as if we're desperate for speed...
-	}
-	return(p%2);
-}
 
 od od_bits(unsigned char opcode)
 {

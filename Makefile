@@ -5,6 +5,9 @@ SDL = `sdl-config --cflags --libs`
 
 all: spiffy
 
-spiffy: spiffy.c
-	$(CC) $(CFLAGS) -o spiffy spiffy.c $(SDL)
+spiffy: spiffy.c ops.o ops.h
+	$(CC) $(CFLAGS) -o spiffy spiffy.c $(SDL) ops.o
+
+%.o: %.c %.h
+	$(CC) $(CFLAGS) -o $@ -c $<
 
