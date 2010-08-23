@@ -234,6 +234,7 @@ int main(int argc, char * argv[])
 		dT++;
 		if(waitline)
 			dT=min(dT, waitlim);
+		int oM=M;
 		switch(M)
 		{
 			case 0: // M0 = OCF(4)
@@ -280,8 +281,46 @@ int main(int argc, char * argv[])
 				}
 				else if(shiftstate&0x02)
 				{
-					fprintf(stderr, ZERR1);
-					errupt++;
+					switch(ods.x)
+					{
+						case 0: // s2 x0x3 == LNOP
+						case 3:
+							M=0;
+						break;
+						case 1: // s2 x1
+							switch(ods.z)
+							{
+								case 7: // s2 x1 z7
+									switch(ods.y)
+									{
+										case 0: // s2 x1 z7 y0 == LD I,A: M1=IO(1)
+											if(dT>=1)
+											{
+												regs[15]=regs[3];
+												regs[2]&=~FP;
+												if(IFF[1])
+													regs[2]|=FP;
+												M=0;
+												dT=0;
+											}
+										break;
+										default:
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								default:
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default: // s2 x?
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 				else
 				{
@@ -510,6 +549,8 @@ int main(int argc, char * argv[])
 				errupt++;
 			break;
 		}
+		if(oM&&!M) // when M is set to 0, shift is reset
+			shiftstate=0;
 		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe);
 		if(debug)
 			show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode);
