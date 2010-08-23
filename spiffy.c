@@ -71,7 +71,7 @@ void mixaudio(void *portfe, Uint8 *stream, int len);
 #endif
 
 // helper fns
-void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, unsigned char internal[3], int shiftstate, bool * IFF, int intmode);
+void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode);
 od od_bits(unsigned char opcode);
 bool cc(unsigned char which, unsigned char flags);
 
@@ -220,7 +220,7 @@ int main(int argc, char * argv[])
 						// Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
 	
 	if(debug)
-		show_state(RAM, regs, Tstates, M, internal, shiftstate, IFF, intmode);
+		show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode);
 	
 	// Main program loop
 	while(!errupt)
@@ -285,11 +285,11 @@ int main(int argc, char * argv[])
 								case 1: // x0 z1
 									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M1=ODL(3)
 									{
-										if(dT>=3)
+										if(dT>=2)
 										{
 											internal[1]=RAM[(*PC)++];
 											M++;
-											dT=0;
+											dT=-1;
 										}
 									}
 									else // x0 z1 q1 == ADD HL,rp[p]: M1=IO(4)
@@ -298,6 +298,27 @@ int main(int argc, char * argv[])
 										{
 											M++;
 											dT=0;
+										}
+									}
+								break;
+								case 6: // x0 z6 == LD r[y],n: M1=OD(3)
+									if(ods.y==6) // LD (HL),n
+									{
+										if(dT>=2)
+										{
+											internal[1]=RAM[(*PC)++];
+											M++;
+											dT=-1;
+										}
+									}
+									else
+									{
+										if(dT>=2)
+										{
+											internal[1]=RAM[(*PC)++];
+											regs[tbl_r[ods.y]]=internal[1];
+											M=0;
+											dT=-1;
 										}
 									}
 								break;
@@ -321,11 +342,11 @@ int main(int argc, char * argv[])
 						case 2: // x2 == alu[y] A,r[z]
 							if(ods.z==6) // r[z]=(HL), M1=MR(3)
 							{
-								if(dT>=3)
+								if(dT>=2)
 								{
 									internal[1]=RAM[*HL];
 									M++;
-									dT=0;
+									dT=-1;
 								}
 							}
 							else // M1=IO(0)
@@ -341,11 +362,11 @@ int main(int argc, char * argv[])
 									switch(ods.y)
 									{
 										case 0: // x3 z3 y0 == JP nn: M1=ODL(3)
-											if(dT>=3)
+											if(dT>=2)
 											{
 												internal[1]=RAM[(*PC)++];
 												M++;
-												dT=0;
+												dT=-1;
 											}
 										break;
 										case 6: // x3 z3 y6 == DI
@@ -392,21 +413,21 @@ int main(int argc, char * argv[])
 								case 1:
 									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M2=ODH(3)
 									{
-										if(dT>=3)
+										if(dT>=2)
 										{
 											internal[2]=RAM[(*PC)++];
 											regs[tbl_rp[ods.p]]=I16;
 											M=0;
-											dT=0;
+											dT=-1;
 										}
 									}
 									else // x0 z1 q1 == ADD HL,rp[p]: M2=IO(3)
 									{
-										if(dT>=3)
+										if(dT>=2)
 										{
 											op_add16(ods, regs, shiftstate);
 											M=0;
-											dT=0;
+											dT=-1;
 										}
 									}
 								break;
@@ -429,12 +450,12 @@ int main(int argc, char * argv[])
 									switch(ods.y)
 									{
 										case 0: // x3 z3 y0 == JP nn: M2=ODH(3)
-											if(dT>=3)
+											if(dT>=2)
 											{
 												internal[2]=RAM[(*PC)++];
 												*PC=I16;
 												M=0;
-												dT=0;
+												dT=-1;
 											}
 										break;
 										default: // x3 z3 y?
@@ -462,7 +483,7 @@ int main(int argc, char * argv[])
 			break;
 		}
 		if(debug)
-			show_state(RAM, regs, Tstates, M, internal, shiftstate, IFF, intmode);
+			show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode);
 		if(Tstates>=69888)
 		{
 			SDL_Flip(screen);
@@ -684,7 +705,7 @@ bool cc(unsigned char which, unsigned char flags)
 	return((rv==0)^(which%2));
 }
 
-void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, unsigned char internal[3], int shiftstate, bool * IFF, int intmode)
+void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode)
 {
 	int i;
 	printf("\nState:\n");
@@ -707,5 +728,5 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, u
 		off = (*SP) + 2*(i);
 		printf("%04x: %02x%02x\n", (unsigned short int)off, RAM[(off+1)%(1<<16)], RAM[off]);
 	}
-	printf("T-states: %u\tM-cycle: %u\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, M, internal[0], internal[1], internal[2], shiftstate);
+	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, M, dT, internal[0], internal[1], internal[2], shiftstate);
 }
