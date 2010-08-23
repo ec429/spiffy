@@ -307,6 +307,17 @@ int main(int argc, char * argv[])
 								break;
 							}
 						break;
+						case 1: // x1
+							if((ods.y==6)&&(ods.z==6)) // x1 z6 y6 == HALT
+							{
+								M=0;
+							}
+							else // x1 !(z6 y6) == LD r[y],r[z]
+							{
+								regs[tbl_r[ods.y]]=regs[tbl_r[ods.z]];
+								M=0;
+							}
+						break;
 						case 2: // x2 == alu[y] A,r[z]
 							if(ods.z==6) // r[z]=(HL), M1=MR(3)
 							{
