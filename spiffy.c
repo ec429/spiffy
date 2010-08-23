@@ -191,6 +191,7 @@ int main(int argc, char * argv[])
 	IFF[0]=IFF[1]=false;
 	int intmode=0; // Interrupt Mode
 	bool reti=false; // was the last opcode RETI?  (some hardware detects this, eg. PIO)
+	bool waitline=false; // raised by the ULA to apply contention
 	
 	enum {OFF,IN,OUT} tris=OFF;
 	unsigned short int portno=0; // Address lines for IN/OUT
@@ -228,6 +229,8 @@ int main(int argc, char * argv[])
 		block_ints=false;
 		Tstates++;
 		dT++;
+		if(waitline)
+			dT=min(dT, 1);
 		switch(M)
 		{
 			case 0: // M0 = OCF(4)
