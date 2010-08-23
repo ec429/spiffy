@@ -75,6 +75,8 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 od od_bits(unsigned char opcode);
 bool cc(unsigned char which, unsigned char flags);
 
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe);
+
 unsigned long int ramtop;
 
 int main(int argc, char * argv[])
@@ -507,12 +509,15 @@ int main(int argc, char * argv[])
 				errupt++;
 			break;
 		}
+		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe);
 		if(debug)
 			show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode);
+		SDL_Flip(screen);
 		if(Tstates>=69888)
 		{
 			SDL_Flip(screen);
 			Tstates-=69888;
+			Fstate=(Fstate+1)%32; // flash alternates every 16 frames
 			// TODO generate an interrupt
 		}
 		
@@ -754,4 +759,58 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 		printf("%04x: %02x%02x\n", (unsigned short int)off, RAM[(off+1)%(1<<16)], RAM[off]);
 	}
 	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, M, dT, internal[0], internal[1], internal[2], shiftstate);
+}
+
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe) // we don't assert the WAIT yet because we don't know if the bus is in 4000-7fff, or if we're doing an IN on an even port
+{
+	int line=(Tstates/224)-16;
+	int col=((Tstates%224)*2)-16;
+	if((line>=0) && (line<=296))
+	{
+		if((col>=0) && (col<=OSIZ_X))
+		{
+			unsigned char db,ab;
+			int ccol=(col/8)-4;
+			int crow=(line/8)-6;
+			if((Tstates%4)==0)
+			{
+				if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
+				{
+				
+					unsigned short int	dbh=0x40|(crow&0x18)|(line%8),
+										dbl=((crow&0x7)*0x20)|ccol,
+										abh=0x58|(crow>>3),
+										abl=dbl;
+					db=RAM[(dbh<<8)+dbl];
+					ab=RAM[(abh<<8)+abl];
+				}
+				else
+				{
+					db=0xff;
+					ab=portfe&0x07;
+				}
+			}
+			int ink=ab&0x07;
+			int paper=(ab&0x38)/8;
+			bool flash=ab&0x80;
+			bool bright=ab&0x40;
+			int pr,pg,pb,ir,ig,ib; // blue1 red2 green4
+			pr=(paper&2)*(bright?240:200)/2;
+			pg=(paper&4)*(bright?240:200)/4;
+			pb=(paper&1)*(bright?240:200);
+			if(paper==1) pb+=15;
+			ir=(ink&2)*(bright?240:200)/2;
+			ig=(ink&4)*(bright?240:200)/4;
+			ib=(ink&1)*(bright?240:200);
+			if(ink==1) ib+=15;
+			bool d=db&(1<<((Tstates%4)*2));
+			if(flash && (Fstate&0x10))
+				d=!d;
+			pset(screen, col, line, d?ir:pr, d?ig:pg, d?ib:pb);
+			d=db&(2<<((Tstates%4)*2));
+			if(flash && (Fstate&0x10))
+				d=!d;
+			pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
+		}
+	}
 }
