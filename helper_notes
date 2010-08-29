@@ -1,0 +1,35 @@
+"Z80 Instruction Information" flags:
+C   Z  P/V  S   N   H
+
+Decoding-bits:
+	xxppqzzz
+
+Registers (Spiffy offsets):
+	PCAFBCDEHLIxIyIRSPafbcdehl
+	1032547698badcfe1032547698
+	PC = Program Counter
+	A = Accumulator
+	F = Flags register [7]SZ5H3PNC[0]
+	BC, DE, HL: user registers
+	Ix, Iy: Index registers
+	I: Interrupt Vector
+	R: Memory Refresh
+	SP: Stack Pointer
+	afbcdehl: Alternate register set (EX/EXX)
+
+	tbl_r: B C D E H L (HL) A
+	tbl_rp: BC DE HL SP
+	tbl_rp2: BC DE HL AF
+	
+Shiftstate bits: 1=CB 2=ED 4=DD 8=FD
+
+'cc' conditions:
+	[0]NZ	Z	NC	C	PO	PE	P	M[7]
+
+block instructions:
+	y: 4=I 5=D 6=IR 7=DR	== b0: DEC (else INC); b1: REPEAT
+	z: 0=LD 1=CP 2=IN 3=OUT
+		LDxx: LD (DE),(HL); DE+-; HL+-; BC--; R? BC? PC-=2.
+		CPxx: CP A,(HL); HL+-; BC--; R? BC&&(A!=old(HL))? PC-=2.
+		INxx: IN (HL), port(BC); HL+-; B--; R? B? PC-=2.
+		OTxx: B--; OUT port(BC),(HL); HL+-; R? B? PC-=2.
