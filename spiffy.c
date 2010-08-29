@@ -649,17 +649,18 @@ int main(int argc, char * argv[])
 											STEP_OD(1);
 										break;
 										case 5: // x3 z3 y5 == EX DE,HL: M1=IO(0)
-										{
+											M=0;
 											unsigned short int tmp=*DE;
 											*DE=*HL;
 											*HL=tmp;
-										}
 										break;
 										case 6: // x3 z3 y6 == DI: M1=IO(0)
 											IFF[0]=IFF[1]=false;
+											M=0;
 										break;
 										case 7: // x3 z3 y7 == EI: M1=IO(0)
 											IFF[0]=IFF[1]=true;
+											M=0;
 										break;
 										default: // x3 z3 y?
 											fprintf(stderr, ZERR3);
