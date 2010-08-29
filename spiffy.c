@@ -78,11 +78,11 @@ void mixaudio(void *portfe, Uint8 *stream, int len);
 #endif
 
 // helper fns
-void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh);
+void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh, bool waitline);
 od od_bits(unsigned char opcode);
 bool cc(unsigned char which, unsigned char flags);
 
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate tris, unsigned short portno, bool mreq, bool iorq);
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
 
 void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
 void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
@@ -90,8 +90,11 @@ void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *
 
 unsigned long int ramtop;
 
+unsigned char uladb,ulaab,uladbb,ulaabb;
+
 int main(int argc, char * argv[])
 {
+	bool trace=true, debug=false; // trace I/O? Generate debugging info?
 	int arg;
 	for (arg=1; arg<argc; arg++)
 	{
@@ -99,6 +102,10 @@ int main(int argc, char * argv[])
 		{ // print version info and exit
 			printf(VERSION_MSG);
 			return(0);
+		}
+		else if((strcasecmp(argv[arg], "--debug") == 0) || (strcasecmp(argv[arg], "-d") == 0))
+		{ // activate debugging mode
+			debug=true;
 		}
 		else
 		{ // unrecognised option, assume it's a filename
@@ -217,8 +224,6 @@ int main(int argc, char * argv[])
 	
 	int Fstate=0; // FLASH state
 	
-	bool trace=true, debug=true; // trace I/O? Generate debugging info?
-	
 	SDL_Flip(screen);
 	
 #ifdef AUDIO
@@ -262,7 +267,7 @@ int main(int argc, char * argv[])
 				RAM[portno]=ioval;
 		}
 		if(debug)
-			show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, portno, ioval, mreq, iorq, m1, rfsh);
+			show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, portno, ioval, mreq, iorq, m1, rfsh, waitline);
 		
 		if((dT==0)&&rfsh)
 		{
@@ -287,10 +292,10 @@ int main(int argc, char * argv[])
 						portno=*PC;
 						iorq=false;
 						m1=true;
-						(*PC)++;
 						mreq=true;
 					break;
 					case 2:
+						(*PC)++;
 						internal[0]=ioval;
 						if((internal[0]==0xCB)&&(!shiftstate&0x02)) // ED CB is an instruction, not a shift
 						{
@@ -324,7 +329,7 @@ int main(int argc, char * argv[])
 						m1=false;
 						rfsh=true;
 						tris=OFF;
-						portno=*Refresh;
+						portno=((*Intvec)<<8)+*Refresh;
 						(*Refresh)++;
 						if(!((*Refresh)&0x7f)) // preserve the high bit of R
 							(*Refresh)^=0x80;
@@ -349,6 +354,24 @@ int main(int argc, char * argv[])
 						case 1: // s2 x1
 							switch(ods.z)
 							{
+								case 2: // s2 x1 z2
+									if(!ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M1=IO(4)
+									{
+										if(dT>=4)
+										{
+											M++;
+											dT=0;
+										}
+									}
+									else // s2 x1 z2 q1 == ADC HL,rp[p]: M1=IO(4)
+									{
+										if(dT>=4)
+										{
+											M++;
+											dT=0;
+										}
+									}
+								break;
 								case 7: // s2 x1 z7
 									switch(ods.y)
 									{
@@ -393,6 +416,17 @@ int main(int argc, char * argv[])
 									{
 										case 0: // x0 z0 y0 == NOP: M1=IO(0)
 											M=0;
+										break;
+										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M1=OD(3);
+										case 5:
+										case 6:
+										case 7:
+											STEP_OD(1);
+											if(M>1)
+											{
+												if(!cc(ods.y-4, regs[2]))
+													M=0;
+											}
 										break;
 										default:
 											fprintf(stderr, ZERR3);
@@ -530,8 +564,42 @@ int main(int argc, char * argv[])
 				}
 				else if(shiftstate&0x02)
 				{
-					fprintf(stderr, ZERR1);
-					errupt++;
+					switch(ods.x)
+					{
+						case 1: // s2 x1
+							switch(ods.z)
+							{
+								case 2: // s2 x1 z2
+									if(!ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M2=IO(3)
+									{
+										if(dT>=2)
+										{
+											op_sbc16(regs, 8, tbl_rp[ods.p]);
+											M=0;
+											dT=-1;
+										}
+									}
+									else // s2 x1 z2 q1 == ADC HL,rp[p]: M2=IO(3)
+									{
+										if(dT>=2)
+										{
+											op_adc16(regs, 8, tbl_rp[ods.p]);
+											M=0;
+											dT=-1;
+										}
+									}
+								break;
+								default:
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default:
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 				else
 				{
@@ -540,7 +608,27 @@ int main(int argc, char * argv[])
 						case 0: // x0
 							switch(ods.z)
 							{
-								case 1:
+								case 0: // x0 z0
+									switch(ods.y)
+									{
+										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M2=IO(5);
+										case 5:
+										case 6:
+										case 7:
+											if(dT>=4)
+											{
+												(*PC)+=(signed char)internal[1];
+												dT=-1;
+												M=0;
+											}
+										break;
+										default:
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								case 1: // x0 z1
 									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M2=ODH(3)
 									{
 										STEP_OD(2);
@@ -633,8 +721,7 @@ int main(int argc, char * argv[])
 		}
 		if(oM&&!M) // when M is set to 0, shift is reset
 			shiftstate=0;
-		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe, tris, portno, mreq, iorq);
-		SDL_Flip(screen);
+		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe, &tris, &portno, &mreq, iorq, ioval);
 		if(Tstates>=69888)
 		{
 			SDL_Flip(screen);
@@ -711,8 +798,7 @@ int main(int argc, char * argv[])
 		}
 	}
 	
-	if(debug)
-		show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, portno, ioval, mreq, iorq, m1, rfsh);
+	show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, portno, ioval, mreq, iorq, m1, rfsh, waitline);
 	
 	// clean up
 	if(SDL_MUSTLOCK(screen))
@@ -860,7 +946,7 @@ bool cc(unsigned char which, unsigned char flags)
 	return((rv==0)^(which%2));
 }
 
-void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh)
+void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh, bool waitline)
 {
 	int i;
 	printf("\nState:\n");
@@ -884,42 +970,41 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 		printf("%04x: %02x%02x\n", (unsigned short int)off, RAM[(off+1)%(1<<16)], RAM[off]);
 	}
 	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, M, dT, internal[0], internal[1], internal[2], shiftstate);
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s\n", portno, ioval, tris==OUT?"WR":"wr", tris==IN?"RD":"rd", mreq?"MREQ":"mreq", iorq?"IORQ":"iorq", m1?"M1":"m1", rfsh?"RFSH":"rfsh");
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", portno, ioval, tris==OUT?"WR":"wr", tris==IN?"RD":"rd", mreq?"MREQ":"mreq", iorq?"IORQ":"iorq", m1?"M1":"m1", rfsh?"RFSH":"rfsh", waitline?"WAIT":"wait");
 }
 
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate tris, unsigned short portno, bool mreq, bool iorq) // TODO: Assert the WAIT line if the bus is in 4000-7fff during ULA DMA read, or if we're doing an IN on an even port
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
+	bool contend=false;
 	int line=(Tstates/224)-16;
 	int col=((Tstates%224)*2)-16;
 	if((line>=0) && (line<=296))
 	{
 		if((col>=0) && (col<=OSIZ_X))
 		{
-			unsigned char db,ab;
 			int ccol=(col/8)-4;
 			int crow=(line/8)-6;
-			if((Tstates%4)==0)
+			if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
 			{
-				if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
-				{
-				
-					unsigned short int	dbh=0x40|(crow&0x18)|(line%8),
-										dbl=((crow&0x7)*0x20)|ccol,
-										abh=0x58|(crow>>3),
-										abl=dbl;
-					db=RAM[(dbh<<8)+dbl];
-					ab=RAM[(abh<<8)+abl];
-				}
-				else
-				{
-					db=0xff;
-					ab=portfe&0x07;
-				}
+				unsigned short int	dbh=0x40|(crow&0x18)|(line%8),
+									dbl=((crow&0x7)*0x20)|ccol,
+									abh=0x58|(crow>>3),
+									abl=dbl;
+				uladb=RAM[(dbh<<8)+dbl];
+				ulaab=RAM[(abh<<8)+abl];
+				contend=!(((Tstates%8)==5)||((Tstates%8)==6));
 			}
-			int ink=ab&0x07;
-			int paper=(ab&0x38)/8;
-			bool flash=ab&0x80;
-			bool bright=ab&0x40;
+			else
+			{
+				contend=false;
+				uladb=0xff;
+				ulaab=portfe&0x07;
+			}
+			*waitline=contend&&((((*portno)&0xC000)==0x4000)||(iorq&&(*tris)&&!((*portno)%2)));
+			int ink=ulaab&0x07;
+			int paper=(ulaab&0x38)/8;
+			bool flash=ulaab&0x80;
+			bool bright=ulaab&0x40;
 			int pr,pg,pb,ir,ig,ib; // blue1 red2 green4
 			pr=(paper&2)*(bright?240:200)/2;
 			pg=(paper&4)*(bright?240:200)/4;
@@ -929,11 +1014,11 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 			ig=(ink&4)*(bright?240:200)/4;
 			ib=(ink&1)*(bright?240:200);
 			if(ink==1) ib+=15;
-			bool d=db&(1<<((Tstates%4)*2));
+			bool d=uladb&(1<<((Tstates%4)*2));
 			if(flash && (Fstate&0x10))
 				d=!d;
 			pset(screen, col, line, d?ir:pr, d?ig:pg, d?ib:pb);
-			d=db&(2<<((Tstates%4)*2));
+			d=uladb&(2<<((Tstates%4)*2));
 			if(flash && (Fstate&0x10))
 				d=!d;
 			pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
@@ -952,7 +1037,6 @@ void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris
 		case 1:
 			*tris=IN;
 			*mreq=true;
-			(*PC)++;
 		break;
 		case 2:
 			if(waitline)
@@ -961,6 +1045,7 @@ void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris
 			}
 			else
 			{
+				(*PC)++;
 				internal[ernal]=ioval;
 				*tris=OFF;
 				*portno=0;

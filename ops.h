@@ -49,3 +49,5 @@ int parity(unsigned short int num);
 
 void op_alu(od ods, unsigned char regs[27], unsigned char operand);
 void op_add16(od ods, unsigned char regs[27], int shiftstate);
+void op_adc16(unsigned char *, int, int);
+void op_sbc16(unsigned char *, int, int);

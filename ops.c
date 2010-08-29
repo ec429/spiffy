@@ -117,6 +117,41 @@ void op_add16(od ods, unsigned char regs[27], int shiftstate) // ADD HL(IxIy),rp
 	*DD=res;
 }
 
+void op_adc16(unsigned char * regs, int dest, int src)
+{
+	// ADC dd,ss: dd-=ss, F=(XXVX0X)=[SZ5H3V0C]
+	signed short int *DD = (signed short int *)(regs+dest);
+	signed short int *SS = (signed short int *)(regs+src);
+	int C=regs[2]&1;
+	signed long int res = (*DD)+(*SS)+C;
+	signed short int hd=((*DD)&0x0fff)+((*SS)&0x0fff)+C;
+	regs[2]=((res&0x8000)?FS:0); // S high bit of res
+	regs[2]|=((res&0xffff)==0?FZ:0); // Z true if res=0
+	regs[2]|=((res&0x2800)/0x100); // 53 cf bits 13,11 of res
+	regs[2]|=(hd>0x0fff?FH:0); // H true if half-carry in the high byte (here be dragons)
+	regs[2]|=((res>0x7fff)||(res<-0x8000)?FV:0); // V if overflow (not sure about this code)
+	regs[2]|=((unsigned long)*DD+(unsigned long)*SS>0xffff?FC:0); // C if carry (not sure about this code either)
+	*DD=res&0xffff;
+}
+
+void op_sbc16(unsigned char * regs, int dest, int src)
+{
+	// SBC dd,ss: dd-=ss, F=(XXVX1X)=[SZ5H3V1C]
+	signed short int *DD = (signed short int *)(regs+dest);
+	signed short int *SS = (signed short int *)(regs+src);
+	int C=regs[2]&1;
+	signed long int res = (*DD)-(*SS)-C;
+	signed short int hd=((*DD)&0x0fff)-((*SS)&0x0fff)-C;
+	regs[2]=((res>=-0x8000 && res<0)?FS:0); // S true if -0x8000<=result<0
+	regs[2]|=((res&0xffff)==0?FZ:0); // Z true if d=0
+	regs[2]|=((res&0x2800)/0x100); // 53 cf bits 13,11 of res
+	regs[2]|=(hd<0?FH:0); // H true if half-carry in the high byte (here be dragons)
+	regs[2]|=((res>0x7fff)||(res<-0x8000)?FV:0); // V if overflow (not sure about this code)
+	regs[2]|=FN; // N always true
+	regs[2]|=((unsigned)*DD<(unsigned)*SS?FC:0); // C if carry (not sure about this code either)
+	*DD=res&0xffff;
+}
+
 int parity(unsigned short int num)
 {
 	int i,p=1;
