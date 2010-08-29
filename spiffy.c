@@ -16,7 +16,9 @@
 #include <stdlib.h>
 #include <SDL.h>
 #include <SDL/SDL_audio.h>
+#include <SDL/SDL_ttf.h>
 #include <math.h>
+#include <time.h>
 #include "ops.h"
 
 // SDL surface params
@@ -71,7 +73,7 @@ typedef struct _pos
 typedef enum {OFF,IN,OUT} tristate;
 
 SDL_Surface * gf_init();
-int pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
+void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, char b);
 #ifdef AUDIO
 void mixaudio(void *portfe, Uint8 *stream, int len);
@@ -88,12 +90,19 @@ void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris
 void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
 void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *iorq, unsigned char *ioval, bool waitline);
 
+int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, char r, char g, char b);
+
 unsigned long int ramtop;
 
 unsigned char uladb,ulaab,uladbb,ulaabb;
 
 int main(int argc, char * argv[])
 {
+	TTF_Font *font=NULL;
+	if(!TTF_Init())
+	{
+		font=TTF_OpenFont("Vera.ttf", 12);
+	}
 	bool trace=true, debug=false; // trace I/O? Generate debugging info?
 	int arg;
 	for (arg=1; arg<argc; arg++)
@@ -231,6 +240,8 @@ int main(int argc, char * argv[])
 	SDL_PauseAudio(0);
 #endif
 	
+	time_t start_time=time(NULL);
+	int frames=0;
 	int Tstates=0;
 	int dT=0;
 	
@@ -462,6 +473,14 @@ int main(int argc, char * argv[])
 										M=0;
 										dT=-2;
 									}
+								break;
+								case 4: // x0 z4 == INC r[y]: M1=IO(0)
+									op_inc8(regs, tbl_r[ods.y]);
+									M=0;
+								break;
+								case 5: // x0 z5 == DEC r[y]: M1=IO(0)
+									op_dec8(regs, tbl_r[ods.y]);
+									M=0;
 								break;
 								case 6: // x0 z6 == LD r[y],n: M1=OD(3)
 									STEP_OD(1);
@@ -727,6 +746,11 @@ int main(int argc, char * argv[])
 			SDL_Flip(screen);
 			Tstates-=69888;
 			Fstate=(Fstate+1)%32; // flash alternates every 16 frames
+			frames++;
+			char text[32];
+			double spd=(frames*2.0)/(double)(time(NULL)-start_time);
+			sprintf(text, "Speed: %0.3g%%", spd);
+			dtext(screen, 8, 296, text, font, 255, 255, 0);
 			// TODO generate an interrupt
 		}
 		
@@ -829,13 +853,12 @@ SDL_Surface * gf_init()
 	return(screen);
 }
 
-int pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
+void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
 {
-	long int s_off = ((y * OSIZ_X) + x) * 4;
+	long int s_off = ((y * OSIZ_X) + x)<<2;
 	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
 		* pixloc = screen->pixels + s_off;
 	*pixloc = pixval;
-	return(0);
 }
 
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, char b)
@@ -977,13 +1000,13 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 {
 	bool contend=false;
 	int line=(Tstates/224)-16;
-	int col=((Tstates%224)*2)-16;
+	int col=((Tstates%224)<<1)-16;
 	if((line>=0) && (line<=296))
 	{
-		if((col>=0) && (col<=OSIZ_X))
+		if((col>=0) && (col<OSIZ_X))
 		{
-			int ccol=(col/8)-4;
-			int crow=(line/8)-6;
+			int ccol=(col>>3)-4;
+			int crow=(line>>3)-6;
 			if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
 			{
 				unsigned short int	dbh=0x40|(crow&0x18)|(line%8),
@@ -1002,23 +1025,25 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 			}
 			*waitline=contend&&((((*portno)&0xC000)==0x4000)||(iorq&&(*tris)&&!((*portno)%2)));
 			int ink=ulaab&0x07;
-			int paper=(ulaab&0x38)/8;
+			int paper=(ulaab&0x38)>>3;
 			bool flash=ulaab&0x80;
 			bool bright=ulaab&0x40;
 			int pr,pg,pb,ir,ig,ib; // blue1 red2 green4
-			pr=(paper&2)*(bright?240:200)/2;
-			pg=(paper&4)*(bright?240:200)/4;
-			pb=(paper&1)*(bright?240:200);
+			unsigned char t=bright?240:200;
+			pr=(paper&2)?t:0;
+			pg=(paper&4)?t:0;
+			pb=(paper&1)?t:0;
 			if(paper==1) pb+=15;
-			ir=(ink&2)*(bright?240:200)/2;
-			ig=(ink&4)*(bright?240:200)/4;
-			ib=(ink&1)*(bright?240:200);
+			ir=(ink&2)?t:0;
+			ig=(ink&4)?t:0;
+			ib=(ink&1)?t:0;
 			if(ink==1) ib+=15;
-			bool d=uladb&(1<<((Tstates%4)*2));
+			unsigned char s=1<<((Tstates%4)<<1);
+			bool d=uladb&s;
 			if(flash && (Fstate&0x10))
 				d=!d;
 			pset(screen, col, line, d?ir:pr, d?ig:pg, d?ib:pb);
-			d=uladb&(2<<((Tstates%4)*2));
+			d=uladb&(s<<1);
 			if(flash && (Fstate&0x10))
 				d=!d;
 			pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
@@ -1117,4 +1142,15 @@ void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *
 			}
 		break;
 	}
+}
+
+int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, char r, char g, char b)
+{
+	SDL_Color clrFg = {r, g, b,0};
+	SDL_Rect rcDest = {x, y, OSIZ_X, 12};
+	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
+	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
+	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
+	SDL_FreeSurface(sText);
+	return(0);
 }
