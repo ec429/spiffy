@@ -92,17 +92,22 @@ int main(int argc, char * argv[])
 		font=TTF_OpenFont("Vera.ttf", 12);
 	}
 	bool trace=true, debug=false; // trace I/O? Generate debugging info?
+	int breakpoint=-1;
 	int arg;
 	for (arg=1; arg<argc; arg++)
 	{
-		if((strcasecmp(argv[arg], "--version") == 0) || (strcasecmp(argv[arg], "-v") == 0))
+		if((strcmp(argv[arg], "--version") == 0) || (strcmp(argv[arg], "-V") == 0))
 		{ // print version info and exit
 			printf(VERSION_MSG);
 			return(0);
 		}
-		else if((strcasecmp(argv[arg], "--debug") == 0) || (strcasecmp(argv[arg], "-d") == 0))
+		else if((strcmp(argv[arg], "--debug") == 0) || (strcmp(argv[arg], "-d") == 0))
 		{ // activate debugging mode
 			debug=true;
+		}
+		else if(strncmp(argv[arg], "-b=", 3) == 0)
+		{ // activate debugging mode at a breakpoint
+			sscanf(argv[arg]+3, "%04x", &breakpoint);
 		}
 		else
 		{ // unrecognised option, assume it's a filename
@@ -246,6 +251,10 @@ int main(int argc, char * argv[])
 	// Main program loop
 	while(!errupt)
 	{
+		if((!debug)&&(*PC==breakpoint)&&m1)
+		{
+			debug=true;
+		}
 		block_ints=false;
 		Tstates++;
 		dT++;

@@ -486,6 +486,7 @@ void op_bli(od ods, unsigned char regs[27], int *dT, unsigned char *internal, in
 			{
 				(*PC)-=2;
 				*dT=-5;
+				*M=0;
 			}
 		break;
 	}
