@@ -548,12 +548,25 @@ int main(int argc, char * argv[])
 								case 1: // x3 z1
 									switch(ods.q)
 									{
-										case 0: // x3 z1 q0 = POP rp2[p]: M1=SRH(3)
+										case 0: // x3 z1 q0 == POP rp2[p]: M1=SRH(3)
 											STEP_SR(2);
 										break;
-										default: // x3 z1 q?
-											fprintf(stderr, ZERR3);
-											errupt++;
+										case 1:
+											switch(ods.p)
+											{
+												case 1: // x3 z1 q1 p1 == EXX: M1=IO(0)
+													for(i=4;i<10;i++) // BCDEHL
+													{
+														unsigned char tmp=regs[i];
+														regs[i]=regs[i+0x10];
+														regs[i+0x10]=tmp;
+													}
+												break;
+												default: // x3 z1 q1 p?
+													fprintf(stderr, ZERR3);
+													errupt++;
+												break;
+											}
 										break;
 									}
 								break;
