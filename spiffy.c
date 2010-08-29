@@ -255,6 +255,8 @@ int main(int argc, char * argv[])
 						// bits as follows: 1=CB 2=ED 4=DD 8=FD
 						// Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
 	
+	// TODO: shift states (DD, FD) on HLish access
+	
 	// Main program loop
 	while(!errupt)
 	{
@@ -384,6 +386,9 @@ int main(int argc, char * argv[])
 											dT=0;
 										}
 									}
+								break;
+								case 3: // s2 x1 z3 == LD rp[p]<=>(nn): M1=ODL(3)
+									STEP_OD(1);
 								break;
 								case 7: // s2 x1 z7
 									switch(ods.y)
@@ -686,6 +691,9 @@ int main(int argc, char * argv[])
 										}
 									}
 								break;
+								case 3: // s2 x1 z3 == LD rp[p]<=>(nn): M2=ODH(3)
+									STEP_OD(2);
+								break;
 								default:
 									fprintf(stderr, ZERR2);
 									errupt++;
@@ -841,6 +849,126 @@ int main(int argc, char * argv[])
 							errupt++;
 						break;
 					}
+				}
+			break;
+			case 3: // M3
+				if(shiftstate&0x01)
+				{
+					fprintf(stderr, ZERR1);
+					errupt++;
+				}
+				else if(shiftstate&0x02)
+				{
+					switch(ods.x)
+					{
+						case 1: // s2 x1
+							switch(ods.z)
+							{
+								case 3: // s2 x1 z3
+									switch(ods.q)
+									{
+										case 0: // s2 x1 z3 q0 == LD (nn), rp[p] : M3=MWL(3)
+											STEP_MW((internal[2]<<8)|internal[1], regs[tbl_rp[ods.p]]);
+										break;
+										case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M3=MRL(3)
+											switch(dT)
+											{
+												case 0:
+													portno=(internal[2]<<8)|internal[1];
+												break;
+												case 1:
+													tris=IN;
+													mreq=true;
+												break;
+												case 2:
+													regs[tbl_rp[ods.p]]=ioval;
+													tris=OFF;
+													mreq=false;
+													portno=0;
+													dT=-1;
+													M++;
+												break;
+											}
+										break;
+									}
+								break;
+								default: // s2 x1 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default: // s2 x?
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
+				}
+				else
+				{
+					fprintf(stderr, ZERR1);
+					errupt++;
+				}
+			break;
+			case 4: // M4
+				if(shiftstate&0x01)
+				{
+					fprintf(stderr, ZERR1);
+					errupt++;
+				}
+				else if(shiftstate&0x02)
+				{
+					switch(ods.x)
+					{
+						case 1: // s2 x1
+							switch(ods.z)
+							{
+								case 3: // s2 x1 z3
+									switch(ods.q)
+									{
+										case 0: // s2 x1 z3 q0 == LD (nn), rp[p] : M4=MWH(3)
+											STEP_MW(((internal[2]<<8)|internal[1])+1, regs[tbl_rp[ods.p]+1]);
+											if(M>4)
+												M=0;
+										break;
+										case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M4=MRH(3)
+											switch(dT)
+											{
+												case 0:
+													portno=((internal[2]<<8)|internal[1])+1;
+												break;
+												case 1:
+													tris=IN;
+													mreq=true;
+												break;
+												case 2:
+													regs[tbl_rp[ods.p]+1]=ioval;
+													tris=OFF;
+													mreq=false;
+													portno=0;
+													dT=-1;
+													M=0;
+												break;
+											}
+										break;
+									}
+								break;
+								default: // s2 x1 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default: // s2 x?
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
+				}
+				else
+				{
+					fprintf(stderr, ZERR1);
+					errupt++;
 				}
 			break;
 			default: // M?
