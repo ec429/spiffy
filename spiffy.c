@@ -56,8 +56,8 @@
 #define ZERR0	"spiffy: encountered bad shift state %u (x%hhu z%hhu y%hhu M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, M
 #define ZERR1	"spiffy: encountered bad opcode s%u x%hhu (M%u) in z80 core\n", shiftstate, ods.x, M
 #define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu (M%u) in z80 core\n", shiftstate, ods.x, ods.z, M
-#define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu (M%u) in z80 core\n", shiftstate, ods.x, ods.y, M
-#define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, M
+#define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", shiftstate, ods.x, ods.y, ods.p, ods.q, M
+#define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, ods.p, ods.q, M
 #define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core\n", M
 
 #define STEP_OD(n)		step_od(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
@@ -466,6 +466,19 @@ int main(int argc, char * argv[])
 										}
 									}
 								break;
+								case 2: // x0 z2
+									switch(ods.p)
+									{
+										case 2: // x0 z2 p2 == LD (nn)<=>HL: M1=ODL(3)
+										case 3: // x0 z2 p3 == LD (nn)<=>A: M1=ODL(3)
+											STEP_OD(1);
+										break;
+										default:
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 3: // x0 z3
 									if(dT>=0)
 									{
@@ -635,9 +648,18 @@ int main(int argc, char * argv[])
 										case 2: // x3 z3 y2 == OUT (n),A: M1=OD(3)
 											STEP_OD(1);
 										break;
-										case 6: // x3 z3 y6 == DI
+										case 5: // x3 z3 y5 == EX DE,HL: M1=IO(0)
+										{
+											unsigned short int tmp=*DE;
+											*DE=*HL;
+											*HL=tmp;
+										}
+										break;
+										case 6: // x3 z3 y6 == DI: M1=IO(0)
 											IFF[0]=IFF[1]=false;
-											M=0;
+										break;
+										case 7: // x3 z3 y7 == EI: M1=IO(0)
+											IFF[0]=IFF[1]=true;
 										break;
 										default: // x3 z3 y?
 											fprintf(stderr, ZERR3);
@@ -755,6 +777,19 @@ int main(int argc, char * argv[])
 										}
 									}
 								break;
+								case 2: // x0 z2
+									switch(ods.p)
+									{
+										case 2: // x0 z2 p2 == LD (nn)<=>HL: M2=ODH(3)
+										case 3: // x0 z2 p3 == LD (nn)<=>A: M2=ODH(3)
+											STEP_OD(2);
+										break;
+										default:
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 5: // x0 z5 == DEC r[y]
 									if(ods.y==6) // x0 z5 y6 == DEC (HL): M2=MW(3)
 									{
@@ -772,6 +807,7 @@ int main(int argc, char * argv[])
 									else
 									{
 										fprintf(stderr, ZERR3);
+										errupt++;
 									}
 								break;
 								case 6: // x0 z6 == LD r[y],n: M2(HL):=MW(3)
@@ -906,8 +942,59 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-					fprintf(stderr, ZERR1);
-					errupt++;
+					switch(ods.x)
+					{
+						case 0: // x0
+							switch(ods.z)
+							{
+								case 2: // x0 z2
+									switch(ods.p)
+									{
+										case 2: // x0 z2 p2 == LD (nn)<=>HL
+											switch(ods.q)
+											{
+												case 0: // x0 z2 p2 q0 == LD (nn),HL: M3=MWL(3)
+													STEP_MW((internal[2]<<8)|internal[1], regs[8]);
+												break;
+												case 1: // x0 z2 p2 q0 == LD HL,(nn): M3=MRL(3)
+													switch(dT)
+													{
+														case 0:
+															portno=(internal[2]<<8)|internal[1];
+														break;
+														case 1:
+															tris=IN;
+															mreq=true;
+														break;
+														case 2:
+															regs[8]=ioval;
+															tris=OFF;
+															mreq=false;
+															portno=0;
+															dT=-1;
+															M++;
+														break;
+													}
+												break;
+											}
+										break;
+										default: // x0 z2 p?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								default: // x0 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default: // x?
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 			break;
 			case 4: // M4
@@ -967,8 +1054,61 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-					fprintf(stderr, ZERR1);
-					errupt++;
+					switch(ods.x)
+					{
+						case 0: // x0
+							switch(ods.z)
+							{
+								case 2: // x0 z2
+									switch(ods.p)
+									{
+										case 2: // x0 z2 p2 == LD (nn)<=>HL
+											switch(ods.q)
+											{
+												case 0: // x0 z2 p2 q0 == LD (nn),HL: M4=MWH(3)
+													STEP_MW(((internal[2]<<8)|internal[1])+1, regs[9]);
+													if(M>4)
+														M=0;
+												break;
+												case 1: // x0 z2 p2 q0 == LD HL,(nn): M4=MRH(3)
+													switch(dT)
+													{
+														case 0:
+															portno=((internal[2]<<8)|internal[1])+1;
+														break;
+														case 1:
+															tris=IN;
+															mreq=true;
+														break;
+														case 2:
+															regs[9]=ioval;
+															tris=OFF;
+															mreq=false;
+															portno=0;
+															dT=-1;
+															M=0;
+														break;
+													}
+												break;
+											}
+										break;
+										default: // x0 z2 p?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								default: // x0 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						default: // x?
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 			break;
 			default: // M?
