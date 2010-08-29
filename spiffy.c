@@ -74,7 +74,7 @@ typedef struct _pos
 typedef enum {OFF,IN,OUT} tristate;
 
 SDL_Surface * gf_init();
-inline void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
+void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, char b);
 #ifdef AUDIO
 void mixaudio(void *portfe, Uint8 *stream, int len);
@@ -85,7 +85,7 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 od od_bits(unsigned char opcode);
 bool cc(unsigned char which, unsigned char flags);
 
-inline void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
 
 void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
 void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
@@ -1131,72 +1131,71 @@ int main(int argc, char * argv[])
 			sprintf(text, "Speed: %0.3g%%", spd);
 			dtext(screen, 8, 296, text, font, 255, 255, 0);
 			// TODO generate an interrupt
-		}
-		
-		while(SDL_PollEvent(&event))
-		{
-			switch (event.type)
+			while(SDL_PollEvent(&event))
 			{
-				case SDL_QUIT:
-					errupt++;
-				break;
-				case SDL_KEYDOWN:
-					if(event.key.type==SDL_KEYDOWN)
-					{
-						SDL_keysym key=event.key.keysym;
-						if(key.sym==SDLK_q)
+				switch (event.type)
+				{
+					case SDL_QUIT:
+						errupt++;
+					break;
+					case SDL_KEYDOWN:
+						if(event.key.type==SDL_KEYDOWN)
 						{
-							errupt++;
+							SDL_keysym key=event.key.keysym;
+							if(key.sym==SDLK_q)
+							{
+								errupt++;
+							}
+							/*
+							the ascii character is:
+							if ((key.unicode & 0xFF80) == 0)
+							{
+								// it's (char)keysym.unicode & 0x7F;
+							}
+							else
+							{
+								// it's not [low] ASCII
+							}
+							*/
 						}
-						/*
-						the ascii character is:
-						if ((key.unicode & 0xFF80) == 0)
+					break;
+					case SDL_MOUSEMOTION:
+						mouse.x=event.motion.x;
+						mouse.y=event.motion.y;
+					break;
+					case SDL_MOUSEBUTTONDOWN:
+						mouse.x=event.button.x;
+						mouse.y=event.button.y;
+						button=event.button.button;
+						switch(button)
 						{
-							// it's (char)keysym.unicode & 0x7F;
+							case SDL_BUTTON_LEFT:
+							break;
+							case SDL_BUTTON_RIGHT:
+							break;
+							case SDL_BUTTON_WHEELUP:
+							break;
+							case SDL_BUTTON_WHEELDOWN:
+							break;
 						}
-						else
+					break;
+					case SDL_MOUSEBUTTONUP:
+						mouse.x=event.button.x;
+						mouse.y=event.button.y;
+						button=event.button.button;
+						switch(button)
 						{
-							// it's not [low] ASCII
+							case SDL_BUTTON_LEFT:
+							break;
+							case SDL_BUTTON_RIGHT:
+							break;
+							case SDL_BUTTON_WHEELUP:
+							break;
+							case SDL_BUTTON_WHEELDOWN:
+							break;
 						}
-						*/
-					}
-				break;
-				case SDL_MOUSEMOTION:
-					mouse.x=event.motion.x;
-					mouse.y=event.motion.y;
-				break;
-				case SDL_MOUSEBUTTONDOWN:
-					mouse.x=event.button.x;
-					mouse.y=event.button.y;
-					button=event.button.button;
-					switch(button)
-					{
-						case SDL_BUTTON_LEFT:
-						break;
-						case SDL_BUTTON_RIGHT:
-						break;
-						case SDL_BUTTON_WHEELUP:
-						break;
-						case SDL_BUTTON_WHEELDOWN:
-						break;
-					}
-				break;
-				case SDL_MOUSEBUTTONUP:
-					mouse.x=event.button.x;
-					mouse.y=event.button.y;
-					button=event.button.button;
-					switch(button)
-					{
-						case SDL_BUTTON_LEFT:
-						break;
-						case SDL_BUTTON_RIGHT:
-						break;
-						case SDL_BUTTON_WHEELUP:
-						break;
-						case SDL_BUTTON_WHEELDOWN:
-						break;
-					}
-				break;
+					break;
+				}
 			}
 		}
 	}
@@ -1232,7 +1231,7 @@ SDL_Surface * gf_init()
 	return(screen);
 }
 
-inline void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
+void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
 {
 	long int s_off = ((y * OSIZ_X) + x)<<2;
 	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
@@ -1375,7 +1374,7 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", portno, ioval, tris==OUT?"WR":"wr", tris==IN?"RD":"rd", mreq?"MREQ":"mreq", iorq?"IORQ":"iorq", m1?"M1":"m1", rfsh?"RFSH":"rfsh", waitline?"WAIT":"wait");
 }
 
-inline void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
 	bool contend=false;
 	int line=(Tstates/224)-16;
