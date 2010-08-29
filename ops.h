@@ -5,6 +5,13 @@
 	ops - Z80 core operations
 */
 
+#include <stdbool.h>
+
+#define STEP_OD(n)		step_od(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
+#define STEP_MW(a,v)	step_mw(a, v, &dT, &M, &tris, &portno, &mreq, &ioval, waitline)
+#define STEP_PW(a,v)	step_pw(a, v, &dT, &M, &tris, &portno, &iorq, &ioval, waitline)
+#define STEP_SR(n)		step_sr(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
+
 // Flags... [7]SZ5H3PNC[0]
 #define FS 0x80
 #define FZ 0x40
@@ -15,6 +22,8 @@
 #define FV FP // oVerflow and Parity are same flag
 #define FN 0x02
 #define FC 0x01
+
+typedef enum {OFF,IN,OUT} tristate;
 
 typedef struct
 {
@@ -45,9 +54,20 @@ unsigned char tbl_rp2[4];
 
 #define I16 ((internal[2]<<8)+internal[1]) // 16 bit literal from internal registers
 
+// Helpers
 int parity(unsigned short int num);
+od od_bits(unsigned char opcode);
+bool cc(unsigned char which, unsigned char flags);
 
+// M-cycles
+void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
+void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
+void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *iorq, unsigned char *ioval, bool waitline);
+void step_sr(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
+
+// Opcodes and Opcode Groups
 void op_alu(od ods, unsigned char regs[27], unsigned char operand);
+void op_bli(od ods, unsigned char regs[27], int *dT, unsigned char *internal, int *M, tristate *tris, unsigned short *portno, bool *mreq, bool *iorq, unsigned char *ioval, bool waitline);
 void op_add16(od ods, unsigned char regs[27], int shiftstate);
 void op_adc16(unsigned char *, int, int);
 void op_sbc16(unsigned char *, int, int);

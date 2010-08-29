@@ -60,18 +60,11 @@
 #define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, ods.p, ods.q, M
 #define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core\n", M
 
-#define STEP_OD(n)		step_od(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
-#define STEP_MW(a,v)	step_mw(a, v, &dT, &M, &tris, &portno, &mreq, &ioval, waitline)
-#define STEP_PW(a,v)	step_pw(a, v, &dT, &M, &tris, &portno, &iorq, &ioval, waitline)
-#define STEP_SR(n)		step_sr(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
-
 typedef struct _pos
 {
 	int x;
 	int y;
 } pos;
-
-typedef enum {OFF,IN,OUT} tristate;
 
 SDL_Surface * gf_init();
 void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
@@ -82,15 +75,8 @@ void mixaudio(void *portfe, Uint8 *stream, int len);
 
 // helper fns
 void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh, bool waitline);
-od od_bits(unsigned char opcode);
-bool cc(unsigned char which, unsigned char flags);
 
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
-
-void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
-void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
-void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *iorq, unsigned char *ioval, bool waitline);
-void step_sr(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
 
 int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, char r, char g, char b);
 
@@ -416,6 +402,16 @@ int main(int argc, char * argv[])
 									fprintf(stderr, ZERR2);
 									errupt++;
 								break;
+							}
+						break;
+						case 2: // s2 x2
+							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
+							{
+								op_bli(ods, regs, &dT, internal, &M, &tris, &portno, &mreq, &iorq, &ioval, waitline);
+							}
+							else // LNOP
+							{
+								M=0;
 							}
 						break;
 						default: // s2 x?
@@ -1317,38 +1313,6 @@ void mixaudio(void *portfe, Uint8 *stream, int len)
 }
 #endif
 
-od od_bits(unsigned char opcode)
-{
-	od rv;
-	rv.x=opcode>>6;
-	rv.y=(opcode>>3)%8;
-	rv.z=opcode%8;
-	rv.p=rv.y>>1;
-	rv.q=rv.y%2;
-	return(rv);
-}
-
-bool cc(unsigned char which, unsigned char flags)
-{
-	bool rv;
-	switch((which%8)>>1) // if we get a bad which, we'll just assume that only the low three bits matter (bad, I know, but might come in handy)
-	{
-		case 0: // Z
-			rv=flags&FZ;
-		break;
-		case 1: // C
-			rv=flags&FC;
-		break;
-		case 2: // PE (1)
-			rv=flags&FP;
-		break;
-		case 3: // M (S)
-			rv=flags&FS;
-		break;
-	}
-	return((rv==0)^(which%2));
-}
-
 void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh, bool waitline)
 {
 	int i;
@@ -1428,130 +1392,6 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 				d=!d;
 			pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
 		}
-	}
-}
-
-void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline)
-{
-	switch(*dT)
-	{
-		case 0:
-			*tris=OFF;
-			*portno=(*PC);
-		break;
-		case 1:
-			*tris=IN;
-			*mreq=true;
-		break;
-		case 2:
-			if(waitline)
-			{
-				(*dT)--;
-			}
-			else
-			{
-				(*PC)++;
-				internal[ernal]=ioval;
-				*tris=OFF;
-				*portno=0;
-				*mreq=false;
-				(*M)++;
-				*dT=-1;
-			}
-		break;
-	}
-}
-
-void step_mw(unsigned short addr, unsigned char val, int *dT,int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline)
-{
-	switch(*dT)
-	{
-		case 0:
-			*tris=OFF;
-			*portno=addr;
-			*mreq=true;
-			*ioval=val;
-		break;
-		case 1:
-			*tris=OUT;
-		break;
-		case 2:
-			if(waitline)
-			{
-				(*dT)--;
-			}
-			else
-			{
-				*tris=OFF;
-				*portno=0;
-				*mreq=false;
-				(*M)++;
-				*dT=-1;
-			}
-		break;
-	}
-}
-
-void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *iorq, unsigned char *ioval, bool waitline)
-{
-	switch(*dT)
-	{
-		case 0:
-			*tris=OFF;
-			*portno=addr;
-			*iorq=true;
-			*ioval=val;
-		break;
-		case 1:
-			*tris=OUT;
-		break;
-		case 2:
-		break;
-		case 3:
-			if(waitline)
-			{
-				(*dT)--;
-			}
-			else
-			{
-				*tris=OFF;
-				*portno=0;
-				*iorq=false;
-				(*M)++;
-				*dT=-1;
-			}
-		break;
-	}
-}
-
-void step_sr(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline)
-{
-	switch(*dT)
-	{
-		case 0:
-			*tris=OFF;
-			*portno=(*SP);
-		break;
-		case 1:
-			*tris=IN;
-			*mreq=true;
-		break;
-		case 2:
-			if(waitline)
-			{
-				(*dT)--;
-			}
-			else
-			{
-				(*SP)++;
-				internal[ernal]=ioval;
-				*tris=OFF;
-				*portno=0;
-				*mreq=false;
-				(*M)++;
-				*dT=-1;
-			}
-		break;
 	}
 }
 
