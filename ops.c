@@ -162,24 +162,23 @@ int parity(unsigned short int num)
 	return(p%2);
 }
 
-void op_inc8(unsigned char * regs, int which)
+unsigned char op_inc8(unsigned char * regs, unsigned char operand)
 {
 	// INC r: Increment r, F=( XVX0X)=[SZ5H3V0 ]
-	unsigned char src=regs[which]+1;
-	regs[which]=src;
+	unsigned char src=operand+1;
 	regs[2]&=FC; // retain C (Carry) flag unchanged
 	regs[2]|=(src&FS); // S = Sign bit
 	regs[2]|=(src==0?FZ:0); // Z = Zero flag
 	regs[2]|=(src&(F5|F3)); // 53 = bits 5,3 of result
 	regs[2]|=(src%0x10==0?FH:0); // H = Half-carry (Here be dragons)
 	regs[2]|=(src==0x80?FV:0); // V = Overflow
+	return(src);
 }
 
-void op_dec8(unsigned char * regs, int which)
+unsigned char op_dec8(unsigned char * regs, unsigned char operand)
 {
 	// DEC r: Decrement r, F=( XVX1X)=[SZ5H3V1 ]
-	unsigned char src=regs[which]-1;
-	regs[which]=src;
+	unsigned char src=operand-1;
 	regs[2]&=FC; // retain C (Carry) flag unchanged
 	regs[2]|=(src&FS); // S = Sign bit
 	regs[2]|=(src==0?FZ:0); // Z = Zero flag
@@ -187,4 +186,5 @@ void op_dec8(unsigned char * regs, int which)
 	regs[2]|=(src%0x10==0x0f?FH:0); // H = Half-carry (Here be dragons)
 	regs[2]|=(src==0x7f?FV:0); // V = Overflow
 	regs[2]|=FN; // N (subtraction) always set
+	return(src);
 }

@@ -477,12 +477,62 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 4: // x0 z4 == INC r[y]: M1=IO(0)
-									op_inc8(regs, tbl_r[ods.y]);
-									M=0;
+									if(ods.y==6) // x0 z4 y6 == INC (HL): M1=MR(4)
+									{
+										switch(dT)
+										{
+											case 0:
+												portno=*HL;
+											break;
+											case 1:
+												tris=IN;
+												mreq=true;
+											break;
+											case 2:
+												internal[1]=ioval;
+												op_alu(ods, regs, internal[1]);
+												tris=OFF;
+												mreq=false;
+												portno=0;
+												dT=-2;
+												M++;
+											break;
+										}
+									}
+									else
+									{
+										regs[tbl_r[ods.y]]=op_inc8(regs, regs[tbl_r[ods.y]]);
+										M=0;
+									}
 								break;
 								case 5: // x0 z5 == DEC r[y]: M1=IO(0)
-									op_dec8(regs, tbl_r[ods.y]);
-									M=0;
+									if(ods.y==6) // x0 z5 y6 == DEC (HL): M1=MR(4)
+									{
+										switch(dT)
+										{
+											case 0:
+												portno=*HL;
+											break;
+											case 1:
+												tris=IN;
+												mreq=true;
+											break;
+											case 2:
+												internal[1]=ioval;
+												op_alu(ods, regs, internal[1]);
+												tris=OFF;
+												mreq=false;
+												portno=0;
+												dT=-2;
+												M++;
+											break;
+										}
+									}
+									else
+									{
+										regs[tbl_r[ods.y]]=op_dec8(regs, regs[tbl_r[ods.y]]);
+										M=0;
+									}
 								break;
 								case 6: // x0 z6 == LD r[y],n: M1=OD(3)
 									STEP_OD(1);
@@ -561,6 +611,7 @@ int main(int argc, char * argv[])
 														regs[i]=regs[i+0x10];
 														regs[i+0x10]=tmp;
 													}
+													M=0;
 												break;
 												default: // x3 z1 q1 p?
 													fprintf(stderr, ZERR3);
@@ -694,6 +745,25 @@ int main(int argc, char * argv[])
 											M=0;
 											dT=-1;
 										}
+									}
+								break;
+								case 5: // x0 z5 == DEC r[y]
+									if(ods.y==6) // x0 z5 y6 == DEC (HL): M2=MW(3)
+									{
+										if(dT==0)
+										{
+											internal[1]=op_dec8(regs, internal[1]);
+										}
+										STEP_MW(*HL, internal[1]);
+										if(M>2)
+										{
+											M=0;
+											dT=-1;
+										}
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
 									}
 								break;
 								case 6: // x0 z6 == LD r[y],n: M2(HL):=MW(3)
