@@ -74,7 +74,7 @@ typedef struct _pos
 typedef enum {OFF,IN,OUT} tristate;
 
 SDL_Surface * gf_init();
-void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
+inline void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, char b);
 #ifdef AUDIO
 void mixaudio(void *portfe, Uint8 *stream, int len);
@@ -85,7 +85,7 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 od od_bits(unsigned char opcode);
 bool cc(unsigned char which, unsigned char flags);
 
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
+inline void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
 
 void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
 void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
@@ -963,7 +963,7 @@ SDL_Surface * gf_init()
 	return(screen);
 }
 
-void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
+inline void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
 {
 	long int s_off = ((y * OSIZ_X) + x)<<2;
 	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
@@ -1106,12 +1106,12 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", portno, ioval, tris==OUT?"WR":"wr", tris==IN?"RD":"rd", mreq?"MREQ":"mreq", iorq?"IORQ":"iorq", m1?"M1":"m1", rfsh?"RFSH":"rfsh", waitline?"WAIT":"wait");
 }
 
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
+inline void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
 	bool contend=false;
 	int line=(Tstates/224)-16;
 	int col=((Tstates%224)<<1)-16;
-	if((line>=0) && (line<=296))
+	if((line>=0) && (line<296))
 	{
 		if((col>=0) && (col<OSIZ_X))
 		{
@@ -1120,7 +1120,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 			if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
 			{
 				unsigned short int	dbh=0x40|(crow&0x18)|(line%8),
-									dbl=((crow&0x7)*0x20)|ccol,
+									dbl=((crow&0x7)<<5)|ccol,
 									abh=0x58|(crow>>3),
 									abl=dbl;
 				uladb=RAM[(dbh<<8)+dbl];
