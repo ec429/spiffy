@@ -327,12 +327,14 @@ int main(int argc, char * argv[])
 							shiftstate&=~(0x0A); // ED,FD may not combine with DD
 							shiftstate|=0x04;
 							block_ints=true;
+							fprintf(stderr, "Warning - DD (unsupported)\n");
 						}
 						else if(internal[0]==0xFD)
 						{
 							shiftstate&=~(0x06); // DD,ED may not combine with FD
 							shiftstate|=0x08;
 							block_ints=true;
+							fprintf(stderr, "Warning - FD (unsupported)\n");
 						}
 						else
 						{
