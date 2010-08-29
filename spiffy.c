@@ -63,6 +63,7 @@
 #define STEP_OD(n)		step_od(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
 #define STEP_MW(a,v)	step_mw(a, v, &dT, &M, &tris, &portno, &mreq, &ioval, waitline)
 #define STEP_PW(a,v)	step_pw(a, v, &dT, &M, &tris, &portno, &iorq, &ioval, waitline)
+#define STEP_SR(n)		step_sr(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
 
 typedef struct _pos
 {
@@ -89,6 +90,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
 void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
 void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *iorq, unsigned char *ioval, bool waitline);
+void step_sr(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
 
 int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, char r, char g, char b);
 
@@ -543,6 +545,18 @@ int main(int argc, char * argv[])
 						case 3: // x3
 							switch(ods.z)
 							{
+								case 1: // x3 z1
+									switch(ods.q)
+									{
+										case 0: // x3 z1 q0 = POP rp2[p]: M1=SRH(3)
+											STEP_SR(2);
+										break;
+										default: // x3 z1 q?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 3: // x3 z3
 									switch(ods.y)
 									{
@@ -694,6 +708,19 @@ int main(int argc, char * argv[])
 						case 3: // x3
 							switch(ods.z)
 							{
+								case 1: // x3 z1
+									switch(ods.q)
+									{
+										case 0: // x3 z1 q0 = POP rp2[p]: M2=SRL(3)
+											STEP_SR(1);
+											regs[tbl_rp2[ods.p]]=(internal[2]<<8)|internal[1];
+										break;
+										default:
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 3: // x3 z3
 									switch(ods.y)
 									{
@@ -1137,6 +1164,37 @@ void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *
 				*tris=OFF;
 				*portno=0;
 				*iorq=false;
+				(*M)++;
+				*dT=-1;
+			}
+		break;
+	}
+}
+
+void step_sr(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline)
+{
+	switch(*dT)
+	{
+		case 0:
+			*tris=OFF;
+			*portno=(*SP);
+		break;
+		case 1:
+			*tris=IN;
+			*mreq=true;
+		break;
+		case 2:
+			if(waitline)
+			{
+				(*dT)--;
+			}
+			else
+			{
+				(*SP)++;
+				internal[ernal]=ioval;
+				*tris=OFF;
+				*portno=0;
+				*mreq=false;
 				(*M)++;
 				*dT=-1;
 			}
