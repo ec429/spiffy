@@ -721,6 +721,16 @@ int main(int argc, char * argv[])
 								break;
 							}
 						break;
+						case 2: // s2 x2
+							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
+							{
+								op_bli(ods, regs, &dT, internal, &M, &tris, &portno, &mreq, &iorq, &ioval, waitline);
+							}
+							else // LNOP
+							{
+								M=0;
+							}
+						break;
 						default:
 							fprintf(stderr, ZERR1);
 							errupt++;
@@ -931,6 +941,16 @@ int main(int argc, char * argv[])
 									fprintf(stderr, ZERR2);
 									errupt++;
 								break;
+							}
+						break;
+						case 2: // s2 x2
+							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
+							{
+								op_bli(ods, regs, &dT, internal, &M, &tris, &portno, &mreq, &iorq, &ioval, waitline);
+							}
+							else // LNOP
+							{
+								M=0;
 							}
 						break;
 						default: // s2 x?
