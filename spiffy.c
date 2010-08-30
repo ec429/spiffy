@@ -1004,7 +1004,7 @@ int main(int argc, char * argv[])
 												case 0: // x0 z2 p2 q0 == LD (nn),HL: M3=MWL(3)
 													STEP_MW((internal[2]<<8)|internal[1], regs[IL]);
 												break;
-												case 1: // x0 z2 p2 q0 == LD HL,(nn): M3=MRL(3)
+												case 1: // x0 z2 p2 q1 == LD HL,(nn): M3=MRL(3)
 													switch(dT)
 													{
 														case 0:
@@ -1021,6 +1021,36 @@ int main(int argc, char * argv[])
 															portno=0;
 															dT=-1;
 															M++;
+														break;
+													}
+												break;
+											}
+										break;
+										case 3: // x0 z2 p3 == LD (nn)<=>A
+											switch(ods.q)
+											{
+												case 0: // x0 z2 p3 q0 == LD (nn),A: M3=MW(3)
+													STEP_MW((internal[2]<<8)|internal[1], regs[3]);
+													if(M>3)
+														M=0;
+												break;
+												case 1: // x0 z2 p3 q1 == LD A,(nn): M3=MR(3)
+													switch(dT)
+													{
+														case 0:
+															portno=(internal[2]<<8)|internal[1];
+														break;
+														case 1:
+															tris=IN;
+															mreq=true;
+														break;
+														case 2:
+															regs[3]=ioval;
+															tris=OFF;
+															mreq=false;
+															portno=0;
+															dT=-1;
+															M=0;
 														break;
 													}
 												break;
@@ -1118,7 +1148,7 @@ int main(int argc, char * argv[])
 													if(M>4)
 														M=0;
 												break;
-												case 1: // x0 z2 p2 q0 == LD HL,(nn): M4=MRH(3)
+												case 1: // x0 z2 p2 q1 == LD HL,(nn): M4=MRH(3)
 													switch(dT)
 													{
 														case 0:
