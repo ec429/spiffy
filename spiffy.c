@@ -770,6 +770,27 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 5: // x3 z5
+									switch(ods.q)
+									{
+										case 1: // x3 z5 q1
+											switch(ods.p)
+											{
+												case 0: // x3 z5 q1 p0 == CALL nn: M1=ODL(3)
+													STEP_OD(1);
+												break;
+												default: // x3 z5 q1 p?
+													fprintf(stderr, ZERR3);
+													errupt++;
+												break;
+											}
+										break;
+										default: // x3 z5 q?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 6: // x3 z6 == alu[y] n: M1=OD(3)
 									STEP_OD(1);
 									if(M>1)
@@ -1063,6 +1084,29 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 5: // x3 z5
+									switch(ods.q)
+									{
+										case 1: // x3 z5 q1
+											switch(ods.p)
+											{
+												case 0: // x3 z5 q1 p0 == CALL nn: M2=ODH(4)
+													STEP_OD(2);
+													if(M>2)
+														dT--;
+												break;
+												default: // x3 z5 q1 p?
+													fprintf(stderr, ZERR3);
+													errupt++;
+												break;
+											}
+										break;
+										default: // x3 z5 q?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								default: // x3 z?
 									fprintf(stderr, ZERR2);
 									errupt++;
@@ -1256,6 +1300,38 @@ int main(int argc, char * argv[])
 								break;
 							}
 						break;
+						case 3: // x3
+							switch(ods.z)
+							{
+								case 5: // x3 z5
+									switch(ods.q)
+									{
+										case 1: // x3 z5 q1
+											switch(ods.p)
+											{
+												case 0: // x3 z5 q1 p0 == CALL nn: M3=SWH(3)
+													if(dT==0)
+														(*SP)--;
+													STEP_MW(*SP, (*PC)>>8);
+												break;
+												default: // x3 z5 q1 p?
+													fprintf(stderr, ZERR3);
+													errupt++;
+												break;
+											}
+										break;
+										default: // x3 z5 q?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								default: // x3 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
 						default: // x?
 							fprintf(stderr, ZERR1);
 							errupt++;
@@ -1390,6 +1466,43 @@ int main(int argc, char * argv[])
 									}
 								break;
 								default: // x0 z?
+									fprintf(stderr, ZERR2);
+									errupt++;
+								break;
+							}
+						break;
+						case 3: // x3
+							switch(ods.z)
+							{
+								case 5: // x3 z5
+									switch(ods.q)
+									{
+										case 1: // x3 z5 q1
+											switch(ods.p)
+											{
+												case 0: // x3 z5 q1 p0 == CALL nn: M4=SWL(3)
+													if(dT==0)
+														(*SP)--;
+													STEP_MW(*SP, (*PC));
+													if(M>4)
+													{
+														M=0;
+														(*PC)=I16;
+													}
+												break;
+												default: // x3 z5 q1 p?
+													fprintf(stderr, ZERR3);
+													errupt++;
+												break;
+											}
+										break;
+										default: // x3 z5 q?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
+								default: // x3 z?
 									fprintf(stderr, ZERR2);
 									errupt++;
 								break;
