@@ -220,6 +220,7 @@ int main(int argc, char * argv[])
 	bool reti=false; // was the last opcode RETI?  (some hardware detects this, eg. PIO)
 	bool waitline=false; // raised by the ULA to apply contention
 	int waitlim=1; // internal; max dT to allow while WAIT is active
+	bool disp=false; // have we had the displacement byte? (DD/FD CB)
 	
 	tristate tris=OFF;
 	bool iorq=false;
@@ -305,7 +306,7 @@ int main(int argc, char * argv[])
 						tris=OFF;
 						portno=*PC;
 						iorq=false;
-						m1=true;
+						m1=true; // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?  Or just for the first prefix?  I implement the former)
 					break;
 					case 1:
 						tris=IN;
@@ -317,34 +318,49 @@ int main(int argc, char * argv[])
 					case 2:
 						(*PC)++;
 						internal[0]=ioval;
-						if((internal[0]==0xCB)&&!(shiftstate&0x02)) // ED CB is an instruction, not a shift
-						{
-							shiftstate|=0x01;
+						if((shiftstate&0x01)&&(shiftstate&0x0C)&&!disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
+						{ // Possible further M1 line incorrectness, as I have M1 active for d
+							internal[1]=ioval;
 							block_ints=true;
-						}
-						else if((internal[0]==0xED)&&!(shiftstate&0x01)) // CB ED is an instruction, not a shift
-						{
-							shiftstate=0x02; // ED may not combine
-							block_ints=true;
-						}
-						else if(internal[0]==0xDD)
-						{
-							shiftstate&=~(0x0A); // ED,FD may not combine with DD
-							shiftstate|=0x04;
-							block_ints=true;
-						}
-						else if(internal[0]==0xFD)
-						{
-							shiftstate&=~(0x06); // DD,ED may not combine with FD
-							shiftstate|=0x08;
-							block_ints=true;
+							dT=-1;
+							disp=true;
 						}
 						else
 						{
-							ods=od_bits(internal[0]);
-							M++;
+							if((internal[0]==0xCB)&&!(shiftstate&0x02)) // ED CB is an instruction, not a shift
+							{
+								shiftstate|=0x01;
+								block_ints=true;
+							}
+							else if((internal[0]==0xED)&&!(shiftstate&0x01)) // CB ED is an instruction, not a shift
+							{
+								shiftstate=0x02; // ED may not combine
+								block_ints=true;
+							}
+							else if((internal[0]==0xDD)&&(!shiftstate&0x01)) // CB DD is an instruction, not a shift
+							{
+								shiftstate&=~(0x0A); // ED,FD may not combine with DD
+								shiftstate|=0x04;
+								block_ints=true;
+								disp=false;
+							}
+							else if((internal[0]==0xFD)&&(!shiftstate&0x01)) // CB FD is an instruction, not a shift
+							{
+								shiftstate&=~(0x06); // DD,ED may not combine with FD
+								shiftstate|=0x08;
+								block_ints=true;
+								disp=false;
+							}
+							else
+							{
+								ods=od_bits(internal[0]);
+								M++;
+							}
+							dT=-2;
+							if(disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
+								dT--;
+							disp=false;
 						}
-						dT=-2;
 						mreq=true;
 						m1=false;
 						rfsh=true;
@@ -360,8 +376,46 @@ int main(int argc, char * argv[])
 			case 1: // M1
 				if(shiftstate&0x01)
 				{
-					fprintf(stderr, ZERR1);
-					errupt++;
+					switch(ods.x)
+					{
+						case 3: // CB x3 == SET y,r[z]
+							if(shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M1=MR(4) 
+							{
+								switch(dT)
+								{
+									case 0:
+										portno=(*IHL)+((signed char)internal[1]);
+									break;
+									case 1:
+										tris=IN;
+										mreq=true;
+									break;
+									case 2:
+										internal[2]=ioval;
+										internal[2]|=(1<<ods.y);
+										if(ods.z!=6)
+										{
+											regs[tbl_r[ods.z]]=internal[2]; // H and L are /not/ IXYfied
+										}
+										tris=OFF;
+										mreq=false;
+										portno=0;
+										dT=-2;
+										M++;
+									break;
+								}
+							}
+							else // CB x3 == SET y,r[z]
+							{
+								fprintf(stderr, ZERR0);
+								errupt++;
+							}
+						break;
+						default:
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 				else if(shiftstate&0x02)
 				{
@@ -740,8 +794,26 @@ int main(int argc, char * argv[])
 			case 2: // M2
 				if(shiftstate&0x01)
 				{
-					fprintf(stderr, ZERR1);
-					errupt++;
+					switch(ods.x)
+					{
+						case 3: // CB x3 == SET y,r[z]
+							if(shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M2=MW(3)
+							{
+								STEP_MW((*IHL)+((signed char)internal[1]), internal[2]);
+								if(M>2)
+									M=0;
+							}
+							else
+							{
+								fprintf(stderr, ZERR0);
+								errupt++;
+							}
+						break;
+						default:
+							fprintf(stderr, ZERR1);
+							errupt++;
+						break;
+					}
 				}
 				else if(shiftstate&0x02)
 				{
@@ -1335,7 +1407,10 @@ int main(int argc, char * argv[])
 			break;
 		}
 		if(oM&&!M) // when M is set to 0, shift is reset
+		{
 			shiftstate=0;
+			disp=false;
+		}
 		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe, &tris, &portno, &mreq, iorq, ioval);
 		if(Tstates>=69888)
 		{
