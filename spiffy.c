@@ -695,6 +695,14 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 6: // x3 z6 == alu[y] n: M1=OD(3)
+									STEP_OD(1);
+									if(M>1)
+									{
+										op_alu(ods, regs, internal[1]);
+										M=0;
+									}
+								break;
 								default: // x3 z?
 									fprintf(stderr, ZERR2);
 									errupt++;
