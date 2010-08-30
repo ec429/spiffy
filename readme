@@ -1,0 +1,12 @@
+Spiffy: Yet another ZX Spectrum emulator
+Readme.
+
+Spiffy is currently in an early stage of development; the Z80 core is only partially done, and of peripherals only the screen has been added.
+Also, of course, timings for that part which has been done are probably inaccurate.
+
+Notable features of Spiffy's design:
+The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
+The main bus (A0-A15, D0-D7, /MREQ, /IORQ, /RD, /WR, /M1, /RFSH, /WAIT) is fully populated with the correct control signals; for instance all memory reads from the Z80 are actually performed by asserting the bus, then reading D0-D7 on the next Tstate.  In other words, the communication between the Z80 and other 'virtual chips' is confined entirely to the virtual bus.  This should make the implementation of peripherals a simple matter.
+
+Pitfalls to beware of:
+In debugging information, Spiffy refers to M-cycles, but be warned!  These do not match up to official documentation.  The opcode fetch cycle (usually M1) is notated M0; subsequent M-cycles are similarly reduced by one.  Prefixes are considered to be an extra M0.  Single-cycle operations consist of two Spiffy M-cycles, M0 (opcode fetch, 4T) and M1 (internal operation, 0-2T).  Also, some cleverness is practiced with the 'dT' counter (that is, Tstate within this M-cycle) - it is often set to a negative value and the M counter incremented early, when an M-cycle has finished processing before its allotted Tstates are up.  Generally debugging information should always be interpreted with reference to the source code, rather than to one's expectations of the normal behaviour of a Z80 or to common conventions used to document said behaviour.
