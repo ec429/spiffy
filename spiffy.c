@@ -1358,9 +1358,9 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 	{
 		printf("%02x%02x ", regs[i+1], regs[i]);
 	}
-	printf("%c %c %1x", IFF[0]?'1':'0', IFF[1]?'1':'0', intmode);
-	printf("\n\n");
-	printf("Memory - near (PC), (HL) and (SP):\n");
+	printf("%c %c %1x\n", IFF[0]?'1':'0', IFF[1]?'1':'0', intmode);
+	printf("\n");
+	printf("Memory\t- near (PC), (HL) and (SP):\n");
 	for(i=0;i<5;i++)
 	{
 		unsigned short int off = (*PC) + 8*(i-2);
@@ -1372,6 +1372,20 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 		off = (*SP) + 2*(i);
 		printf("%04x: %02x%02x\n", (unsigned short int)off, RAM[(off+1)%(1<<16)], RAM[off]);
 	}
+	printf("\t- near (BC), (DE) and (nn):\n");
+	for(i=0;i<5;i++)
+	{
+		unsigned short int off = (*BC) + 8*(i-2);
+		off-=off%8;
+		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
+		off = (*DE) + 8*(i-2);
+		off-=off%8;
+		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
+		off = I16 + 4*(i-2);
+		off-=off%4;
+		printf("%04x: %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3]);
+	}
+	printf("\n");
 	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, M, dT, internal[0], internal[1], internal[2], shiftstate);
 	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", portno, ioval, tris==OUT?"WR":"wr", tris==IN?"RD":"rd", mreq?"MREQ":"mreq", iorq?"IORQ":"iorq", m1?"M1":"m1", rfsh?"RFSH":"rfsh", waitline?"WAIT":"wait");
 }
