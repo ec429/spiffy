@@ -129,7 +129,7 @@ int main(int argc, char * argv[])
 	cls.w=OSIZ_X;
 	cls.h=OSIZ_Y-256;
 	int errupt = 0;
-	unsigned char portfe=0xFF; // used by mixaudio (for the EAR) and the screen update (for the BORDCR)
+	unsigned char portfe=0; // used by mixaudio (for the EAR) and the screen update (for the BORDCR)
 #ifdef AUDIO
 	SDL_AudioSpec fmt;
 	fmt.freq = SAMPLE_RATE;
@@ -276,6 +276,13 @@ int main(int argc, char * argv[])
 			if((portno&0xC000)&&(portno<ramtop))
 				RAM[portno]=ioval;
 		}
+		
+		if(iorq&&(tris==OUT))
+		{
+			if(!(portno&0x01))
+				portfe=ioval;
+		}
+		
 		if(debug)
 			show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, portno, ioval, mreq, iorq, m1, rfsh, waitline);
 		
