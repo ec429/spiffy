@@ -796,8 +796,9 @@ int main(int argc, char * argv[])
 				{
 					switch(ods.x)
 					{
+						case 2: // CB x2 == RES y,r[z]
 						case 3: // CB x3 == SET y,r[z]
-							if(shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M2=MW(3)
+							if(shiftstate&0x0C) // FD/DD CB d x2/3 == LD r[z],RES/SET y,(IXY+d): M2=MW(3)
 							{
 								STEP_MW((*IHL)+((signed char)internal[1]), internal[2]);
 								if(M>2)
