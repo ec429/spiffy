@@ -33,3 +33,6 @@ block instructions:
 		CPxx: CP A,(HL); HL+-; BC--; R? BC&&(A!=old(HL))? PC-=2.
 		INxx: IN (HL), port(BC); HL+-; B--; R? B? PC-=2.
 		OTxx: B--; OUT port(BC),(HL); HL+-; R? B? PC-=2.
+
+IM:
+	The undoc IM 0/1 (ED 4E and others) sets IM 1 (Paul Dunn, personal communication)

@@ -39,6 +39,8 @@ od;
 unsigned char tbl_r[8];
 unsigned char tbl_rp[4];
 unsigned char tbl_rp2[4];
+// 	(other tables)
+unsigned char tbl_im[4];
 
 // Names/ptrs for the common regs; these tricks rely on the system being little-endian
 #define PC (unsigned short int *)regs

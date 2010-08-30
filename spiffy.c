@@ -207,6 +207,11 @@ int main(int argc, char * argv[])
 	tbl_rp2[1]=6;
 	tbl_rp2[2]=8;
 	tbl_rp2[3]=2;
+	// Fill in other decoding tables
+	// tbl_im: 0 1 1 2
+	tbl_im[0]=0;
+	tbl_im[1]=tbl_im[2]=1;
+	tbl_im[3]=2;
 	
 	bool IFF[2]; // Interrupts Flip Flops
 	bool block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
@@ -393,6 +398,10 @@ int main(int argc, char * argv[])
 								break;
 								case 3: // s2 x1 z3 == LD rp[p]<=>(nn): M1=ODL(3)
 									STEP_OD(1);
+								break;
+								case 6: // s2 x1 z6 == IM im[y]: M1=IO(0)
+									intmode=tbl_im[ods.y&3];
+									M=0;
 								break;
 								case 7: // s2 x1 z7
 									switch(ods.y)
@@ -633,7 +642,7 @@ int main(int argc, char * argv[])
 										case 0: // x3 z1 q0 == POP rp2[p]: M1=SRH(3)
 											STEP_SR(2);
 										break;
-										case 1:
+										case 1: // x3 z1 q1
 											switch(ods.p)
 											{
 												case 1: // x3 z1 q1 p1 == EXX: M1=IO(0)
@@ -644,6 +653,14 @@ int main(int argc, char * argv[])
 														regs[i+0x10]=tmp;
 													}
 													M=0;
+												break;
+												case 3: // x3 z1 q1 p3 == LD SP, HL: M1=IO(2)
+													if(dT==0)
+													{
+														*SP=*HL;
+														dT=-2;
+														M=0;
+													}
 												break;
 												default: // x3 z1 q1 p?
 													fprintf(stderr, ZERR3);
