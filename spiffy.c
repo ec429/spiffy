@@ -378,8 +378,41 @@ int main(int argc, char * argv[])
 				{
 					switch(ods.x)
 					{
+						case 2: // CB x2 == RES y,r[z]
+							if(shiftstate&0x0C) // FD/DD CB d x2 == LD r[z],RES y,(IXY+d): M1=MR(4)
+							{
+								switch(dT)
+								{
+									case 0:
+										portno=(*IHL)+((signed char)internal[1]);
+									break;
+									case 1:
+										tris=IN;
+										mreq=true;
+									break;
+									case 2:
+										internal[2]=ioval;
+										internal[2]&=~(1<<ods.y);
+										if(ods.z!=6)
+										{
+											regs[tbl_r[ods.z]]=internal[2]; // H and L are /not/ IXYfied
+										}
+										tris=OFF;
+										mreq=false;
+										portno=0;
+										dT=-2;
+										M++;
+									break;
+								}
+							}
+							else // CB x2 == RES y,r[z]
+							{
+								fprintf(stderr, ZERR0);
+								errupt++;
+							}
+						break;
 						case 3: // CB x3 == SET y,r[z]
-							if(shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M1=MR(4) 
+							if(shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M1=MR(4)
 							{
 								switch(dT)
 								{
