@@ -55,6 +55,11 @@ unsigned char tbl_im[4];
 #define SP (unsigned short int *)(regs+16)
 
 #define I16 ((internal[2]<<8)+internal[1]) // 16 bit literal from internal registers
+#define IHL (unsigned short int *)((shiftstate&4)?Ix:(shiftstate&8)?Iy:HL) // HL except where modified by DD/FD prefixes (pointer to word)
+#define IH	((shiftstate&4)?0xb:(shiftstate&8)?0xd:9) // H, IXh or IYh (regs offset)
+#define IL	((shiftstate&4)?0xa:(shiftstate&8)?0xc:8) // L, IXl or IYl (regs offset)
+#define IRP(r)	((r==8)?IL:r) // IXYfy an rp offset
+#define IR(r)	((r==8)?IL:(r==9)?IH:r) // IXYfy a regs offset
 
 // Helpers
 int parity(unsigned short int num);

@@ -251,8 +251,6 @@ int main(int argc, char * argv[])
 						// bits as follows: 1=CB 2=ED 4=DD 8=FD
 						// Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
 	
-	// TODO: shift states (DD, FD) on HLish access
-	
 	// Main program loop
 	while(!errupt)
 	{
@@ -334,14 +332,12 @@ int main(int argc, char * argv[])
 							shiftstate&=~(0x0A); // ED,FD may not combine with DD
 							shiftstate|=0x04;
 							block_ints=true;
-							fprintf(stderr, "Warning - DD (unsupported)\n");
 						}
 						else if(internal[0]==0xFD)
 						{
 							shiftstate&=~(0x06); // DD,ED may not combine with FD
 							shiftstate|=0x08;
 							block_ints=true;
-							fprintf(stderr, "Warning - FD (unsupported)\n");
 						}
 						else
 						{
@@ -507,11 +503,11 @@ int main(int argc, char * argv[])
 									{
 										if(!ods.q) // x0 z3 q0 == INC rp[p]: M1=IO(2)
 										{
-											(*(unsigned short *)(regs+tbl_rp[ods.p]))++;
+											(*(unsigned short *)(regs+IRP(tbl_rp[ods.p])))++;
 										}
 										else // x0 z3 q1 == DEC rp[p]: M1=IO(2)
 										{
-											(*(unsigned short *)(regs+tbl_rp[ods.p]))--;
+											(*(unsigned short *)(regs+IRP(tbl_rp[ods.p])))--;
 										}
 										M=0;
 										dT=-2;
@@ -523,7 +519,7 @@ int main(int argc, char * argv[])
 										switch(dT)
 										{
 											case 0:
-												portno=*HL;
+												portno=*IHL;
 											break;
 											case 1:
 												tris=IN;
@@ -542,7 +538,7 @@ int main(int argc, char * argv[])
 									}
 									else
 									{
-										regs[tbl_r[ods.y]]=op_inc8(regs, regs[tbl_r[ods.y]]);
+										regs[IR(tbl_r[ods.y])]=op_inc8(regs, regs[IR(tbl_r[ods.y])]);
 										M=0;
 									}
 								break;
@@ -552,7 +548,7 @@ int main(int argc, char * argv[])
 										switch(dT)
 										{
 											case 0:
-												portno=*HL;
+												portno=*IHL;
 											break;
 											case 1:
 												tris=IN;
@@ -571,7 +567,7 @@ int main(int argc, char * argv[])
 									}
 									else
 									{
-										regs[tbl_r[ods.y]]=op_dec8(regs, regs[tbl_r[ods.y]]);
+										regs[IR(tbl_r[ods.y])]=op_dec8(regs, regs[IR(tbl_r[ods.y])]);
 										M=0;
 									}
 								break;
@@ -581,7 +577,7 @@ int main(int argc, char * argv[])
 									{
 										if(M>1)
 										{
-											regs[tbl_r[ods.y]]=internal[1];
+											regs[IR(tbl_r[ods.y])]=internal[1];
 											M=0;
 										}
 									}
@@ -599,7 +595,7 @@ int main(int argc, char * argv[])
 							}
 							else // x1 !(z6 y6) == LD r[y],r[z]
 							{
-								regs[tbl_r[ods.y]]=regs[tbl_r[ods.z]];
+								regs[IR(tbl_r[ods.y])]=regs[IR(tbl_r[ods.z])];
 								M=0;
 							}
 						break;
@@ -609,7 +605,7 @@ int main(int argc, char * argv[])
 								switch(dT)
 								{
 									case 0:
-										portno=*HL;
+										portno=*IHL;
 									break;
 									case 1:
 										tris=IN;
@@ -628,7 +624,7 @@ int main(int argc, char * argv[])
 							}
 							else // M1=IO(0)
 							{
-								internal[1]=regs[tbl_r[ods.z]];
+								internal[1]=regs[IR(tbl_r[ods.z])];
 								op_alu(ods, regs, internal[1]);
 								M=0;
 							}
@@ -657,7 +653,7 @@ int main(int argc, char * argv[])
 												case 3: // x3 z1 q1 p3 == LD SP, HL: M1=IO(2)
 													if(dT==0)
 													{
-														*SP=*HL;
+														*SP=*IHL;
 														dT=-2;
 														M=0;
 													}
@@ -803,8 +799,8 @@ int main(int argc, char * argv[])
 										STEP_OD(2);
 										if(M>2)
 										{
-											regs[tbl_rp[ods.p]]=internal[1];
-											regs[tbl_rp[ods.p]+1]=internal[2];
+											regs[IRP(tbl_rp[ods.p])]=internal[1];
+											regs[IRP(tbl_rp[ods.p])+1]=internal[2];
 											M=0;
 											dT=-1;
 										}
@@ -839,7 +835,7 @@ int main(int argc, char * argv[])
 										{
 											internal[1]=op_dec8(regs, internal[1]);
 										}
-										STEP_MW(*HL, internal[1]);
+										STEP_MW(*IHL, internal[1]);
 										if(M>2)
 										{
 											M=0;
@@ -855,7 +851,7 @@ int main(int argc, char * argv[])
 								case 6: // x0 z6 == LD r[y],n: M2(HL):=MW(3)
 									if(ods.y==6)
 									{
-										STEP_MW(*HL, internal[1]);
+										STEP_MW(*IHL, internal[1]);
 										if(M>2)
 										{
 											M=0;
@@ -882,7 +878,7 @@ int main(int argc, char * argv[])
 									{
 										case 0: // x3 z1 q0 = POP rp2[p]: M2=SRL(3)
 											STEP_SR(1);
-											regs[tbl_rp2[ods.p]]=(internal[2]<<8)|internal[1];
+											regs[IRP(tbl_rp2[ods.p])]=(internal[2]<<8)|internal[1];
 										break;
 										default:
 											fprintf(stderr, ZERR3);
@@ -1006,7 +1002,7 @@ int main(int argc, char * argv[])
 											switch(ods.q)
 											{
 												case 0: // x0 z2 p2 q0 == LD (nn),HL: M3=MWL(3)
-													STEP_MW((internal[2]<<8)|internal[1], regs[8]);
+													STEP_MW((internal[2]<<8)|internal[1], regs[IL]);
 												break;
 												case 1: // x0 z2 p2 q0 == LD HL,(nn): M3=MRL(3)
 													switch(dT)
@@ -1019,7 +1015,7 @@ int main(int argc, char * argv[])
 															mreq=true;
 														break;
 														case 2:
-															regs[8]=ioval;
+															regs[IL]=ioval;
 															tris=OFF;
 															mreq=false;
 															portno=0;
@@ -1118,7 +1114,7 @@ int main(int argc, char * argv[])
 											switch(ods.q)
 											{
 												case 0: // x0 z2 p2 q0 == LD (nn),HL: M4=MWH(3)
-													STEP_MW(((internal[2]<<8)|internal[1])+1, regs[9]);
+													STEP_MW(((internal[2]<<8)|internal[1])+1, regs[IH]);
 													if(M>4)
 														M=0;
 												break;
@@ -1133,7 +1129,7 @@ int main(int argc, char * argv[])
 															mreq=true;
 														break;
 														case 2:
-															regs[9]=ioval;
+															regs[IH]=ioval;
 															tris=OFF;
 															mreq=false;
 															portno=0;

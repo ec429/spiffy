@@ -495,7 +495,7 @@ void op_bli(od ods, unsigned char regs[27], int *dT, unsigned char *internal, in
 void op_add16(od ods, unsigned char regs[27], int shiftstate) // ADD HL(IxIy),rp2[p]
 {
 	// ADD dd,ss: dd+=ss, F=(X   0?)=[  5?3 0C].  Note: It's not the same as ADC
-	unsigned short int *DD = (shiftstate&4)?Ix:(shiftstate&8)?Iy:HL;
+	unsigned short int *DD = IHL;
 	unsigned short int *SS = (unsigned short int *)(regs+tbl_rp2[ods.p]);
 	if(ods.p==2) SS=DD;
 	signed long int res = (*DD)+(*SS);
