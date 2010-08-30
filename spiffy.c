@@ -514,26 +514,33 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 4: // x0 z4 == INC r[y]: M1=IO(0)
-									if(ods.y==6) // x0 z4 y6 == INC (HL): M1=MR(4)
+									if(ods.y==6) // x0 z4 y6 == INC (HL)
 									{
-										switch(dT)
+										if(shiftstate&0xC) // DD/FD x0 z4 y6 == INC (IXY+d): M1=OD(3)
 										{
-											case 0:
-												portno=*IHL;
-											break;
-											case 1:
-												tris=IN;
-												mreq=true;
-											break;
-											case 2:
-												internal[1]=ioval;
-												op_alu(ods, regs, internal[1]);
-												tris=OFF;
-												mreq=false;
-												portno=0;
-												dT=-2;
-												M++;
-											break;
+											STEP_OD(1); // get displacement byte
+										}
+										else // x0 z4 y6 == INC (HL): M1=MR(4)
+										{
+											switch(dT)
+											{
+												case 0:
+													portno=*HL;
+												break;
+												case 1:
+													tris=IN;
+													mreq=true;
+												break;
+												case 2:
+													internal[1]=ioval;
+													op_alu(ods, regs, internal[1]);
+													tris=OFF;
+													mreq=false;
+													portno=0;
+													dT=-2;
+													M++;
+												break;
+											}
 										}
 									}
 									else
@@ -543,26 +550,33 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 5: // x0 z5 == DEC r[y]: M1=IO(0)
-									if(ods.y==6) // x0 z5 y6 == DEC (HL): M1=MR(4)
+									if(ods.y==6) // x0 z5 y6 == DEC (HL)
 									{
-										switch(dT)
+										if(shiftstate&0xC) // DD/FD x0 z5 y6 == DEC (IXY+d): M1=OD(3)
 										{
-											case 0:
-												portno=*IHL;
-											break;
-											case 1:
-												tris=IN;
-												mreq=true;
-											break;
-											case 2:
-												internal[1]=ioval;
-												op_alu(ods, regs, internal[1]);
-												tris=OFF;
-												mreq=false;
-												portno=0;
-												dT=-2;
-												M++;
-											break;
+											STEP_OD(1); // get displacement byte
+										}
+										else // x0 z5 y6 == DEC (HL): M1=MR(4)
+										{
+											switch(dT)
+											{
+												case 0:
+													portno=*HL;
+												break;
+												case 1:
+													tris=IN;
+													mreq=true;
+												break;
+												case 2:
+													internal[1]=ioval;
+													op_alu(ods, regs, internal[1]);
+													tris=OFF;
+													mreq=false;
+													portno=0;
+													dT=-2;
+													M++;
+												break;
+											}
 										}
 									}
 									else
@@ -600,26 +614,33 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 2: // x2 == alu[y] A,r[z]
-							if(ods.z==6) // r[z]=(HL), M1=MR(3)
+							if(ods.z==6) // r[z]=(HL)
 							{
-								switch(dT)
+								if(shiftstate&0xC) // alu[y] A,(IXY+d): M1=OD(3)
 								{
-									case 0:
-										portno=*IHL;
-									break;
-									case 1:
-										tris=IN;
-										mreq=true;
-									break;
-									case 2:
-										internal[1]=ioval;
-										op_alu(ods, regs, internal[1]);
-										tris=OFF;
-										mreq=false;
-										portno=0;
-										dT=-1;
-										M=0;
-									break;
+									STEP_OD(1); // get displacement byte
+								}
+								else // alu[y] A,(HL): M1=MR(3)
+								{
+									switch(dT)
+									{
+										case 0:
+											portno=*HL;
+										break;
+										case 1:
+											tris=IN;
+											mreq=true;
+										break;
+										case 2:
+											internal[1]=ioval;
+											op_alu(ods, regs, internal[1]);
+											tris=OFF;
+											mreq=false;
+											portno=0;
+											dT=-1;
+											M=0;
+										break;
+									}
 								}
 							}
 							else // M1=IO(0)
@@ -836,18 +857,60 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
-								case 5: // x0 z5 == DEC r[y]
-									if(ods.y==6) // x0 z5 y6 == DEC (HL): M2=MW(3)
+								case 4: // x0 z54== INC r[y]
+									if(ods.y==6) // x0 z4 y6 == INC (HL)
 									{
-										if(dT==0)
+										if(shiftstate&0xC) // DD/FD x0 z4 y6 = INC (IXY+d): M2=IO(5)
 										{
-											internal[1]=op_dec8(regs, internal[1]);
+											if(dT==0)
+											{
+												dT=-5;
+												M++;
+											}
 										}
-										STEP_MW(*IHL, internal[1]);
-										if(M>2)
+										else // x0 z4 y6 == INC (HL): M2=MW(3)
 										{
-											M=0;
-											dT=-1;
+											if(dT==0)
+											{
+												internal[1]=op_dec8(regs, internal[1]);
+											}
+											STEP_MW(*IHL, internal[1]);
+											if(M>2)
+											{
+												M=0;
+												dT=-1;
+											}
+										}
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+								break;
+								case 5: // x0 z5 == DEC r[y]
+									if(ods.y==6) // x0 z5 y6 == DEC (HL)
+									{
+										if(shiftstate&0xC) // DD/FD x0 z5 y6 = DEC (IXY+d): M2=IO(5)
+										{
+											if(dT==0)
+											{
+												dT=-5;
+												M++;
+											}
+										}
+										else // x0 z5 y6 == DEC (HL): M2=MW(3)
+										{
+											if(dT==0)
+											{
+												internal[1]=op_dec8(regs, internal[1]);
+											}
+											STEP_MW(*IHL, internal[1]);
+											if(M>2)
+											{
+												M=0;
+												dT=-1;
+											}
 										}
 									}
 									else
@@ -859,11 +922,18 @@ int main(int argc, char * argv[])
 								case 6: // x0 z6 == LD r[y],n: M2(HL):=MW(3)
 									if(ods.y==6)
 									{
-										STEP_MW(*IHL, internal[1]);
-										if(M>2)
+										if(shiftstate&0xC) // DD/FD x0 z6 y6 = LD (IXY+d): M2=OD(3)
 										{
-											M=0;
-											dT=-1;
+											STEP_OD(2); // get operand byte
+										}
+										else // x0 z6 y6 == LD (HL),n: M2=MW(3)
+										{
+											STEP_MW(*IHL, internal[1]);
+											if(M>2)
+											{
+												M=0;
+												dT=-1;
+											}
 										}
 									}
 									else
@@ -1070,6 +1140,43 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 4: // x0 z4 == INC r[y]; M3 should only happen if DD/FD and r[y] is (HL)
+								case 5: // x0 z5 == DEC r[y]; M3 should only happen if DD/FD and r[y] is (HL)
+									if(ods.y==6)
+									{
+										if(shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M3=MR(3)
+										{
+											switch(dT)
+											{
+												case 0:
+													portno=(*IHL)+((signed char)internal[1]);
+												break;
+												case 1:
+													tris=IN;
+													mreq=true;
+												break;
+												case 2:
+													internal[2]=ioval;
+													tris=OFF;
+													mreq=false;
+													portno=0;
+													dT=-1;
+													M++;
+												break;
+											}
+										}
+										else
+										{
+											fprintf(stderr, ZERR3);
+											errupt++;
+										}
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+								break;
 								default: // x0 z?
 									fprintf(stderr, ZERR2);
 									errupt++;
@@ -1182,6 +1289,31 @@ int main(int argc, char * argv[])
 											fprintf(stderr, ZERR3);
 											errupt++;
 										break;
+									}
+								break;
+								case 4: // x0 z4 == INC r[y]; M4 should only happen if DD/FD and r[y] is (HL)
+								case 5: // x0 z5 == DEC r[y]; M4 should only happen if DD/FD and r[y] is (HL)
+									if(ods.y==6)
+									{
+										if(shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M4=MW(4)
+										{
+											STEP_MW((*IHL)+((signed char)internal[1]), internal[2]+((ods.z&1)?-1:1));
+											if(M>4)
+											{
+												dT--;
+												M=0;
+											}
+										}
+										else
+										{
+											fprintf(stderr, ZERR3);
+											errupt++;
+										}
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
 									}
 								break;
 								default: // x0 z?
