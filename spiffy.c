@@ -508,6 +508,10 @@ int main(int argc, char * argv[])
 										case 0: // x0 z0 y0 == NOP: M1=IO(0)
 											M=0;
 										break;
+										case 2: // x0 z0 y2 == DJNZ d: M1=IO(1)
+											M++;
+											dT--;
+										break;
 										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M1=OD(3);
 										case 5:
 										case 6:
@@ -899,7 +903,16 @@ int main(int argc, char * argv[])
 								case 0: // x0 z0
 									switch(ods.y)
 									{
-										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M2=IO(5);
+										case 2: // x0 z0 y2 == DJNZ d: M2=OD(3)
+											STEP_OD(1);
+											if(M>2)
+											{
+												regs[5]--; // decrement B
+												if(regs[5]==0) // and jump if not zero
+													M=0;
+											}
+										break;
+										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M2=IO(5)
 										case 5:
 										case 6:
 										case 7:
@@ -1190,6 +1203,23 @@ int main(int argc, char * argv[])
 						case 0: // x0
 							switch(ods.z)
 							{
+								case 0: // x0 z0
+									switch(ods.y)
+									{
+										case 2: // x0 z0 y2 == DJNZ d: M3=IO(5)
+											if(dT==0)
+											{
+												(*PC)+=(signed char)internal[1];
+												dT=-5;
+												M=0;
+											}
+										break;
+										default: // x0 z0 y?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 2: // x0 z2
 									switch(ods.p)
 									{
