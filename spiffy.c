@@ -317,7 +317,7 @@ int main(int argc, char * argv[])
 					case 2:
 						(*PC)++;
 						internal[0]=ioval;
-						if((internal[0]==0xCB)&&(!shiftstate&0x02)) // ED CB is an instruction, not a shift
+						if((internal[0]==0xCB)&&!(shiftstate&0x02)) // ED CB is an instruction, not a shift
 						{
 							shiftstate|=0x01;
 							block_ints=true;
