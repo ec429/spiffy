@@ -184,8 +184,8 @@ int main(int argc, char * argv[])
 	// R: Memory Refresh
 	// SP: Stack Pointer
 	// afbcdehl: Alternate register set (EX/EXX)
-	unsigned char regs[27]; // the [26] is for internal use, but is deprecated (as we now have the internal[] unnamed registers)
-	memset(regs, 0, sizeof(regs));
+	unsigned char regs[26];
+	memset(regs, 0, sizeof(unsigned char[26]));
 	
 	// Fill in register decoding tables
 	// tbl_r: B C D E H L (HL) A
@@ -195,7 +195,7 @@ int main(int argc, char * argv[])
 	tbl_r[3]=6;
 	tbl_r[4]=9;
 	tbl_r[5]=8;
-	tbl_r[6]=26; // regs[26] needs to be set up first
+	tbl_r[6]=26; // regs[26] does not exist and should not be used
 	tbl_r[7]=3;
 	// tbl_rp: BC DE HL SP
 	tbl_rp[0]=4;
@@ -740,8 +740,35 @@ int main(int argc, char * argv[])
 							}
 							else // x1 !(z6 y6) == LD r[y],r[z]
 							{
-								regs[IR(tbl_r[ods.y])]=regs[IR(tbl_r[ods.z])];
-								M=0;
+								if(ods.y==6) // LD (HL),r[z]: M1=MW(3)
+								{
+									if(shiftstate&0xC)
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+									else
+									{
+										STEP_MW(*HL, regs[tbl_r[ods.z]]);
+									}
+								}
+								else if(ods.z==6) // LD r[y],(HL): M1=MR(3)
+								{
+									if(shiftstate&0xC)
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+									else
+									{
+										STEP_MR(*HL, &regs[tbl_r[ods.y]]);
+									}
+								}
+								else // LD r,r: M1=IO(0)
+								{
+									regs[IR(tbl_r[ods.y])]=regs[IR(tbl_r[ods.z])];
+									M=0;
+								}
 							}
 						break;
 						case 2: // x2 == alu[y] A,r[z]

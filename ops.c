@@ -80,6 +80,35 @@ void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris
 	}
 }
 
+void step_mr(unsigned short addr, unsigned char *dest, int *dT,int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline)
+{
+	switch(*dT)
+	{
+		case 0:
+			*portno=addr;
+		break;
+		case 1:
+			*tris=IN;
+			*mreq=true;
+		break;
+		case 2:
+			if(waitline)
+			{
+				(*dT)--;
+			}
+			else
+			{
+				*dest=*ioval;
+				*tris=OFF;
+				*mreq=false;
+				*portno=0;
+				*dT=-1;
+				(*M)++;
+			}
+		break;
+	}
+}
+
 void step_mw(unsigned short addr, unsigned char val, int *dT,int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline)
 {
 	switch(*dT)

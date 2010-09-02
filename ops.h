@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #define STEP_OD(n)		step_od(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
+#define STEP_MR(a,v)	step_mr(a, v, &dT, &M, &tris, &portno, &mreq, &ioval, waitline)
 #define STEP_MW(a,v)	step_mw(a, v, &dT, &M, &tris, &portno, &mreq, &ioval, waitline)
 #define STEP_PW(a,v)	step_pw(a, v, &dT, &M, &tris, &portno, &iorq, &ioval, waitline)
 #define STEP_SR(n)		step_sr(&dT, internal, n, &M, &tris, &portno, &mreq, ioval, regs, waitline)
@@ -68,6 +69,7 @@ bool cc(unsigned char which, unsigned char flags);
 
 // M-cycles
 void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
+void step_mr(unsigned short addr, unsigned char *dest, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
 void step_mw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline);
 void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *iorq, unsigned char *ioval, bool waitline);
 void step_sr(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline);
