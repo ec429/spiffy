@@ -378,6 +378,46 @@ int main(int argc, char * argv[])
 				{
 					switch(ods.x)
 					{
+						case 1: // CB x1 == BIT y,r[z]
+							if(shiftstate&0x0C) // FD/DD CB d x2 == BIT y,(IXY+d): M1=MR(4)
+							{
+								switch(dT)
+								{
+									case 0:
+										portno=(*IHL)+((signed char)internal[1]);
+									break;
+									case 1:
+										tris=IN;
+										mreq=true;
+									break;
+									case 2:
+										internal[2]=ioval;
+										internal[2]&=(1<<ods.y); // internal[2] is now BIT
+										// flags
+										// SZ5H3PNC
+										// *Z*1**0-
+										// ZP: BIT == 0
+										// S: BIT && y=7
+										// 53: from (IXY+d)h
+										regs[2]&=FC;
+										regs[2]|=FH;
+										regs[2]|=internal[2]?0:(FZ|FP);
+										regs[2]|=internal[2]&FS;
+										regs[2]|=(((*IHL)+((signed char)internal[1]))>>8)&(F5|F3);
+										tris=OFF;
+										mreq=false;
+										portno=0;
+										dT=-2;
+										M=0;
+									break;
+								}
+							}
+							else // CB x2 == RES y,r[z]
+							{
+								fprintf(stderr, ZERR0);
+								errupt++;
+							}
+						break;
 						case 2: // CB x2 == RES y,r[z]
 							if(shiftstate&0x0C) // FD/DD CB d x2 == LD r[z],RES y,(IXY+d): M1=MR(4)
 							{
