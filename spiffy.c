@@ -742,26 +742,28 @@ int main(int argc, char * argv[])
 							{
 								if(ods.y==6) // LD (HL),r[z]: M1=MW(3)
 								{
-									if(shiftstate&0xC)
+									if(shiftstate&0xC) // LD (IXY+d),r[z]: M1=OD(3)
 									{
-										fprintf(stderr, ZERR3);
-										errupt++;
+										STEP_OD(1);
 									}
 									else
 									{
 										STEP_MW(*HL, regs[tbl_r[ods.z]]);
+										if(M>1)
+											M=0;
 									}
 								}
 								else if(ods.z==6) // LD r[y],(HL): M1=MR(3)
 								{
-									if(shiftstate&0xC)
+									if(shiftstate&0xC) // LD r[y],(IXY+d): M1=OD(3)
 									{
-										fprintf(stderr, ZERR3);
-										errupt++;
+										STEP_OD(1);
 									}
 									else
 									{
 										STEP_MR(*HL, &regs[tbl_r[ods.y]]);
+										if(M>1)
+											M=0;
 									}
 								}
 								else // LD r,r: M1=IO(0)
@@ -1155,6 +1157,53 @@ int main(int argc, char * argv[])
 								break;
 							}
 						break;
+						case 1: // x1
+							if((ods.y==6)&&(ods.z==6)) // x1 z6 y6 == HALT: no M2
+							{
+								fprintf(stderr, ZERR3);
+								errupt++;
+							}
+							else // x1 !(z6 y6) == LD r[y],r[z]
+							{
+								if(ods.y==6)
+								{
+									if(shiftstate&0xC) // LD (IXY+d),r[z]: M2=IO(5)
+									{
+										if(dT>=0)
+										{
+											dT-=5;
+											M++;
+										}
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+								}
+								else if(ods.z==6)
+								{
+									if(shiftstate&0xC) // LD r[y],(IXY+d): M2=IO(5)
+									{
+										if(dT>=0)
+										{
+											dT-=5;
+											M++;
+										}
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+								}
+								else // LD r,r: no M2
+								{
+									fprintf(stderr, ZERR3);
+									errupt++;
+								}
+							}
+						break;
 						case 3: // x3
 							switch(ods.z)
 							{
@@ -1428,6 +1477,49 @@ int main(int argc, char * argv[])
 									fprintf(stderr, ZERR2);
 									errupt++;
 								break;
+							}
+						break;
+						case 1: // x1
+							if((ods.y==6)&&(ods.z==6)) // x1 z6 y6 == HALT: no M3
+							{
+								fprintf(stderr, ZERR3);
+								errupt++;
+							}
+							else // x1 !(z6 y6) == LD r[y],r[z]
+							{
+								if(ods.y==6)
+								{
+									if(shiftstate&0xC) // LD (IXY+d),r[z]: M3=MW(3)
+									{
+										STEP_MW(*IHL+(signed char)internal[1], regs[tbl_r[ods.z]]); // H and L unchanged eg. LD (IX+d),H (not IXH)
+										if(M>3)
+											M=0;
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+								}
+								else if(ods.z==6)
+								{
+									if(shiftstate&0xC) // LD r[y],(IXY+d): M3=MR(3)
+									{
+										STEP_MR(*IHL+(signed char)internal[1], &regs[tbl_r[ods.y]]); // H and L unchanged eg. LD H,(IX+d) (not IXH)
+										if(M>3)
+											M=0;
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+								}
+								else // LD r,r: no M3
+								{
+									fprintf(stderr, ZERR3);
+									errupt++;
+								}
 							}
 						break;
 						case 3: // x3
