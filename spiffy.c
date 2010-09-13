@@ -293,6 +293,7 @@ int main(int argc, char * argv[])
 						bus->tris=OFF;
 						bus->addr=*PC;
 						bus->iorq=false;
+						bus->mreq=false;
 						bus->m1=true; // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?  Or just for the first prefix?  I implement the former)
 					break;
 					case 1:
@@ -605,7 +606,6 @@ int main(int argc, char * argv[])
 											STEP_MR(*HL, &cpu->internal[1]);
 											if(cpu->M>1)
 											{
-												cpu->internal[1]=op_inc8(cpu, cpu->internal[1]);
 												cpu->dT=-2;
 											}
 										}
@@ -628,7 +628,6 @@ int main(int argc, char * argv[])
 											STEP_MR(*HL, &cpu->internal[1]);
 											if(cpu->M>1)
 											{
-												cpu->internal[1]=op_dec8(cpu, cpu->internal[1]);
 												cpu->dT=-2;
 											}
 										}
