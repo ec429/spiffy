@@ -49,154 +49,163 @@ bool cc(unsigned char which, unsigned char flags)
 	return((rv==0)^(which%2));
 }
 
-void step_od(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline)
+void step_od(z80 *cpu, int ernal, bus_t *bus)
 {
-	switch(*dT)
+	switch(cpu->dT)
 	{
 		case 0:
-			*tris=OFF;
-			*portno=(*PC);
+			bus->tris=OFF;
+			bus->addr=(*PC);
 		break;
 		case 1:
-			*tris=IN;
-			*mreq=true;
+			bus->tris=IN;
+			bus->addr=(*PC);
+			bus->mreq=true;
 		break;
 		case 2:
-			if(waitline)
+			if(bus->waitline)
 			{
-				(*dT)--;
+				cpu->dT--;
 			}
 			else
 			{
 				(*PC)++;
-				internal[ernal]=ioval;
-				*tris=OFF;
-				*portno=0;
-				*mreq=false;
-				(*M)++;
-				*dT=-1;
+				cpu->internal[ernal]=bus->data;
+				bus->tris=OFF;
+				bus->addr=0;
+				bus->mreq=false;
+				cpu->M++;
+				cpu->dT=-1;
 			}
 		break;
 	}
 }
 
-void step_mr(unsigned short addr, unsigned char *dest, int *dT,int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline)
+void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 {
-	switch(*dT)
+	switch(cpu->dT)
 	{
 		case 0:
-			*portno=addr;
+			bus->addr=addr;
 		break;
 		case 1:
-			*tris=IN;
-			*mreq=true;
+			bus->tris=IN;
+			bus->addr=addr;
+			bus->mreq=true;
 		break;
 		case 2:
-			if(waitline)
+			if(bus->waitline)
 			{
-				(*dT)--;
+				cpu->dT--;
 			}
 			else
 			{
-				*dest=*ioval;
-				*tris=OFF;
-				*mreq=false;
-				*portno=0;
-				*dT=-1;
-				(*M)++;
+				*val=bus->data;
+				bus->tris=OFF;
+				bus->mreq=false;
+				bus->addr=0;
+				cpu->dT=-1;
+				cpu->M++;
 			}
 		break;
 	}
 }
 
-void step_mw(unsigned short addr, unsigned char val, int *dT,int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char *ioval, bool waitline)
+void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 {
-	switch(*dT)
+	switch(cpu->dT)
 	{
 		case 0:
-			*tris=OFF;
-			*portno=addr;
-			*mreq=true;
-			*ioval=val;
+			bus->tris=OFF;
+			bus->addr=addr;
+			bus->mreq=true;
+			bus->data=val;
 		break;
 		case 1:
-			*tris=OUT;
+			bus->tris=OUT;
+			bus->addr=addr;
+			bus->mreq=true;
+			bus->data=val;
 		break;
 		case 2:
-			if(waitline)
+			if(bus->waitline)
 			{
-				(*dT)--;
+				cpu->dT--;
 			}
 			else
 			{
-				*tris=OFF;
-				*portno=0;
-				*mreq=false;
-				(*M)++;
-				*dT=-1;
+				bus->tris=OFF;
+				bus->addr=0;
+				bus->mreq=false;
+				cpu->M++;
+				cpu->dT=-1;
 			}
 		break;
 	}
 }
 
-void step_pw(unsigned short addr, unsigned char val, int *dT, int *M, tristate *tris, unsigned short *portno, bool *iorq, unsigned char *ioval, bool waitline)
+void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 {
-	switch(*dT)
+	switch(cpu->dT)
 	{
 		case 0:
-			*tris=OFF;
-			*portno=addr;
-			*iorq=true;
-			*ioval=val;
+			bus->tris=OFF;
+			bus->addr=addr;
+			bus->iorq=true;
+			bus->data=val;
 		break;
 		case 1:
-			*tris=OUT;
+			bus->tris=OUT;
+			bus->addr=addr;
+			bus->iorq=true;
+			bus->data=val;
 		break;
 		case 2:
 		break;
 		case 3:
-			if(waitline)
+			if(bus->waitline)
 			{
-				(*dT)--;
+				cpu->dT--;
 			}
 			else
 			{
-				*tris=OFF;
-				*portno=0;
-				*iorq=false;
-				(*M)++;
-				*dT=-1;
+				bus->tris=OFF;
+				bus->addr=0;
+				bus->iorq=false;
+				cpu->M++;
+				cpu->dT=-1;
 			}
 		break;
 	}
 }
 
-void step_sr(int *dT, unsigned char *internal, int ernal, int *M, tristate *tris, unsigned short *portno, bool *mreq, unsigned char ioval, unsigned char regs[27], bool waitline)
+void step_sr(z80 *cpu, int ernal, bus_t *bus)
 {
-	switch(*dT)
+	switch(cpu->dT)
 	{
 		case 0:
-			*tris=OFF;
-			*portno=(*SP);
+			bus->tris=OFF;
+			bus->addr=(*SP);
 		break;
 		case 1:
-			*tris=IN;
-			*mreq=true;
+			bus->tris=IN;
+			bus->addr=(*SP);
+			bus->mreq=true;
 		break;
 		case 2:
-			if(waitline)
+			if(bus->waitline)
 			{
-				(*dT)--;
+				cpu->dT--;
 			}
 			else
 			{
 				(*SP)++;
-				internal[ernal]=ioval;
-				*tris=OFF;
-				*portno=0;
-				*mreq=false;
-				(*M)++;
-				*dT=-1;
+				cpu->internal[ernal]=bus->data;
+				bus->tris=OFF;
+				bus->addr=0;
+				bus->mreq=false;
+				cpu->M++;
+				cpu->dT=-1;
 			}
 		break;
 	}
