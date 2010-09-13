@@ -1161,6 +1161,26 @@ int main(int argc, char * argv[])
 								}
 							}
 						break;
+						case 2: // x2 == alu[y] A,r[z]
+							if(cpu->ods.z==6) // r[z]=(HL)
+							{
+								if(cpu->shiftstate&0xC) // alu[y] A,(IXY+d): M2=IO(5)
+								{
+									cpu->dT-=5;
+									cpu->M++;
+								}
+								else // alu[y] A,(HL); no M2
+								{
+									fprintf(stderr, ZERR3);
+									errupt++;
+								}
+							}
+							else // alu[y] A,r[z]; no M2
+							{
+								fprintf(stderr, ZERR3);
+								errupt++;
+							}
+						break;
 						case 3: // x3
 							switch(cpu->ods.z)
 							{
@@ -1456,6 +1476,30 @@ int main(int argc, char * argv[])
 									fprintf(stderr, ZERR3);
 									errupt++;
 								}
+							}
+						break;
+						case 2: // x2 == alu[y] A,r[z]
+							if(cpu->ods.z==6) // r[z]=(HL)
+							{
+								if(cpu->shiftstate&0xC) // alu[y] A,(IXY+d): M3=MR(3)
+								{
+									STEP_MR(*IHL+(signed char)cpu->internal[1], &cpu->internal[2]);
+									if(cpu->M>3)
+									{
+										op_alu(cpu, cpu->internal[2]);
+										cpu->M=0;
+									}
+								}
+								else // alu[y] A,(HL); no M3
+								{
+									fprintf(stderr, ZERR3);
+									errupt++;
+								}
+							}
+							else // alu[y] A,r[z]; no M3
+							{
+								fprintf(stderr, ZERR3);
+								errupt++;
 							}
 						break;
 						case 3: // x3
