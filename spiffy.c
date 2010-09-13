@@ -535,6 +535,9 @@ int main(int argc, char * argv[])
 											cpu->M++;
 											cpu->dT--;
 										break;
+										case 3: // x0 z0 y3 == JR d: M1=OD(3)
+											STEP_OD(1);
+										break;
 										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M1=OD(3);
 										case 5:
 										case 6:
@@ -955,6 +958,8 @@ int main(int argc, char * argv[])
 													cpu->M=0;
 											}
 										break;
+										case 3: // x0 z0 y3 == JR d: M2=IO(5)
+											/* fallthrough, as it's basically like a JR cc,d where cc is true */
 										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M2=IO(5)
 										case 5:
 										case 6:
