@@ -834,6 +834,10 @@ int main(int argc, char * argv[])
 								case 5: // x3 z5
 									switch(cpu->ods.q)
 									{
+										case 0: // x3 z5 q0 == PUSH rp2[p]: M1=IO(1)
+											cpu->dT--;
+											cpu->M++;
+										break;
 										case 1: // x3 z5 q1
 											switch(cpu->ods.p)
 											{
@@ -1250,6 +1254,9 @@ int main(int argc, char * argv[])
 								case 5: // x3 z5
 									switch(cpu->ods.q)
 									{
+										case 0: // x3 z5 q0 == PUSH rp2[p]: M2=SWH(3)
+											STEP_SW(cpu->regs[IRP(tbl_rp2[cpu->ods.p])+1]);
+										break;
 										case 1: // x3 z5 q1
 											switch(cpu->ods.p)
 											{
@@ -1516,6 +1523,11 @@ int main(int argc, char * argv[])
 								case 5: // x3 z5
 									switch(cpu->ods.q)
 									{
+										case 0: // x3 z5 q0 == PUSH rp2[p]: M3=SWL(3)
+											STEP_SW(cpu->regs[IRP(tbl_rp2[cpu->ods.p])]);
+											if(cpu->M>3)
+												cpu->M=0;
+										break;
 										case 1: // x3 z5 q1
 											switch(cpu->ods.p)
 											{
