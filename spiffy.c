@@ -768,6 +768,10 @@ int main(int argc, char * argv[])
 													}
 													cpu->M=0;
 												break;
+												case 2: // x3 z1 q1 p2 == JP HL(IxIy): M1=IO(0)
+													*PC=*IHL; // No displacement byte; it's HL, not (HL) - in spite of mnemonics to the contrary
+													cpu->M=0;
+												break;
 												case 3: // x3 z1 q1 p3 == LD SP, HL: M1=IO(2)
 													if(cpu->dT==0)
 													{
