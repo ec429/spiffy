@@ -657,11 +657,22 @@ int main(int argc, char * argv[])
 									{
 										case 6: // x0 z7 y6 == SCF: M1=IO(0)
 											// flags:
-											// SZ5H3PNC
 											// --*0*-01
 											// 5,3 from A
 											cpu->regs[2]&=FS|FZ|FP;
 											cpu->regs[2]|=FC;
+											cpu->regs[2]|=(cpu->regs[3]&(F5|F3));
+											cpu->M=0;
+										break;
+										case 7: // x0 z7 y7 == CCF: M1=IO(0)
+											// flags:
+											// --***-0*
+											// H as old C
+											// Complement C
+											// 5,3 from A
+											cpu->regs[2]&=FS|FZ|FP|FC;
+											cpu->regs[2]|=(cpu->regs[2]&FC)&&FH;
+											cpu->regs[2]^=FC;
 											cpu->regs[2]|=(cpu->regs[3]&(F5|F3));
 											cpu->M=0;
 										break;
