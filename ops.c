@@ -272,7 +272,7 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 		{
 			int C=cpu->regs[2]&FC;
 			signed short int res = cpu->regs[3]+operand+C;
-			signed char hd=(rcpu->egs[3]&0x0f)+(operand&0x0f)+C;
+			signed char hd=(cpu->regs[3]&0x0f)+(operand&0x0f)+C;
 			cpu->regs[2]=(res&FS); // S = sign bit
 			cpu->regs[2]|=((res&0xff)==0?FZ:0); // Z true if res=0
 			cpu->regs[2]|=(res&(F5|F3)); // 53 cf bits 5,3 of res
@@ -321,7 +321,7 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 		case 5: // XOR r: A^=operand, F=(0XPX00)=[SZ503P00]
 			cpu->regs[3]^=operand;
 			cpu->regs[2]=(cpu->regs[3]&FS)+(cpu->regs[3]==0?FZ:0); // SZ set according to res
-			cpu->regs[2]|=(regs[3]&(F5|F3)); // 53 cf bits 5,3 of A
+			cpu->regs[2]|=(cpu->regs[3]&(F5|F3)); // 53 cf bits 5,3 of A
 			cpu->regs[2]|=FP*parity(cpu->regs[3]);
 		break;
 		case 6: // OR op: A|=operand, F=(0XPX00)=[SZ503P00]
@@ -381,7 +381,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 						*DE=(cpu->ods.y&1)?(*DE)-1:(*DE)+1;
 						*HL=(cpu->ods.y&1)?(*HL)-1:(*HL)+1;
 						(*BC)--;
-						*dT=-3;
+						cpu->dT=-3;
 						int mp=cpu->internal[1]+cpu->regs[3];
 						// FLAGS!
 						// SZ5H3VNC
@@ -438,7 +438,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 					}
 				break;
 				case 2: // INxx M2: MW(3)
-					STEP_MW(*HL, internal[1]);
+					STEP_MW(*HL, cpu->internal[1]);
 					if(cpu->M>2)
 					{
 						*HL=(cpu->ods.y&1)?(*HL)-1:(*HL)+1;
@@ -475,7 +475,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 					}
 				break;
 				case 3: // OTxx M2: PW(4)
-					STEP_PW(*HL, internal[1]);
+					STEP_PW(*HL, cpu->internal[1]);
 					if(cpu->M>2)
 					{
 						*HL=(cpu->ods.y&1)?(*HL)-1:(*HL)+1;
@@ -542,7 +542,7 @@ void op_add16(z80 *cpu) // ADD HL(IxIy),rp2[p]
 void op_adc16(z80 *cpu)
 {
 	// ADC dd,ss: dd-=ss, F=(XXVX0X)=[SZ5H3V0C]
-	signed short int *DD = IHL;
+	signed short int *DD = (signed short int *)IHL;
 	signed short int *SS = (signed short int *)(cpu->regs+tbl_rp[cpu->ods.p]);
 	int C=cpu->regs[2]&1;
 	signed long int res = (*DD)+(*SS)+C;
@@ -559,7 +559,7 @@ void op_adc16(z80 *cpu)
 void op_sbc16(z80 *cpu)
 {
 	// SBC dd,ss: dd-=ss, F=(XXVX1X)=[SZ5H3V1C]
-	signed short int *DD = IHL;
+	signed short int *DD = (signed short int *)IHL;
 	signed short int *SS = (signed short int *)(cpu->regs+tbl_rp[cpu->ods.p]);
 	int C=cpu->regs[2]&1;
 	signed long int res = (*DD)-(*SS)-C;

@@ -9,12 +9,12 @@
 #include <stdbool.h>
 #include "z80.h"
 
-#define STEP_OD(n)		step_od(&cpu, n, &bus)
-#define STEP_MR(a,v)	step_mr(&cpu, a, v, &bus)
-#define STEP_MW(a,v)	step_mw(&cpu, a, v, &bus)
-#define STEP_PR(a,v)	step_pr(&cpu, a, v, &bus)
-#define STEP_PW(a,v)	step_pw(&cpu, a, v, &bus)
-#define STEP_SR(n)		step_sr(&cpu, n, &bus)
+#define STEP_OD(n)		step_od(cpu, n, bus)
+#define STEP_MR(a,v)	step_mr(cpu, a, v, bus)
+#define STEP_MW(a,v)	step_mw(cpu, a, v, bus)
+#define STEP_PR(a,v)	step_pr(cpu, a, v, bus)
+#define STEP_PW(a,v)	step_pw(cpu, a, v, bus)
+#define STEP_SR(n)		step_sr(cpu, n, bus)
 
 // Flags... [7]SZ5H3PNC[0]
 #define FS 0x80
