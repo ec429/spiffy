@@ -725,14 +725,14 @@ int main(int argc, char * argv[])
 								case 1: // x3 z1
 									switch(cpu->ods.q)
 									{
-										case 0: // x3 z1 q0 == POP rp2[p]: M1=SRH(3)
-											STEP_SR(2);
+										case 0: // x3 z1 q0 == POP rp2[p]: M1=SRL(3)
+											STEP_SR(1);
 										break;
 										case 1: // x3 z1 q1
 											switch(cpu->ods.p)
 											{
-												case 0: // x3 z1 q1 p0 == RET: M1=SRH(3)
-													STEP_SR(2);
+												case 0: // x3 z1 q1 p0 == RET: M1=SRL(3)
+													STEP_SR(1);
 												break;
 												case 1: // x3 z1 q1 p1 == EXX: M1=IO(0)
 													for(i=4;i<10;i++) // BCDEHL
@@ -1122,9 +1122,30 @@ int main(int argc, char * argv[])
 								case 1: // x3 z1
 									switch(cpu->ods.q)
 									{
-										case 0: // x3 z1 q0 = POP rp2[p]: M2=SRL(3)
-											STEP_SR(1);
-											cpu->regs[IRP(tbl_rp2[cpu->ods.p])]=I16;
+										case 0: // x3 z1 q0 == POP rp2[p]: M2=SRH(3)
+											STEP_SR(2);
+											if(cpu->M>2)
+											{
+												cpu->M=0;
+												cpu->regs[IRP(tbl_rp2[cpu->ods.p])]=I16;
+											}
+										break;
+										case 1: // x3 z1 q1
+											switch(cpu->ods.p)
+											{
+												case 0: // x3 z1 q1 p0 == RET: M2=SRH(3)
+													STEP_SR(2);
+													if(cpu->M>2)
+													{
+														cpu->M=0;
+														*PC=I16;
+													}
+												break;
+												default:
+													fprintf(stderr, ZERR3);
+													errupt++;
+												break;
+											}
 										break;
 										default:
 											fprintf(stderr, ZERR3);
