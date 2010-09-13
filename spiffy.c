@@ -54,12 +54,12 @@
 #define min(a,b)	((a)>(b)?(b):(a))
 
 // z80 core error messages
-#define ZERR0	"spiffy: encountered bad shift state %u (x%hhu z%hhu y%hhu M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, M
-#define ZERR1	"spiffy: encountered bad opcode s%u x%hhu (M%u) in z80 core\n", shiftstate, ods.x, M
-#define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu (M%u) in z80 core\n", shiftstate, ods.x, ods.z, M
-#define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", shiftstate, ods.x, ods.y, ods.p, ods.q, M
-#define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", shiftstate, ods.x, ods.z, ods.y, ods.p, ods.q, M
-#define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core\n", M
+#define ZERR0	"spiffy: encountered bad shift state %u (x%hhu z%hhu y%hhu M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->M
+#define ZERR1	"spiffy: encountered bad opcode s%u x%hhu (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->M
+#define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->M
+#define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
+#define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
+#define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core\n", cpu->M
 
 typedef struct _pos
 {
@@ -90,7 +90,7 @@ int main(int argc, char * argv[])
 	{
 		font=TTF_OpenFont("Vera.ttf", 12);
 	}
-	bool trace=true, debug=false; // trace I/O? Generate debugging info?
+	bool debug=false; // Generate debugging info?
 	int breakpoint=-1;
 	int arg;
 	for (arg=1; arg<argc; arg++)
@@ -116,6 +116,12 @@ int main(int argc, char * argv[])
 	}
 	
 	printf(GPL_MSG);
+	
+	// State
+	z80 _cpu;
+	z80 *cpu=&_cpu; // we want to work with a pointer
+	bus_t _bus;
+	bus_t *bus=&_bus;
 	
 	SDL_Surface * screen=gf_init();
 	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
@@ -171,9 +177,6 @@ int main(int argc, char * argv[])
 	}
 	fclose(fp);
 	
-	z80 _cpu;
-	z80 *cpu=&_cpu; // we want to work with a pointer
-	
 	memset(cpu->regs, 0, sizeof(unsigned char[26]));
 	
 	// Fill in register decoding tables
@@ -208,9 +211,6 @@ int main(int argc, char * argv[])
 	bool reti=false; // was the last opcode RETI?  (some hardware detects this, eg. PIO)
 	cpu->waitlim=1; // internal; max dT to allow while WAIT is active
 	cpu->disp=false; // have we had the displacement byte? (DD/FD CB)
-	
-	bus_t _bus;
-	bus_t *bus=&_bus;
 	
 	bus->tris=OFF;
 	bus->iorq=false;
@@ -249,7 +249,7 @@ int main(int argc, char * argv[])
 		cpu->block_ints=false;
 		Tstates++;
 		cpu->dT++;
-		if(waitline)
+		if(bus->waitline)
 			cpu->dT=min(cpu->dT, cpu->waitlim);
 		if(bus->mreq&&(bus->tris==IN))
 		{
@@ -511,7 +511,7 @@ int main(int argc, char * argv[])
 								break;
 								case 6: // s2 x1 z6 == IM im[y]: M1=IO(0)
 									cpu->intmode=tbl_im[cpu->ods.y&3];
-									Mcpu->=0;
+									cpu->M=0;
 								break;
 								case 7: // s2 x1 z7
 									switch(cpu->ods.y)
@@ -651,7 +651,7 @@ int main(int argc, char * argv[])
 												break;
 												case 2:
 													cpu->internal[1]=bus->data;
-													op_alu(cpu, internal[1]);
+													op_alu(cpu, cpu->internal[1]);
 													bus->tris=OFF;
 													bus->mreq=false;
 													bus->addr=0;
@@ -687,7 +687,7 @@ int main(int argc, char * argv[])
 												break;
 												case 2:
 													cpu->internal[1]=bus->data;
-													op_alu(cpu, internal[1]);
+													op_alu(cpu, cpu->internal[1]);
 													bus->tris=OFF;
 													bus->mreq=false;
 													bus->addr=0;
@@ -1068,7 +1068,7 @@ int main(int argc, char * argv[])
 										{
 											if(cpu->dT==0)
 											{
-												cpu->internal[1]=op_inc8(cpu, internal[1]);
+												cpu->internal[1]=op_inc8(cpu, cpu->internal[1]);
 											}
 											STEP_MW(*IHL, cpu->internal[1]);
 											if(cpu->M>2)
@@ -1962,7 +1962,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 			{
 				contend=false;
 				uladb=0xff;
-				ulaab=portfe&0x07;
+				ulaab=bus->portfe&0x07;
 			}
 			bus->waitline=contend&&((((bus->addr)&0xC000)==0x4000)||(bus->iorq&&(bus->tris)&&!((bus->addr)%2)));
 			int ink=ulaab&0x07;
