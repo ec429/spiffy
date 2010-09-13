@@ -12,6 +12,7 @@
 #define STEP_OD(n)		step_od(&cpu, n, &bus)
 #define STEP_MR(a,v)	step_mr(&cpu, a, v, &bus)
 #define STEP_MW(a,v)	step_mw(&cpu, a, v, &bus)
+#define STEP_PR(a,v)	step_pr(&cpu, a, v, &bus)
 #define STEP_PW(a,v)	step_pw(&cpu, a, v, &bus)
 #define STEP_SR(n)		step_sr(&cpu, n, &bus)
 
@@ -61,6 +62,7 @@ bool cc(unsigned char which, unsigned char flags);
 void step_od(z80 *cpu, int ernal, bus_t *bus);
 void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus);
 void step_mw(z80 *cpu, unsigned short addr, unsigned char  val, bus_t *bus);
+void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus);
 void step_pw(z80 *cpu, unsigned short addr, unsigned char  val, bus_t *bus);
 void step_sr(z80 *cpu, int ernal, bus_t *bus);
 
