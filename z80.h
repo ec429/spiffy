@@ -44,5 +44,6 @@ typedef struct
 	bool m1; // ¬M1 line
 	bool rfsh; // ¬RFSH line
 	bool waitline; // ¬WAIT line
+	unsigned char portfe; // last byte written to port 0xFE (used by ULA; should really be part of ULA internal data)
 }
 bus_t;

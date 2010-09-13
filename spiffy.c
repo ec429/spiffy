@@ -75,10 +75,8 @@ void mixaudio(void *portfe, Uint8 *stream, int len);
 #endif
 
 // helper fns
-void show_state(unsigned char * RAM, z80 cpu, int Tstates, bus_t bus);
-
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
-
+void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus);
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus);
 int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, char r, char g, char b);
 
 unsigned long int ramtop;
@@ -130,7 +128,7 @@ int main(int argc, char * argv[])
 	cls.w=OSIZ_X;
 	cls.h=OSIZ_Y-256;
 	int errupt = 0;
-	unsigned char portfe=0; // used by mixaudio (for the EAR) and the screen update (for the BORDCR)
+	bus->portfe=0; // used by mixaudio (for the EAR) and the screen update (for the BORDCR)
 #ifdef AUDIO
 	SDL_AudioSpec fmt;
 	fmt.freq = SAMPLE_RATE;
@@ -138,7 +136,7 @@ int main(int argc, char * argv[])
 	fmt.channels = 1;
 	fmt.samples = 64;
 	fmt.callback = mixaudio;
-	fmt.userdata = &portfe;
+	fmt.userdata = &bus->portfe;
 
 	/* Open the audio device */
 	if ( SDL_OpenAudio(&fmt, NULL) < 0 ) {
@@ -173,9 +171,10 @@ int main(int argc, char * argv[])
 	}
 	fclose(fp);
 	
-	z80 cpu;
+	z80 _cpu;
+	z80 *cpu=&_cpu; // we want to work with a pointer
 	
-	memset(cpu.regs, 0, sizeof(unsigned char[26]));
+	memset(cpu->regs, 0, sizeof(unsigned char[26]));
 	
 	// Fill in register decoding tables
 	// tbl_r: B C D E H L (HL) A
@@ -203,23 +202,24 @@ int main(int argc, char * argv[])
 	tbl_im[1]=tbl_im[2]=1;
 	tbl_im[3]=2;
 	
-	cpu.block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
-	cpu.IFF[0]=cpu.IFF[1]=false;
-	cpu.intmode=0; // Interrupt Mode
+	cpu->block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
+	cpu->IFF[0]=cpu->IFF[1]=false;
+	cpu->intmode=0; // Interrupt Mode
 	bool reti=false; // was the last opcode RETI?  (some hardware detects this, eg. PIO)
-	cpu.waitlim=1; // internal; max dT to allow while WAIT is active
-	cpu.disp=false; // have we had the displacement byte? (DD/FD CB)
+	cpu->waitlim=1; // internal; max dT to allow while WAIT is active
+	cpu->disp=false; // have we had the displacement byte? (DD/FD CB)
 	
-	bus_t bus;
+	bus_t _bus;
+	bus_t *bus=&_bus;
 	
-	bus.tris=OFF;
-	bus.iorq=false;
-	bus.mreq=false;
-	bus.m1=false;
-	bus.rfsh=false;
-	bus.addr=0;
-	bus.data=0;
-	bus.waitline=false;
+	bus->tris=OFF;
+	bus->iorq=false;
+	bus->mreq=false;
+	bus->m1=false;
+	bus->rfsh=false;
+	bus->addr=0;
+	bus->data=0;
+	bus->waitline=false;
 	
 	int Fstate=0; // FLASH state
 	
@@ -233,169 +233,169 @@ int main(int argc, char * argv[])
 	time_t start_time=time(NULL);
 	int frames=0;
 	int Tstates=0;
-	cpu.dT=0;
+	cpu->dT=0;
 	
-	cpu.M=0; // note: my M-cycles do not correspond to official labelling
-	cpu.internal[0]=cpu.internal[1]=cpu.internal[2]=0;
-	cpu.shiftstate=0;
+	cpu->M=0; // note: my M-cycles do not correspond to official labelling
+	cpu->internal[0]=cpu->internal[1]=cpu->internal[2]=0;
+	cpu->shiftstate=0;
 	
 	// Main program loop
 	while(!errupt)
 	{
-		if((!debug)&&(*PC==breakpoint)&&m1)
+		if((!debug)&&(*PC==breakpoint)&&bus->m1)
 		{
 			debug=true;
 		}
-		cpu.block_ints=false;
+		cpu->block_ints=false;
 		Tstates++;
-		cpu.dT++;
+		cpu->dT++;
 		if(waitline)
-			cpu.dT=min(cpu.dT, cpu.waitlim);
-		if(mreq&&(tris==IN))
+			cpu->dT=min(cpu->dT, cpu->waitlim);
+		if(bus->mreq&&(bus->tris==IN))
 		{
-			if(portno<ramtop)
+			if(bus->addr<ramtop)
 			{
-				ioval=RAM[portno];
+				bus->data=RAM[bus->addr];
 			}
 			else
 			{
-				ioval=floor(rand()*256.0/RAND_MAX);
+				bus->data=floor(rand()*256.0/RAND_MAX);
 			}
 		}
-		else if(mreq&&(tris==OUT))
+		else if(bus->mreq&&(bus->tris==OUT))
 		{
-			if((portno&0xC000)&&(portno<ramtop))
-				RAM[portno]=ioval;
+			if((bus->addr&0xC000)&&(bus->addr<ramtop))
+				RAM[bus->addr]=bus->data;
 		}
 		
-		if(iorq&&(tris==OUT))
+		if(bus->iorq&&(bus->tris==OUT))
 		{
-			if(!(portno&0x01))
-				portfe=ioval;
+			if(!(bus->addr&0x01))
+				bus->portfe=bus->data;
 		}
 		
 		if(debug)
-			show_state(RAM, cpu, Tstates, tris, portno, ioval, mreq, iorq, m1, rfsh, waitline);
+			show_state(RAM, cpu, Tstates, bus);
 		
-		if((cpu.dT==0)&&rfsh)
+		if((cpu->dT==0)&&bus->rfsh)
 		{
-			rfsh=false;
-			portno=0;
-			mreq=false;
+			bus->rfsh=false;
+			bus->addr=0;
+			bus->mreq=false;
 		}
-		int oM=cpu.M;
-		switch(cpu.M)
+		int oM=cpu->M;
+		switch(cpu->M)
 		{
 			case 0: // M0 = OCF(4)
-				switch(cpu.dT)
+				switch(cpu->dT)
 				{
 					case 0:
-						tris=OFF;
-						portno=*PC;
-						iorq=false;
-						m1=true; // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?  Or just for the first prefix?  I implement the former)
+						bus->tris=OFF;
+						bus->addr=*PC;
+						bus->iorq=false;
+						bus->m1=true; // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?  Or just for the first prefix?  I implement the former)
 					break;
 					case 1:
-						tris=IN;
-						portno=*PC;
-						iorq=false;
-						m1=true;
-						mreq=true;
+						bus->tris=IN;
+						bus->addr=*PC;
+						bus->iorq=false;
+						bus->m1=true;
+						bus->mreq=true;
 					break;
 					case 2:
 						(*PC)++;
-						cpu.internal[0]=ioval;
-						if((shiftstate&0x01)&&(shiftstate&0x0C)&&!disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
+						cpu->internal[0]=bus->data;
+						if((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!cpu->disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
 						{ // Possible further M1 line incorrectness, as I have M1 active for d
-							internal[1]=ioval;
-							block_ints=true;
-							dT=-1;
-							disp=true;
+							cpu->internal[1]=bus->data;
+							cpu->block_ints=true;
+							cpu->dT=-1;
+							cpu->disp=true;
 						}
 						else
 						{
-							if((internal[0]==0xCB)&&!(shiftstate&0x02)) // ED CB is an instruction, not a shift
+							if((cpu->internal[0]==0xCB)&&!(cpu->shiftstate&0x02)) // ED CB is an instruction, not a shift
 							{
-								shiftstate|=0x01;
-								block_ints=true;
+								cpu->shiftstate|=0x01;
+								cpu->block_ints=true;
 							}
-							else if((internal[0]==0xED)&&!(shiftstate&0x01)) // CB ED is an instruction, not a shift
+							else if((cpu->internal[0]==0xED)&&!(cpu->shiftstate&0x01)) // CB ED is an instruction, not a shift
 							{
-								shiftstate=0x02; // ED may not combine
-								block_ints=true;
+								cpu->shiftstate=0x02; // ED may not combine
+								cpu->block_ints=true;
 							}
-							else if((internal[0]==0xDD)&&(!shiftstate&0x01)) // CB DD is an instruction, not a shift
+							else if((cpu->internal[0]==0xDD)&&(!cpu->shiftstate&0x01)) // CB DD is an instruction, not a shift
 							{
-								shiftstate&=~(0x0A); // ED,FD may not combine with DD
-								shiftstate|=0x04;
-								block_ints=true;
-								disp=false;
+								cpu->shiftstate&=~(0x0A); // ED,FD may not combine with DD
+								cpu->shiftstate|=0x04;
+								cpu->block_ints=true;
+								cpu->disp=false;
 							}
-							else if((internal[0]==0xFD)&&(!shiftstate&0x01)) // CB FD is an instruction, not a shift
+							else if((cpu->internal[0]==0xFD)&&(!cpu->shiftstate&0x01)) // CB FD is an instruction, not a shift
 							{
-								shiftstate&=~(0x06); // DD,ED may not combine with FD
-								shiftstate|=0x08;
-								block_ints=true;
-								disp=false;
+								cpu->shiftstate&=~(0x06); // DD,ED may not combine with FD
+								cpu->shiftstate|=0x08;
+								cpu->block_ints=true;
+								cpu->disp=false;
 							}
 							else
 							{
-								ods=od_bits(internal[0]);
-								M++;
+								cpu->ods=od_bits(cpu->internal[0]);
+								cpu->M++;
 							}
-							dT=-2;
-							if(disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
-								dT--;
-							disp=false;
+							cpu->dT=-2;
+							if(cpu->disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
+								cpu->dT--;
+							cpu->disp=false;
 						}
-						mreq=true;
-						m1=false;
-						rfsh=true;
-						tris=OFF;
-						portno=((*Intvec)<<8)+*Refresh;
+						bus->mreq=true;
+						bus->m1=false;
+						bus->rfsh=true;
+						bus->tris=OFF;
+						bus->addr=((*Intvec)<<8)+*Refresh;
 						(*Refresh)++;
 						if(!((*Refresh)&0x7f)) // preserve the high bit of R
 							(*Refresh)^=0x80;
-						waitlim=1;
+						cpu->waitlim=1;
 					break;
 				}
 			break;
 			case 1: // M1
-				if(shiftstate&0x01)
+				if(cpu->shiftstate&0x01)
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 1: // CB x1 == BIT y,r[z]
-							if(shiftstate&0x0C) // FD/DD CB d x2 == BIT y,(IXY+d): M1=MR(4)
+							if(cpu->shiftstate&0x0C) // FD/DD CB d x2 == BIT y,(IXY+d): M1=MR(4)
 							{
-								switch(dT)
+								switch(cpu->dT)
 								{
 									case 0:
-										portno=(*IHL)+((signed char)internal[1]);
+										bus->addr=(*IHL)+((signed char)cpu->internal[1]);
 									break;
 									case 1:
-										tris=IN;
-										mreq=true;
+										bus->tris=IN;
+										bus->mreq=true;
 									break;
 									case 2:
-										internal[2]=ioval;
-										internal[2]&=(1<<ods.y); // internal[2] is now BIT
+										cpu->internal[2]=bus->data;
+										cpu->internal[2]&=(1<<cpu->ods.y); // internal[2] is now BIT
 										// flags
 										// SZ5H3PNC
 										// *Z*1**0-
 										// ZP: BIT == 0
 										// S: BIT && y=7
 										// 53: from (IXY+d)h
-										regs[2]&=FC;
-										regs[2]|=FH;
-										regs[2]|=internal[2]?0:(FZ|FP);
-										regs[2]|=internal[2]&FS;
-										regs[2]|=(((*IHL)+((signed char)internal[1]))>>8)&(F5|F3);
-										tris=OFF;
-										mreq=false;
-										portno=0;
-										dT=-2;
-										M=0;
+										cpu->regs[2]&=FC;
+										cpu->regs[2]|=FH;
+										cpu->regs[2]|=cpu->internal[2]?0:(FZ|FP);
+										cpu->regs[2]|=cpu->internal[2]&FS;
+										cpu->regs[2]|=(((*IHL)+((signed char)cpu->internal[1]))>>8)&(F5|F3);
+										bus->tris=OFF;
+										bus->mreq=false;
+										bus->addr=0;
+										cpu->dT=-2;
+										cpu->M=0;
 									break;
 								}
 							}
@@ -406,29 +406,29 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 2: // CB x2 == RES y,r[z]
-							if(shiftstate&0x0C) // FD/DD CB d x2 == LD r[z],RES y,(IXY+d): M1=MR(4)
+							if(cpu->shiftstate&0x0C) // FD/DD CB d x2 == LD r[z],RES y,(IXY+d): M1=MR(4)
 							{
-								switch(dT)
+								switch(cpu->dT)
 								{
 									case 0:
-										portno=(*IHL)+((signed char)internal[1]);
+										bus->addr=(*IHL)+((signed char)cpu->internal[1]);
 									break;
 									case 1:
-										tris=IN;
-										mreq=true;
+										bus->tris=IN;
+										bus->mreq=true;
 									break;
 									case 2:
-										internal[2]=ioval;
-										internal[2]&=~(1<<ods.y);
-										if(ods.z!=6)
+										cpu->internal[2]=bus->data;
+										cpu->internal[2]&=~(1<<cpu->ods.y);
+										if(cpu->ods.z!=6)
 										{
-											regs[tbl_r[ods.z]]=internal[2]; // H and L are /not/ IXYfied
+											cpu->regs[tbl_r[cpu->ods.z]]=cpu->internal[2]; // H and L are /not/ IXYfied
 										}
-										tris=OFF;
-										mreq=false;
-										portno=0;
-										dT=-2;
-										M++;
+										bus->tris=OFF;
+										bus->mreq=false;
+										bus->addr=0;
+										cpu->dT=-2;
+										cpu->M++;
 									break;
 								}
 							}
@@ -439,29 +439,29 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 3: // CB x3 == SET y,r[z]
-							if(shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M1=MR(4)
+							if(cpu->shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M1=MR(4)
 							{
-								switch(dT)
+								switch(cpu->dT)
 								{
 									case 0:
-										portno=(*IHL)+((signed char)internal[1]);
+										bus->addr=(*IHL)+((signed char)cpu->internal[1]);
 									break;
 									case 1:
-										tris=IN;
-										mreq=true;
+										bus->tris=IN;
+										bus->mreq=true;
 									break;
 									case 2:
-										internal[2]=ioval;
-										internal[2]|=(1<<ods.y);
-										if(ods.z!=6)
+										cpu->internal[2]=bus->data;
+										cpu->internal[2]|=(1<<cpu->ods.y);
+										if(cpu->ods.z!=6)
 										{
-											regs[tbl_r[ods.z]]=internal[2]; // H and L are /not/ IXYfied
+											cpu->regs[tbl_r[cpu->ods.z]]=cpu->internal[2]; // H and L are /not/ IXYfied
 										}
-										tris=OFF;
-										mreq=false;
-										portno=0;
-										dT=-2;
-										M++;
+										bus->tris=OFF;
+										bus->mreq=false;
+										bus->addr=0;
+										cpu->dT=-2;
+										cpu->M++;
 									break;
 								}
 							}
@@ -477,32 +477,32 @@ int main(int argc, char * argv[])
 						break;
 					}
 				}
-				else if(shiftstate&0x02)
+				else if(cpu->shiftstate&0x02)
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 0: // s2 x0x3 == LNOP
 						case 3:
-							M=0;
+							cpu->M=0;
 						break;
 						case 1: // s2 x1
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 2: // s2 x1 z2
-									if(!ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M1=IO(4)
+									if(!cpu->ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M1=IO(4)
 									{
-										if(dT>=4)
+										if(cpu->dT>=4)
 										{
-											M++;
-											dT=0;
+											cpu->M++;
+											cpu->dT=0;
 										}
 									}
 									else // s2 x1 z2 q1 == ADC HL,rp[p]: M1=IO(4)
 									{
-										if(dT>=4)
+										if(cpu->dT>=4)
 										{
-											M++;
-											dT=0;
+											cpu->M++;
+											cpu->dT=0;
 										}
 									}
 								break;
@@ -510,21 +510,21 @@ int main(int argc, char * argv[])
 									STEP_OD(1);
 								break;
 								case 6: // s2 x1 z6 == IM im[y]: M1=IO(0)
-									intmode=tbl_im[ods.y&3];
-									M=0;
+									cpu->intmode=tbl_im[cpu->ods.y&3];
+									Mcpu->=0;
 								break;
 								case 7: // s2 x1 z7
-									switch(ods.y)
+									switch(cpu->ods.y)
 									{
 										case 0: // s2 x1 z7 y0 == LD I,A: M1=IO(1)
-											if(dT>=0)
+											if(cpu->dT>=0)
 											{
-												regs[15]=regs[3];
-												regs[2]&=~FP;
-												if(IFF[1])
-													regs[2]|=FP;
-												M=0;
-												dT=-1;
+												cpu->regs[15]=cpu->regs[3];
+												cpu->regs[2]&=~FP;
+												if(cpu->IFF[1])
+													cpu->regs[2]|=FP;
+												cpu->M=0;
+												cpu->dT=-1;
 											}
 										break;
 										default:
@@ -540,13 +540,13 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 2: // s2 x2
-							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
+							if((cpu->ods.z<4)&&(cpu->ods.y>3)) // bli[y,z]
 							{
-								op_bli(ods, regs, &dT, internal, &M, &tris, &portno, &mreq, &iorq, &ioval, waitline);
+								op_bli(cpu, bus);
 							}
 							else // LNOP
 							{
-								M=0;
+								cpu->M=0;
 							}
 						break;
 						default: // s2 x?
@@ -557,30 +557,30 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 0: // x0
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 0: // x0 z0
-									switch(ods.y)
+									switch(cpu->ods.y)
 									{
 										case 0: // x0 z0 y0 == NOP: M1=IO(0)
-											M=0;
+											cpu->M=0;
 										break;
 										case 2: // x0 z0 y2 == DJNZ d: M1=IO(1)
-											M++;
-											dT--;
+											cpu->M++;
+											cpu->dT--;
 										break;
 										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M1=OD(3);
 										case 5:
 										case 6:
 										case 7:
 											STEP_OD(1);
-											if(M>1)
+											if(cpu->M>1)
 											{
-												if(!cc(ods.y-4, regs[2]))
-													M=0;
+												if(!cc(cpu->ods.y-4, cpu->regs[2]))
+													cpu->M=0;
 											}
 										break;
 										default:
@@ -590,21 +590,21 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 1: // x0 z1
-									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M1=ODL(3)
+									if(!cpu->ods.q) // x0 z1 q0 == LD rp[p],nn: M1=ODL(3)
 									{
 										STEP_OD(1);
 									}
 									else // x0 z1 q1 == ADD HL,rp[p]: M1=IO(4)
 									{
-										if(dT>=4)
+										if(cpu->dT>=4)
 										{
-											M++;
-											dT=0;
+											cpu->M++;
+											cpu->dT=0;
 										}
 									}
 								break;
 								case 2: // x0 z2
-									switch(ods.p)
+									switch(cpu->ods.p)
 									{
 										case 2: // x0 z2 p2 == LD (nn)<=>HL: M1=ODL(3)
 										case 3: // x0 z2 p3 == LD (nn)<=>A: M1=ODL(3)
@@ -617,100 +617,100 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 3: // x0 z3
-									if(dT>=0)
+									if(cpu->dT>=0)
 									{
-										if(!ods.q) // x0 z3 q0 == INC rp[p]: M1=IO(2)
+										if(!cpu->ods.q) // x0 z3 q0 == INC rp[p]: M1=IO(2)
 										{
-											(*(unsigned short *)(regs+IRP(tbl_rp[ods.p])))++;
+											(*(unsigned short *)(cpu->regs+IRP(tbl_rp[cpu->ods.p])))++;
 										}
 										else // x0 z3 q1 == DEC rp[p]: M1=IO(2)
 										{
-											(*(unsigned short *)(regs+IRP(tbl_rp[ods.p])))--;
+											(*(unsigned short *)(cpu->regs+IRP(tbl_rp[cpu->ods.p])))--;
 										}
-										M=0;
-										dT=-2;
+										cpu->M=0;
+										cpu->dT=-2;
 									}
 								break;
 								case 4: // x0 z4 == INC r[y]: M1=IO(0)
-									if(ods.y==6) // x0 z4 y6 == INC (HL)
+									if(cpu->ods.y==6) // x0 z4 y6 == INC (HL)
 									{
-										if(shiftstate&0xC) // DD/FD x0 z4 y6 == INC (IXY+d): M1=OD(3)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z4 y6 == INC (IXY+d): M1=OD(3)
 										{
 											STEP_OD(1); // get displacement byte
 										}
 										else // x0 z4 y6 == INC (HL): M1=MR(4)
 										{
-											switch(dT)
+											switch(cpu->dT)
 											{
 												case 0:
-													portno=*HL;
+													bus->addr=*HL;
 												break;
 												case 1:
-													tris=IN;
-													mreq=true;
+													bus->tris=IN;
+													bus->mreq=true;
 												break;
 												case 2:
-													internal[1]=ioval;
-													op_alu(ods, regs, internal[1]);
-													tris=OFF;
-													mreq=false;
-													portno=0;
-													dT=-2;
-													M++;
+													cpu->internal[1]=bus->data;
+													op_alu(cpu, internal[1]);
+													bus->tris=OFF;
+													bus->mreq=false;
+													bus->addr=0;
+													cpu->dT=-2;
+													cpu->M++;
 												break;
 											}
 										}
 									}
 									else
 									{
-										regs[IR(tbl_r[ods.y])]=op_inc8(regs, regs[IR(tbl_r[ods.y])]);
-										M=0;
+										cpu->regs[IR(tbl_r[cpu->ods.y])]=op_inc8(cpu, cpu->regs[IR(tbl_r[cpu->ods.y])]);
+										cpu->M=0;
 									}
 								break;
 								case 5: // x0 z5 == DEC r[y]: M1=IO(0)
-									if(ods.y==6) // x0 z5 y6 == DEC (HL)
+									if(cpu->ods.y==6) // x0 z5 y6 == DEC (HL)
 									{
-										if(shiftstate&0xC) // DD/FD x0 z5 y6 == DEC (IXY+d): M1=OD(3)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z5 y6 == DEC (IXY+d): M1=OD(3)
 										{
 											STEP_OD(1); // get displacement byte
 										}
 										else // x0 z5 y6 == DEC (HL): M1=MR(4)
 										{
-											switch(dT)
+											switch(cpu->dT)
 											{
 												case 0:
-													portno=*HL;
+													bus->addr=*HL;
 												break;
 												case 1:
-													tris=IN;
-													mreq=true;
+													bus->tris=IN;
+													bus->mreq=true;
 												break;
 												case 2:
-													internal[1]=ioval;
-													op_alu(ods, regs, internal[1]);
-													tris=OFF;
-													mreq=false;
-													portno=0;
-													dT=-2;
-													M++;
+													cpu->internal[1]=bus->data;
+													op_alu(cpu, internal[1]);
+													bus->tris=OFF;
+													bus->mreq=false;
+													bus->addr=0;
+													cpu->dT=-2;
+													cpu->M++;
 												break;
 											}
 										}
 									}
 									else
 									{
-										regs[IR(tbl_r[ods.y])]=op_dec8(regs, regs[IR(tbl_r[ods.y])]);
-										M=0;
+										cpu->regs[IR(tbl_r[cpu->ods.y])]=op_dec8(cpu, cpu->regs[IR(tbl_r[cpu->ods.y])]);
+										cpu->M=0;
 									}
 								break;
 								case 6: // x0 z6 == LD r[y],n: M1=OD(3)
 									STEP_OD(1);
-									if(ods.y!=6) // ie, *not* (HL)
+									if(cpu->ods.y!=6) // ie, *not* (HL)
 									{
-										if(M>1)
+										if(cpu->M>1)
 										{
-											regs[IR(tbl_r[ods.y])]=internal[1];
-											M=0;
+											cpu->regs[IR(tbl_r[cpu->ods.y])]=cpu->internal[1];
+											cpu->M=0;
 										}
 									}
 								break;
@@ -721,109 +721,109 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 1: // x1
-							if((ods.y==6)&&(ods.z==6)) // x1 z6 y6 == HALT
+							if((cpu->ods.y==6)&&(cpu->ods.z==6)) // x1 z6 y6 == HALT
 							{
-								M=0;
+								cpu->M=0;
 							}
 							else // x1 !(z6 y6) == LD r[y],r[z]
 							{
-								if(ods.y==6) // LD (HL),r[z]: M1=MW(3)
+								if(cpu->ods.y==6) // LD (HL),r[z]: M1=MW(3)
 								{
-									if(shiftstate&0xC) // LD (IXY+d),r[z]: M1=OD(3)
+									if(cpu->shiftstate&0xC) // LD (IXY+d),r[z]: M1=OD(3)
 									{
 										STEP_OD(1);
 									}
 									else
 									{
-										STEP_MW(*HL, regs[tbl_r[ods.z]]);
-										if(M>1)
-											M=0;
+										STEP_MW(*HL, cpu->regs[tbl_r[cpu->ods.z]]);
+										if(cpu->M>1)
+											cpu->M=0;
 									}
 								}
-								else if(ods.z==6) // LD r[y],(HL): M1=MR(3)
+								else if(cpu->ods.z==6) // LD r[y],(HL): M1=MR(3)
 								{
-									if(shiftstate&0xC) // LD r[y],(IXY+d): M1=OD(3)
+									if(cpu->shiftstate&0xC) // LD r[y],(IXY+d): M1=OD(3)
 									{
 										STEP_OD(1);
 									}
 									else
 									{
-										STEP_MR(*HL, &regs[tbl_r[ods.y]]);
-										if(M>1)
-											M=0;
+										STEP_MR(*HL, &cpu->regs[tbl_r[cpu->ods.y]]);
+										if(cpu->M>1)
+											cpu->M=0;
 									}
 								}
 								else // LD r,r: M1=IO(0)
 								{
-									regs[IR(tbl_r[ods.y])]=regs[IR(tbl_r[ods.z])];
-									M=0;
+									cpu->regs[IR(tbl_r[cpu->ods.y])]=cpu->regs[IR(tbl_r[cpu->ods.z])];
+									cpu->M=0;
 								}
 							}
 						break;
 						case 2: // x2 == alu[y] A,r[z]
-							if(ods.z==6) // r[z]=(HL)
+							if(cpu->ods.z==6) // r[z]=(HL)
 							{
-								if(shiftstate&0xC) // alu[y] A,(IXY+d): M1=OD(3)
+								if(cpu->shiftstate&0xC) // alu[y] A,(IXY+d): M1=OD(3)
 								{
 									STEP_OD(1); // get displacement byte
 								}
 								else // alu[y] A,(HL): M1=MR(3)
 								{
-									switch(dT)
+									switch(cpu->dT)
 									{
 										case 0:
-											portno=*HL;
+											bus->addr=*HL;
 										break;
 										case 1:
-											tris=IN;
-											mreq=true;
+											bus->tris=IN;
+											bus->mreq=true;
 										break;
 										case 2:
-											internal[1]=ioval;
-											op_alu(ods, regs, internal[1]);
-											tris=OFF;
-											mreq=false;
-											portno=0;
-											dT=-1;
-											M=0;
+											cpu->internal[1]=bus->data;
+											op_alu(cpu, cpu->internal[1]);
+											bus->tris=OFF;
+											bus->mreq=false;
+											bus->addr=0;
+											cpu->dT=-1;
+											cpu->M=0;
 										break;
 									}
 								}
 							}
 							else // M1=IO(0)
 							{
-								internal[1]=regs[IR(tbl_r[ods.z])];
-								op_alu(ods, regs, internal[1]);
-								M=0;
+								cpu->internal[1]=cpu->regs[IR(tbl_r[cpu->ods.z])];
+								op_alu(cpu, cpu->internal[1]);
+								cpu->M=0;
 							}
 						break;
 						case 3: // x3
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 1: // x3 z1
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 0: // x3 z1 q0 == POP rp2[p]: M1=SRH(3)
 											STEP_SR(2);
 										break;
 										case 1: // x3 z1 q1
-											switch(ods.p)
+											switch(cpu->ods.p)
 											{
 												case 1: // x3 z1 q1 p1 == EXX: M1=IO(0)
 													for(i=4;i<10;i++) // BCDEHL
 													{
-														unsigned char tmp=regs[i];
-														regs[i]=regs[i+0x10];
-														regs[i+0x10]=tmp;
+														unsigned char tmp=cpu->regs[i];
+														cpu->regs[i]=cpu->regs[i+0x10];
+														cpu->regs[i+0x10]=tmp;
 													}
-													M=0;
+													cpu->M=0;
 												break;
 												case 3: // x3 z1 q1 p3 == LD SP, HL: M1=IO(2)
-													if(dT==0)
+													if(cpu->dT==0)
 													{
 														*SP=*IHL;
-														dT=-2;
-														M=0;
+														cpu->dT=-2;
+														cpu->M=0;
 													}
 												break;
 												default: // x3 z1 q1 p?
@@ -969,7 +969,7 @@ int main(int argc, char * argv[])
 						case 2: // s2 x2
 							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
 							{
-								op_bli(ods, regs, &dT, internal, &M, &tris, &portno, &mreq, &iorq, &ioval, waitline);
+								op_bli(ods, regs, &dT, internal, &M, &tris, &bus->addr, &mreq, &iorq, &bus->data, waitline);
 							}
 							else // LNOP
 							{
@@ -1292,17 +1292,17 @@ int main(int argc, char * argv[])
 											switch(dT)
 											{
 												case 0:
-													portno=(internal[2]<<8)|internal[1];
+													bus->addr=(internal[2]<<8)|internal[1];
 												break;
 												case 1:
 													tris=IN;
 													mreq=true;
 												break;
 												case 2:
-													regs[tbl_rp[ods.p]]=ioval;
+													regs[tbl_rp[ods.p]]=bus->data;
 													tris=OFF;
 													mreq=false;
-													portno=0;
+													bus->addr=0;
 													dT=-1;
 													M++;
 												break;
@@ -1319,7 +1319,7 @@ int main(int argc, char * argv[])
 						case 2: // s2 x2
 							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
 							{
-								op_bli(ods, regs, &dT, internal, &M, &tris, &portno, &mreq, &iorq, &ioval, waitline);
+								op_bli(ods, regs, &dT, internal, &M, &tris, &bus->addr, &mreq, &iorq, &bus->data, waitline);
 							}
 							else // LNOP
 							{
@@ -1369,17 +1369,17 @@ int main(int argc, char * argv[])
 													switch(dT)
 													{
 														case 0:
-															portno=(internal[2]<<8)|internal[1];
+															bus->addr=(internal[2]<<8)|internal[1];
 														break;
 														case 1:
 															tris=IN;
 															mreq=true;
 														break;
 														case 2:
-															regs[IL]=ioval;
+															regs[IL]=bus->data;
 															tris=OFF;
 															mreq=false;
-															portno=0;
+															bus->addr=0;
 															dT=-1;
 															M++;
 														break;
@@ -1399,17 +1399,17 @@ int main(int argc, char * argv[])
 													switch(dT)
 													{
 														case 0:
-															portno=(internal[2]<<8)|internal[1];
+															bus->addr=(internal[2]<<8)|internal[1];
 														break;
 														case 1:
 															tris=IN;
 															mreq=true;
 														break;
 														case 2:
-															regs[3]=ioval;
+															regs[3]=bus->data;
 															tris=OFF;
 															mreq=false;
-															portno=0;
+															bus->addr=0;
 															dT=-1;
 															M=0;
 														break;
@@ -1432,17 +1432,17 @@ int main(int argc, char * argv[])
 											switch(dT)
 											{
 												case 0:
-													portno=(*IHL)+((signed char)internal[1]);
+													bus->addr=(*IHL)+((signed char)internal[1]);
 												break;
 												case 1:
 													tris=IN;
 													mreq=true;
 												break;
 												case 2:
-													internal[2]=ioval;
+													internal[2]=bus->data;
 													tris=OFF;
 													mreq=false;
-													portno=0;
+													bus->addr=0;
 													dT=-1;
 													M++;
 												break;
@@ -1573,17 +1573,17 @@ int main(int argc, char * argv[])
 											switch(dT)
 											{
 												case 0:
-													portno=((internal[2]<<8)|internal[1])+1;
+													bus->addr=((internal[2]<<8)|internal[1])+1;
 												break;
 												case 1:
 													tris=IN;
 													mreq=true;
 												break;
 												case 2:
-													regs[tbl_rp[ods.p]+1]=ioval;
+													regs[tbl_rp[ods.p]+1]=bus->data;
 													tris=OFF;
 													mreq=false;
-													portno=0;
+													bus->addr=0;
 													dT=-1;
 													M=0;
 												break;
@@ -1625,17 +1625,17 @@ int main(int argc, char * argv[])
 													switch(dT)
 													{
 														case 0:
-															portno=((internal[2]<<8)|internal[1])+1;
+															bus->addr=((internal[2]<<8)|internal[1])+1;
 														break;
 														case 1:
 															tris=IN;
 															mreq=true;
 														break;
 														case 2:
-															regs[IH]=ioval;
+															regs[IH]=bus->data;
 															tris=OFF;
 															mreq=false;
-															portno=0;
+															bus->addr=0;
 															dT=-1;
 															M=0;
 														break;
@@ -1734,7 +1734,7 @@ int main(int argc, char * argv[])
 			shiftstate=0;
 			disp=false;
 		}
-		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe, &tris, &portno, &mreq, iorq, ioval);
+		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe, &tris, &bus->addr, &mreq, iorq, bus->data);
 		if(Tstates>=69888)
 		{
 			SDL_Flip(screen);
@@ -1815,7 +1815,7 @@ int main(int argc, char * argv[])
 		}
 	}
 	
-	show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, portno, ioval, mreq, iorq, m1, rfsh, waitline);
+	show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, bus->addr, bus->data, mreq, iorq, m1, rfsh, waitline);
 	
 	// clean up
 	if(SDL_MUSTLOCK(screen))
@@ -1930,16 +1930,16 @@ void mixaudio(void *portfe, Uint8 *stream, int len)
 }
 #endif
 
-void show_state(unsigned char * RAM, z80 cpu, int Tstates, bus_t bus)
+void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
 {
 	int i;
 	printf("\nState:\n");
 	printf("P C  A F  B C  D E  H L  I x  I y  I R  S P  a f  b c  d e  h l  IFF IM\n");
 	for(i=0;i<26;i+=2)
 	{
-		printf("%02x%02x ", cpu.regs[i+1], cpu.regs[i]);
+		printf("%02x%02x ", cpu->regs[i+1], cpu->regs[i]);
 	}
-	printf("%c %c %1x\n", cpu.IFF[0]?'1':'0', cpu.IFF[1]?'1':'0', cpu.intmode);
+	printf("%c %c %1x\n", cpu->IFF[0]?'1':'0', cpu->IFF[1]?'1':'0', cpu->intmode);
 	printf("\n");
 	printf("Memory\t- near (PC), (HL) and (SP):\n");
 	for(i=0;i<5;i++)
@@ -1967,8 +1967,8 @@ void show_state(unsigned char * RAM, z80 cpu, int Tstates, bus_t bus)
 		printf("%04x: %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3]);
 	}
 	printf("\n");
-	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, cpu.M, cpu.dT, cpu.internal[0], cpu.internal[1], cpu.internal[2], cpu.shiftstate);
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", bus.addr, bus.data, bus.tris==OUT?"WR":"wr", bus.tris==IN?"RD":"rd", bus.mreq?"MREQ":"mreq", bus.iorq?"IORQ":"iorq", bus.m1?"M1":"m1", bus.rfsh?"RFSH":"rfsh", bus.waitline?"WAIT":"wait");
+	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, cpu->M, cpu->dT, cpu->internal[0], cpu->internal[1], cpu->internal[2], cpu->shiftstate);
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait");
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
