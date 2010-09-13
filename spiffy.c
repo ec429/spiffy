@@ -368,38 +368,26 @@ int main(int argc, char * argv[])
 						case 1: // CB x1 == BIT y,r[z]
 							if(cpu->shiftstate&0x0C) // FD/DD CB d x2 == BIT y,(IXY+d): M1=MR(4)
 							{
-								switch(cpu->dT)
+								STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
+								if(cpu->M>1)
 								{
-									case 0:
-										bus->addr=(*IHL)+((signed char)cpu->internal[1]);
-									break;
-									case 1:
-										bus->tris=IN;
-										bus->mreq=true;
-									break;
-									case 2:
-										cpu->internal[2]=bus->data;
-										cpu->internal[2]&=(1<<cpu->ods.y); // internal[2] is now BIT
-										// flags
-										// SZ5H3PNC
-										// *Z*1**0-
-										// ZP: BIT == 0
-										// S: BIT && y=7
-										// 53: from (IXY+d)h
-										cpu->regs[2]&=FC;
-										cpu->regs[2]|=FH;
-										cpu->regs[2]|=cpu->internal[2]?0:(FZ|FP);
-										cpu->regs[2]|=cpu->internal[2]&FS;
-										cpu->regs[2]|=(((*IHL)+((signed char)cpu->internal[1]))>>8)&(F5|F3);
-										bus->tris=OFF;
-										bus->mreq=false;
-										bus->addr=0;
-										cpu->dT=-2;
-										cpu->M=0;
-									break;
+									cpu->internal[2]&=(1<<cpu->ods.y); // internal[2] is now BIT
+									// flags
+									// SZ5H3PNC
+									// *Z*1**0-
+									// ZP: BIT == 0
+									// S: BIT && y=7
+									// 53: from (IXY+d)h
+									cpu->regs[2]&=FC;
+									cpu->regs[2]|=FH;
+									cpu->regs[2]|=cpu->internal[2]?0:(FZ|FP);
+									cpu->regs[2]|=cpu->internal[2]&FS;
+									cpu->regs[2]|=(((*IHL)+((signed char)cpu->internal[1]))>>8)&(F5|F3);
+									cpu->dT=-2;
+									cpu->M=0;
 								}
 							}
-							else // CB x2 == RES y,r[z]
+							else // CB x1 == BIT y,r[z]
 							{
 								fprintf(stderr, ZERR0);
 								errupt++;
@@ -408,28 +396,15 @@ int main(int argc, char * argv[])
 						case 2: // CB x2 == RES y,r[z]
 							if(cpu->shiftstate&0x0C) // FD/DD CB d x2 == LD r[z],RES y,(IXY+d): M1=MR(4)
 							{
-								switch(cpu->dT)
+								STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
+								if(cpu->M>1)
 								{
-									case 0:
-										bus->addr=(*IHL)+((signed char)cpu->internal[1]);
-									break;
-									case 1:
-										bus->tris=IN;
-										bus->mreq=true;
-									break;
-									case 2:
-										cpu->internal[2]=bus->data;
-										cpu->internal[2]&=~(1<<cpu->ods.y);
-										if(cpu->ods.z!=6)
-										{
-											cpu->regs[tbl_r[cpu->ods.z]]=cpu->internal[2]; // H and L are /not/ IXYfied
-										}
-										bus->tris=OFF;
-										bus->mreq=false;
-										bus->addr=0;
-										cpu->dT=-2;
-										cpu->M++;
-									break;
+									cpu->internal[2]&=~(1<<cpu->ods.y);
+									if(cpu->ods.z!=6)
+									{
+										cpu->regs[tbl_r[cpu->ods.z]]=cpu->internal[2]; // H and L are /not/ IXYfied
+									}
+									cpu->dT=-2;
 								}
 							}
 							else // CB x2 == RES y,r[z]
@@ -441,28 +416,15 @@ int main(int argc, char * argv[])
 						case 3: // CB x3 == SET y,r[z]
 							if(cpu->shiftstate&0x0C) // FD/DD CB d x3 == LD r[z],SET y,(IXY+d): M1=MR(4)
 							{
-								switch(cpu->dT)
+								STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
+								if(cpu->M>1)
 								{
-									case 0:
-										bus->addr=(*IHL)+((signed char)cpu->internal[1]);
-									break;
-									case 1:
-										bus->tris=IN;
-										bus->mreq=true;
-									break;
-									case 2:
-										cpu->internal[2]=bus->data;
-										cpu->internal[2]|=(1<<cpu->ods.y);
-										if(cpu->ods.z!=6)
-										{
-											cpu->regs[tbl_r[cpu->ods.z]]=cpu->internal[2]; // H and L are /not/ IXYfied
-										}
-										bus->tris=OFF;
-										bus->mreq=false;
-										bus->addr=0;
-										cpu->dT=-2;
-										cpu->M++;
-									break;
+									cpu->internal[2]|=(1<<cpu->ods.y);
+									if(cpu->ods.z!=6)
+									{
+										cpu->regs[tbl_r[cpu->ods.z]]=cpu->internal[2]; // H and L are /not/ IXYfied
+									}
+									cpu->dT=-2;
 								}
 							}
 							else // CB x3 == SET y,r[z]
@@ -640,24 +602,11 @@ int main(int argc, char * argv[])
 										}
 										else // x0 z4 y6 == INC (HL): M1=MR(4)
 										{
-											switch(cpu->dT)
+											STEP_MR(*HL, &cpu->internal[1]);
+											if(cpu->M>1)
 											{
-												case 0:
-													bus->addr=*HL;
-												break;
-												case 1:
-													bus->tris=IN;
-													bus->mreq=true;
-												break;
-												case 2:
-													cpu->internal[1]=bus->data;
-													op_alu(cpu, cpu->internal[1]);
-													bus->tris=OFF;
-													bus->mreq=false;
-													bus->addr=0;
-													cpu->dT=-2;
-													cpu->M++;
-												break;
+												cpu->internal[1]=op_inc8(cpu, cpu->internal[1]);
+												cpu->dT=-2;
 											}
 										}
 									}
@@ -676,24 +625,11 @@ int main(int argc, char * argv[])
 										}
 										else // x0 z5 y6 == DEC (HL): M1=MR(4)
 										{
-											switch(cpu->dT)
+											STEP_MR(*HL, &cpu->internal[1]);
+											if(cpu->M>1)
 											{
-												case 0:
-													bus->addr=*HL;
-												break;
-												case 1:
-													bus->tris=IN;
-													bus->mreq=true;
-												break;
-												case 2:
-													cpu->internal[1]=bus->data;
-													op_alu(cpu, cpu->internal[1]);
-													bus->tris=OFF;
-													bus->mreq=false;
-													bus->addr=0;
-													cpu->dT=-2;
-													cpu->M++;
-												break;
+												cpu->internal[1]=op_dec8(cpu, cpu->internal[1]);
+												cpu->dT=-2;
 											}
 										}
 									}
@@ -769,24 +705,11 @@ int main(int argc, char * argv[])
 								}
 								else // alu[y] A,(HL): M1=MR(3)
 								{
-									switch(cpu->dT)
+									STEP_MR(*HL, &cpu->internal[1]);
+									if(cpu->M>1)
 									{
-										case 0:
-											bus->addr=*HL;
-										break;
-										case 1:
-											bus->tris=IN;
-											bus->mreq=true;
-										break;
-										case 2:
-											cpu->internal[1]=bus->data;
-											op_alu(cpu, cpu->internal[1]);
-											bus->tris=OFF;
-											bus->mreq=false;
-											bus->addr=0;
-											cpu->dT=-1;
-											cpu->M=0;
-										break;
+										op_alu(cpu, cpu->internal[1]);
+										cpu->M=0;
 									}
 								}
 							}
@@ -1289,24 +1212,7 @@ int main(int argc, char * argv[])
 											STEP_MW(I16, cpu->regs[tbl_rp[cpu->ods.p]]);
 										break;
 										case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M3=MRL(3)
-											switch(cpu->dT)
-											{
-												case 0:
-													bus->addr=I16;
-												break;
-												case 1:
-													bus->tris=IN;
-													bus->mreq=true;
-												break;
-												case 2:
-													cpu->regs[tbl_rp[cpu->ods.p]]=bus->data;
-													bus->tris=OFF;
-													bus->mreq=false;
-													bus->addr=0;
-													cpu->dT=-1;
-													cpu->M++;
-												break;
-											}
+											STEP_MR(I16, &cpu->regs[tbl_rp[cpu->ods.p]]);
 										break;
 									}
 								break;
@@ -1366,24 +1272,7 @@ int main(int argc, char * argv[])
 													STEP_MW(I16, cpu->regs[IL]);
 												break;
 												case 1: // x0 z2 p2 q1 == LD HL,(nn): M3=MRL(3)
-													switch(cpu->dT)
-													{
-														case 0:
-															bus->addr=I16;
-														break;
-														case 1:
-															bus->tris=IN;
-															bus->mreq=true;
-														break;
-														case 2:
-															cpu->regs[IL]=bus->data;
-															bus->tris=OFF;
-															bus->mreq=false;
-															bus->addr=0;
-															cpu->dT=-1;
-															cpu->M++;
-														break;
-													}
+													STEP_MR(I16, &cpu->regs[IL]);
 												break;
 											}
 										break;
@@ -1396,24 +1285,7 @@ int main(int argc, char * argv[])
 														cpu->M=0;
 												break;
 												case 1: // x0 z2 p3 q1 == LD A,(nn): M3=MR(3)
-													switch(cpu->dT)
-													{
-														case 0:
-															bus->addr=I16;
-														break;
-														case 1:
-															bus->tris=IN;
-															bus->mreq=true;
-														break;
-														case 2:
-															cpu->regs[3]=bus->data;
-															bus->tris=OFF;
-															bus->mreq=false;
-															bus->addr=0;
-															cpu->dT=-1;
-															cpu->M=0;
-														break;
-													}
+													STEP_MR(I16, &cpu->regs[3]);
 												break;
 											}
 										break;
@@ -1429,24 +1301,7 @@ int main(int argc, char * argv[])
 									{
 										if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M3=MR(3)
 										{
-											switch(cpu->dT)
-											{
-												case 0:
-													bus->addr=(*IHL)+((signed char)cpu->internal[1]);
-												break;
-												case 1:
-													bus->tris=IN;
-													bus->mreq=true;
-												break;
-												case 2:
-													cpu->internal[2]=bus->data;
-													bus->tris=OFF;
-													bus->mreq=false;
-													bus->addr=0;
-													cpu->dT=-1;
-													cpu->M++;
-												break;
-											}
+											STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
 										}
 										else
 										{
