@@ -59,7 +59,7 @@
 #define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->M
 #define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
 #define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
-#define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core\n", cpu->M
+#define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core (s%hhu x%hhu z%hhu y%hhu)\n", cpu->M, cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y
 
 typedef struct _pos
 {
@@ -1461,6 +1461,8 @@ int main(int argc, char * argv[])
 												break;
 												case 1: // x0 z2 p2 q1 == LD HL,(nn): M4=MRH(3)
 													STEP_MR(I16+1, &cpu->regs[IH]);
+													if(cpu->M>4)
+														cpu->M=0;
 												break;
 											}
 										break;
