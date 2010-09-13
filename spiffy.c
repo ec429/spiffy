@@ -649,6 +649,25 @@ int main(int argc, char * argv[])
 										}
 									}
 								break;
+								case 7: // x0 z7
+									switch(cpu->ods.y)
+									{
+										case 6: // x0 z7 y6 == SCF: M1=IO(0)
+											// flags:
+											// SZ5H3PNC
+											// --*0*-01
+											// 5,3 from A
+											cpu->regs[2]&=FS|FZ|FP;
+											cpu->regs[2]|=FC;
+											cpu->regs[2]|=(cpu->regs[3]&(F5|F3));
+											cpu->M=0;
+										break;
+										default: // x0 z7 y?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								default: // x0 z?
 									fprintf(stderr, ZERR2);
 									errupt++;
