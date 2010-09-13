@@ -1043,7 +1043,7 @@ int main(int argc, char * argv[])
 								case 6: // x0 z6 == LD r[y],n: M2(HL):=MW(3)
 									if(cpu->ods.y==6)
 									{
-										if(cpu->shiftstate&0xC) // DD/FD x0 z6 y6 = LD (IXY+d): M2=OD(3)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z6 y6 = LD (IXY+d),n: M2=OD(3)
 										{
 											STEP_OD(2); // get operand byte
 										}
@@ -1325,6 +1325,29 @@ int main(int argc, char * argv[])
 										if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M3=MR(3)
 										{
 											STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
+										}
+										else
+										{
+											fprintf(stderr, ZERR3);
+											errupt++;
+										}
+									}
+									else
+									{
+										fprintf(stderr, ZERR3);
+										errupt++;
+									}
+								break;
+								case 6: // x0 z6 == LD r[y],n; M3 should only happen if DD/FD and r[y] is (HL)
+									if(cpu->ods.y==6)
+									{
+										if(cpu->shiftstate&0xC) // DD/FD x0 z6 y6 == LD (IXY+d),n: M3=MW(3)
+										{
+											STEP_MW((*IHL)+((signed char)cpu->internal[1]), cpu->internal[2]);
+											if(cpu->M>3)
+											{
+												cpu->M=0;
+											}
 										}
 										else
 										{
