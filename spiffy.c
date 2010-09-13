@@ -20,6 +20,7 @@
 #include <math.h>
 #include <time.h>
 #include "ops.h"
+#include "z80.h"
 
 // SDL surface params
 #define OSIZ_X	320
@@ -74,7 +75,7 @@ void mixaudio(void *portfe, Uint8 *stream, int len);
 #endif
 
 // helper fns
-void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh, bool waitline);
+void show_state(unsigned char * RAM, z80 cpu, int Tstates, bus_t bus);
 
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval);
 
@@ -172,20 +173,9 @@ int main(int argc, char * argv[])
 	}
 	fclose(fp);
 	
-	// Registers:
-	// PCAFBCDEHLIxIyIRSPafbcdehl
-	// 1032547698badcfe1032547698
-	// PC = Program Counter
-	// A = Accumulator
-	// F = Flags register [7]SZ5H3PNC[0]
-	// BC, DE, HL: user registers
-	// Ix, Iy: Index registers
-	// I: Interrupt Vector
-	// R: Memory Refresh
-	// SP: Stack Pointer
-	// afbcdehl: Alternate register set (EX/EXX)
-	unsigned char regs[26];
-	memset(regs, 0, sizeof(unsigned char[26]));
+	z80 cpu;
+	
+	memset(cpu.regs, 0, sizeof(unsigned char[26]));
 	
 	// Fill in register decoding tables
 	// tbl_r: B C D E H L (HL) A
@@ -213,22 +203,23 @@ int main(int argc, char * argv[])
 	tbl_im[1]=tbl_im[2]=1;
 	tbl_im[3]=2;
 	
-	bool IFF[2]; // Interrupts Flip Flops
-	bool block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
-	IFF[0]=IFF[1]=false;
-	int intmode=0; // Interrupt Mode
+	cpu.block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
+	cpu.IFF[0]=cpu.IFF[1]=false;
+	cpu.intmode=0; // Interrupt Mode
 	bool reti=false; // was the last opcode RETI?  (some hardware detects this, eg. PIO)
-	bool waitline=false; // raised by the ULA to apply contention
-	int waitlim=1; // internal; max dT to allow while WAIT is active
-	bool disp=false; // have we had the displacement byte? (DD/FD CB)
+	cpu.waitlim=1; // internal; max dT to allow while WAIT is active
+	cpu.disp=false; // have we had the displacement byte? (DD/FD CB)
 	
-	tristate tris=OFF;
-	bool iorq=false;
-	bool mreq=false;
-	bool m1=false;
-	bool rfsh=false;
-	unsigned short int portno=0; // Address lines for IN/OUT
-	unsigned char ioval=0; // Value written by Z80 (OUT) / peripheral (IN)
+	bus_t bus;
+	
+	bus.tris=OFF;
+	bus.iorq=false;
+	bus.mreq=false;
+	bus.m1=false;
+	bus.rfsh=false;
+	bus.addr=0;
+	bus.data=0;
+	bus.waitline=false;
 	
 	int Fstate=0; // FLASH state
 	
@@ -242,15 +233,11 @@ int main(int argc, char * argv[])
 	time_t start_time=time(NULL);
 	int frames=0;
 	int Tstates=0;
-	int dT=0;
+	cpu.dT=0;
 	
-	int M=0; // note: my M-cycles do not correspond to official labelling
-	unsigned char internal[3]={0,0,0}; // Internal Z80 registers
-	od ods;
-	
-	int shiftstate=0;	// The 'shift state' resulting from prefixes
-						// bits as follows: 1=CB 2=ED 4=DD 8=FD
-						// Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
+	cpu.M=0; // note: my M-cycles do not correspond to official labelling
+	cpu.internal[0]=cpu.internal[1]=cpu.internal[2]=0;
+	cpu.shiftstate=0;
 	
 	// Main program loop
 	while(!errupt)
@@ -259,11 +246,11 @@ int main(int argc, char * argv[])
 		{
 			debug=true;
 		}
-		block_ints=false;
+		cpu.block_ints=false;
 		Tstates++;
-		dT++;
+		cpu.dT++;
 		if(waitline)
-			dT=min(dT, waitlim);
+			cpu.dT=min(cpu.dT, cpu.waitlim);
 		if(mreq&&(tris==IN))
 		{
 			if(portno<ramtop)
@@ -288,19 +275,19 @@ int main(int argc, char * argv[])
 		}
 		
 		if(debug)
-			show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, portno, ioval, mreq, iorq, m1, rfsh, waitline);
+			show_state(RAM, cpu, Tstates, tris, portno, ioval, mreq, iorq, m1, rfsh, waitline);
 		
-		if((dT==0)&&rfsh)
+		if((cpu.dT==0)&&rfsh)
 		{
 			rfsh=false;
 			portno=0;
 			mreq=false;
 		}
-		int oM=M;
-		switch(M)
+		int oM=cpu.M;
+		switch(cpu.M)
 		{
 			case 0: // M0 = OCF(4)
-				switch(dT)
+				switch(cpu.dT)
 				{
 					case 0:
 						tris=OFF;
@@ -317,7 +304,7 @@ int main(int argc, char * argv[])
 					break;
 					case 2:
 						(*PC)++;
-						internal[0]=ioval;
+						cpu.internal[0]=ioval;
 						if((shiftstate&0x01)&&(shiftstate&0x0C)&&!disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
 						{ // Possible further M1 line incorrectness, as I have M1 active for d
 							internal[1]=ioval;
@@ -1943,16 +1930,16 @@ void mixaudio(void *portfe, Uint8 *stream, int len)
 }
 #endif
 
-void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, int dT, unsigned char internal[3], int shiftstate, bool * IFF, int intmode, tristate tris, unsigned short portno, unsigned char ioval, bool mreq, bool iorq, bool m1, bool rfsh, bool waitline)
+void show_state(unsigned char * RAM, z80 cpu, int Tstates, bus_t bus)
 {
 	int i;
 	printf("\nState:\n");
 	printf("P C  A F  B C  D E  H L  I x  I y  I R  S P  a f  b c  d e  h l  IFF IM\n");
 	for(i=0;i<26;i+=2)
 	{
-		printf("%02x%02x ", regs[i+1], regs[i]);
+		printf("%02x%02x ", cpu.regs[i+1], cpu.regs[i]);
 	}
-	printf("%c %c %1x\n", IFF[0]?'1':'0', IFF[1]?'1':'0', intmode);
+	printf("%c %c %1x\n", cpu.IFF[0]?'1':'0', cpu.IFF[1]?'1':'0', cpu.intmode);
 	printf("\n");
 	printf("Memory\t- near (PC), (HL) and (SP):\n");
 	for(i=0;i<5;i++)
@@ -1980,11 +1967,11 @@ void show_state(unsigned char * RAM, unsigned char * regs, int Tstates, int M, i
 		printf("%04x: %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3]);
 	}
 	printf("\n");
-	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, M, dT, internal[0], internal[1], internal[2], shiftstate);
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", portno, ioval, tris==OUT?"WR":"wr", tris==IN?"RD":"rd", mreq?"MREQ":"mreq", iorq?"IORQ":"iorq", m1?"M1":"m1", rfsh?"RFSH":"rfsh", waitline?"WAIT":"wait");
+	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, cpu.M, cpu.dT, cpu.internal[0], cpu.internal[1], cpu.internal[2], cpu.shiftstate);
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", bus.addr, bus.data, bus.tris==OUT?"WR":"wr", bus.tris==IN?"RD":"rd", bus.mreq?"MREQ":"mreq", bus.iorq?"IORQ":"iorq", bus.m1?"M1":"m1", bus.rfsh?"RFSH":"rfsh", bus.waitline?"WAIT":"wait");
 }
 
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bool *waitline, int portfe, tristate *tris, unsigned short *portno, bool *mreq, bool iorq, unsigned char ioval) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
+void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
 	bool contend=false;
 	int line=(Tstates/224)-16;
@@ -2011,7 +1998,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 				uladb=0xff;
 				ulaab=portfe&0x07;
 			}
-			*waitline=contend&&((((*portno)&0xC000)==0x4000)||(iorq&&(*tris)&&!((*portno)%2)));
+			bus->waitline=contend&&((((bus->addr)&0xC000)==0x4000)||(bus->iorq&&(bus->tris)&&!((bus->addr)%2)));
 			int ink=ulaab&0x07;
 			int paper=(ulaab&0x38)>>3;
 			bool flash=ulaab&0x80;
