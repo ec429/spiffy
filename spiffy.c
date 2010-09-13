@@ -835,7 +835,7 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 3: // x3 z3
-									switch(ods.y)
+									switch(cpu->ods.y)
 									{
 										case 0: // x3 z3 y0 == JP nn: M1=ODL(3)
 											STEP_OD(1);
@@ -844,18 +844,18 @@ int main(int argc, char * argv[])
 											STEP_OD(1);
 										break;
 										case 5: // x3 z3 y5 == EX DE,HL: M1=IO(0)
-											M=0;
+											cpu->M=0;
 											unsigned short int tmp=*DE;
 											*DE=*HL;
 											*HL=tmp;
 										break;
 										case 6: // x3 z3 y6 == DI: M1=IO(0)
-											IFF[0]=IFF[1]=false;
-											M=0;
+											cpu->IFF[0]=cpu->IFF[1]=false;
+											cpu->M=0;
 										break;
 										case 7: // x3 z3 y7 == EI: M1=IO(0)
-											IFF[0]=IFF[1]=true;
-											M=0;
+											cpu->IFF[0]=cpu->IFF[1]=true;
+											cpu->M=0;
 										break;
 										default: // x3 z3 y?
 											fprintf(stderr, ZERR3);
@@ -864,10 +864,10 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 5: // x3 z5
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 1: // x3 z5 q1
-											switch(ods.p)
+											switch(cpu->ods.p)
 											{
 												case 0: // x3 z5 q1 p0 == CALL nn: M1=ODL(3)
 													STEP_OD(1);
@@ -886,10 +886,10 @@ int main(int argc, char * argv[])
 								break;
 								case 6: // x3 z6 == alu[y] n: M1=OD(3)
 									STEP_OD(1);
-									if(M>1)
+									if(cpu->M>1)
 									{
-										op_alu(ods, regs, internal[1]);
-										M=0;
+										op_alu(cpu, cpu->internal[1]);
+										cpu->M=0;
 									}
 								break;
 								default: // x3 z?
@@ -906,17 +906,17 @@ int main(int argc, char * argv[])
 				}
 			break;
 			case 2: // M2
-				if(shiftstate&0x01)
+				if(cpu->shiftstate&0x01)
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 2: // CB x2 == RES y,r[z]
 						case 3: // CB x3 == SET y,r[z]
-							if(shiftstate&0x0C) // FD/DD CB d x2/3 == LD r[z],RES/SET y,(IXY+d): M2=MW(3)
+							if(cpu->shiftstate&0x0C) // FD/DD CB d x2/3 == LD r[z],RES/SET y,(IXY+d): M2=MW(3)
 							{
-								STEP_MW((*IHL)+((signed char)internal[1]), internal[2]);
-								if(M>2)
-									M=0;
+								STEP_MW((*IHL)+((signed char)cpu->internal[1]), cpu->internal[2]);
+								if(cpu->M>2)
+									cpu->M=0;
 							}
 							else
 							{
@@ -930,30 +930,30 @@ int main(int argc, char * argv[])
 						break;
 					}
 				}
-				else if(shiftstate&0x02)
+				else if(cpu->shiftstate&0x02)
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 1: // s2 x1
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 2: // s2 x1 z2
-									if(!ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M2=IO(3)
+									if(!cpu->ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M2=IO(3)
 									{
-										if(dT>=2)
+										if(cpu->dT>=2)
 										{
-											op_sbc16(regs, 8, tbl_rp[ods.p]);
-											M=0;
-											dT=-1;
+											op_sbc16(cpu);
+											cpu->M=0;
+											cpu->dT=-1;
 										}
 									}
 									else // s2 x1 z2 q1 == ADC HL,rp[p]: M2=IO(3)
 									{
-										if(dT>=2)
+										if(cpu->dT>=2)
 										{
-											op_adc16(regs, 8, tbl_rp[ods.p]);
-											M=0;
-											dT=-1;
+											op_adc16(cpu);
+											cpu->M=0;
+											cpu->dT=-1;
 										}
 									}
 								break;
@@ -967,13 +967,13 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 2: // s2 x2
-							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
+							if((cpu->ods.z<4)&&(cpu->ods.y>3)) // bli[y,z]
 							{
-								op_bli(ods, regs, &dT, internal, &M, &tris, &bus->addr, &mreq, &iorq, &bus->data, waitline);
+								op_bli(cpu, bus);
 							}
 							else // LNOP
 							{
-								M=0;
+								cpu->M=0;
 							}
 						break;
 						default:
@@ -984,32 +984,32 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 0: // x0
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 0: // x0 z0
-									switch(ods.y)
+									switch(cpu->ods.y)
 									{
 										case 2: // x0 z0 y2 == DJNZ d: M2=OD(3)
 											STEP_OD(1);
-											if(M>2)
+											if(cpu->M>2)
 											{
-												regs[5]--; // decrement B
-												if(regs[5]==0) // and jump if not zero
-													M=0;
+												cpu->regs[5]--; // decrement B
+												if(cpu->regs[5]==0) // and jump if not zero
+													cpu->M=0;
 											}
 										break;
 										case 4: // x0 z0 y4-7 == JR cc[y-4],d: M2=IO(5)
 										case 5:
 										case 6:
 										case 7:
-											if(dT>=4)
+											if(cpu->dT>=4)
 											{
-												(*PC)+=(signed char)internal[1];
-												dT=-1;
-												M=0;
+												(*PC)+=(signed char)cpu->internal[1];
+												cpu->dT=-1;
+												cpu->M=0;
 											}
 										break;
 										default:
@@ -1019,29 +1019,29 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 1: // x0 z1
-									if(!ods.q) // x0 z1 q0 == LD rp[p],nn: M2=ODH(3)
+									if(!cpu->ods.q) // x0 z1 q0 == LD rp[p],nn: M2=ODH(3)
 									{
 										STEP_OD(2);
-										if(M>2)
+										if(cpu->M>2)
 										{
-											regs[IRP(tbl_rp[ods.p])]=internal[1];
-											regs[IRP(tbl_rp[ods.p])+1]=internal[2];
-											M=0;
-											dT=-1;
+											cpu->regs[IRP(tbl_rp[cpu->ods.p])]=cpu->internal[1];
+											cpu->regs[IRP(tbl_rp[cpu->ods.p])+1]=cpu->internal[2];
+											cpu->M=0;
+											cpu->dT=-1;
 										}
 									}
 									else // x0 z1 q1 == ADD HL,rp[p]: M2=IO(3)
 									{
-										if(dT>=2)
+										if(cpu->dT>=2)
 										{
-											op_add16(ods, regs, shiftstate);
-											M=0;
-											dT=-1;
+											op_add16(cpu);
+											cpu->M=0;
+											cpu->dT=-1;
 										}
 									}
 								break;
 								case 2: // x0 z2
-									switch(ods.p)
+									switch(cpu->ods.p)
 									{
 										case 2: // x0 z2 p2 == LD (nn)<=>HL: M2=ODH(3)
 										case 3: // x0 z2 p3 == LD (nn)<=>A: M2=ODH(3)
@@ -1054,27 +1054,27 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 4: // x0 z54== INC r[y]
-									if(ods.y==6) // x0 z4 y6 == INC (HL)
+									if(cpu->ods.y==6) // x0 z4 y6 == INC (HL)
 									{
-										if(shiftstate&0xC) // DD/FD x0 z4 y6 = INC (IXY+d): M2=IO(5)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z4 y6 = INC (IXY+d): M2=IO(5)
 										{
-											if(dT==0)
+											if(cpu->dT==0)
 											{
-												dT=-5;
-												M++;
+												cpu->dT=-5;
+												cpu->M++;
 											}
 										}
 										else // x0 z4 y6 == INC (HL): M2=MW(3)
 										{
-											if(dT==0)
+											if(cpu->dT==0)
 											{
-												internal[1]=op_dec8(regs, internal[1]);
+												cpu->internal[1]=op_inc8(cpu, internal[1]);
 											}
-											STEP_MW(*IHL, internal[1]);
-											if(M>2)
+											STEP_MW(*IHL, cpu->internal[1]);
+											if(cpu->M>2)
 											{
-												M=0;
-												dT=-1;
+												cpu->M=0;
+												cpu->dT=-1;
 											}
 										}
 									}
@@ -1085,27 +1085,27 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 5: // x0 z5 == DEC r[y]
-									if(ods.y==6) // x0 z5 y6 == DEC (HL)
+									if(cpu->ods.y==6) // x0 z5 y6 == DEC (HL)
 									{
-										if(shiftstate&0xC) // DD/FD x0 z5 y6 = DEC (IXY+d): M2=IO(5)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z5 y6 = DEC (IXY+d): M2=IO(5)
 										{
-											if(dT==0)
+											if(cpu->dT==0)
 											{
-												dT=-5;
-												M++;
+												cpu->dT=-5;
+												cpu->M++;
 											}
 										}
 										else // x0 z5 y6 == DEC (HL): M2=MW(3)
 										{
-											if(dT==0)
+											if(cpu->dT==0)
 											{
-												internal[1]=op_dec8(regs, internal[1]);
+												cpu->internal[1]=op_dec8(cpu, cpu->internal[1]);
 											}
-											STEP_MW(*IHL, internal[1]);
-											if(M>2)
+											STEP_MW(*IHL, cpu->internal[1]);
+											if(cpu->M>2)
 											{
-												M=0;
-												dT=-1;
+												cpu->M=0;
+												cpu->dT=-1;
 											}
 										}
 									}
@@ -1116,19 +1116,19 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 6: // x0 z6 == LD r[y],n: M2(HL):=MW(3)
-									if(ods.y==6)
+									if(cpu->ods.y==6)
 									{
-										if(shiftstate&0xC) // DD/FD x0 z6 y6 = LD (IXY+d): M2=OD(3)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z6 y6 = LD (IXY+d): M2=OD(3)
 										{
 											STEP_OD(2); // get operand byte
 										}
 										else // x0 z6 y6 == LD (HL),n: M2=MW(3)
 										{
-											STEP_MW(*IHL, internal[1]);
-											if(M>2)
+											STEP_MW(*IHL, cpu->internal[1]);
+											if(cpu->M>2)
 											{
-												M=0;
-												dT=-1;
+												cpu->M=0;
+												cpu->dT=-1;
 											}
 										}
 									}
@@ -1145,21 +1145,21 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 1: // x1
-							if((ods.y==6)&&(ods.z==6)) // x1 z6 y6 == HALT: no M2
+							if((cpu->ods.y==6)&&(cpu->ods.z==6)) // x1 z6 y6 == HALT: no M2
 							{
 								fprintf(stderr, ZERR3);
 								errupt++;
 							}
 							else // x1 !(z6 y6) == LD r[y],r[z]
 							{
-								if(ods.y==6)
+								if(cpu->ods.y==6)
 								{
-									if(shiftstate&0xC) // LD (IXY+d),r[z]: M2=IO(5)
+									if(cpu->shiftstate&0xC) // LD (IXY+d),r[z]: M2=IO(5)
 									{
-										if(dT>=0)
+										if(cpu->dT>=0)
 										{
-											dT-=5;
-											M++;
+											cpu->dT-=5;
+											cpu->M++;
 										}
 									}
 									else
@@ -1168,14 +1168,14 @@ int main(int argc, char * argv[])
 										errupt++;
 									}
 								}
-								else if(ods.z==6)
+								else if(cpu->ods.z==6)
 								{
-									if(shiftstate&0xC) // LD r[y],(IXY+d): M2=IO(5)
+									if(cpu->shiftstate&0xC) // LD r[y],(IXY+d): M2=IO(5)
 									{
-										if(dT>=0)
+										if(cpu->dT>=0)
 										{
-											dT-=5;
-											M++;
+											cpu->dT-=5;
+											cpu->M++;
 										}
 									}
 									else
@@ -1192,14 +1192,14 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 3: // x3
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 1: // x3 z1
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 0: // x3 z1 q0 = POP rp2[p]: M2=SRL(3)
 											STEP_SR(1);
-											regs[IRP(tbl_rp2[ods.p])]=(internal[2]<<8)|internal[1];
+											cpu->regs[IRP(tbl_rp2[cpu->ods.p])]=I16;
 										break;
 										default:
 											fprintf(stderr, ZERR3);
@@ -1208,23 +1208,23 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 3: // x3 z3
-									switch(ods.y)
+									switch(cpu->ods.y)
 									{
 										case 0: // x3 z3 y0 == JP nn: M2=ODH(3)
 											STEP_OD(2);
-											if(M>2)
+											if(cpu->M>2)
 											{
 												*PC=I16;
-												M=0;
-												dT=-1;
+												cpu->M=0;
+												cpu->dT=-1;
 											}
 										break;
 										case 2: // x3 z3 y2 == OUT (n),A: M2=PW(4)
-											STEP_PW((regs[3]<<8)+internal[1], regs[3]);
-											if(M>2)
+											STEP_PW((cpu->regs[3]<<8)+cpu->internal[1], cpu->regs[3]);
+											if(cpu->M>2)
 											{
-												M=0;
-												dT=-1;
+												cpu->M=0;
+												cpu->dT=-1;
 											}
 										break;
 										default: // x3 z3 y?
@@ -1234,15 +1234,15 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 5: // x3 z5
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 1: // x3 z5 q1
-											switch(ods.p)
+											switch(cpu->ods.p)
 											{
 												case 0: // x3 z5 q1 p0 == CALL nn: M2=ODH(4)
 													STEP_OD(2);
-													if(M>2)
-														dT--;
+													if(cpu->M>2)
+														cpu->dT--;
 												break;
 												default: // x3 z5 q1 p?
 													fprintf(stderr, ZERR3);
@@ -1270,41 +1270,41 @@ int main(int argc, char * argv[])
 				}
 			break;
 			case 3: // M3
-				if(shiftstate&0x01)
+				if(cpu->shiftstate&0x01)
 				{
 					fprintf(stderr, ZERR1);
 					errupt++;
 				}
-				else if(shiftstate&0x02)
+				else if(cpu->shiftstate&0x02)
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 1: // s2 x1
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 3: // s2 x1 z3
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 0: // s2 x1 z3 q0 == LD (nn), rp[p] : M3=MWL(3)
-											STEP_MW((internal[2]<<8)|internal[1], regs[tbl_rp[ods.p]]);
+											STEP_MW(I16, cpu->regs[tbl_rp[cpu->ods.p]]);
 										break;
 										case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M3=MRL(3)
-											switch(dT)
+											switch(cpu->dT)
 											{
 												case 0:
-													bus->addr=(internal[2]<<8)|internal[1];
+													bus->addr=I16;
 												break;
 												case 1:
-													tris=IN;
-													mreq=true;
+													bus->tris=IN;
+													bus->mreq=true;
 												break;
 												case 2:
-													regs[tbl_rp[ods.p]]=bus->data;
-													tris=OFF;
-													mreq=false;
+													cpu->regs[tbl_rp[cpu->ods.p]]=bus->data;
+													bus->tris=OFF;
+													bus->mreq=false;
 													bus->addr=0;
-													dT=-1;
-													M++;
+													cpu->dT=-1;
+													cpu->M++;
 												break;
 											}
 										break;
@@ -1317,13 +1317,13 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 2: // s2 x2
-							if((ods.z<4)&&(ods.y>3)) // bli[y,z]
+							if((cpu->ods.z<4)&&(cpu->ods.y>3)) // bli[y,z]
 							{
-								op_bli(ods, regs, &dT, internal, &M, &tris, &bus->addr, &mreq, &iorq, &bus->data, waitline);
+								op_bli(cpu, bus);
 							}
 							else // LNOP
 							{
-								M=0;
+								cpu->M=0;
 							}
 						break;
 						default: // s2 x?
@@ -1334,20 +1334,20 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 0: // x0
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 0: // x0 z0
-									switch(ods.y)
+									switch(cpu->ods.y)
 									{
 										case 2: // x0 z0 y2 == DJNZ d: M3=IO(5)
-											if(dT==0)
+											if(cpu->dT==0)
 											{
-												(*PC)+=(signed char)internal[1];
-												dT=-5;
-												M=0;
+												(*PC)+=(signed char)cpu->internal[1];
+												cpu->dT=-5;
+												cpu->M=0;
 											}
 										break;
 										default: // x0 z0 y?
@@ -1357,61 +1357,61 @@ int main(int argc, char * argv[])
 									}
 								break;
 								case 2: // x0 z2
-									switch(ods.p)
+									switch(cpu->ods.p)
 									{
 										case 2: // x0 z2 p2 == LD (nn)<=>HL
-											switch(ods.q)
+											switch(cpu->ods.q)
 											{
 												case 0: // x0 z2 p2 q0 == LD (nn),HL: M3=MWL(3)
-													STEP_MW((internal[2]<<8)|internal[1], regs[IL]);
+													STEP_MW(I16, cpu->regs[IL]);
 												break;
 												case 1: // x0 z2 p2 q1 == LD HL,(nn): M3=MRL(3)
-													switch(dT)
+													switch(cpu->dT)
 													{
 														case 0:
-															bus->addr=(internal[2]<<8)|internal[1];
+															bus->addr=I16;
 														break;
 														case 1:
-															tris=IN;
-															mreq=true;
+															bus->tris=IN;
+															bus->mreq=true;
 														break;
 														case 2:
-															regs[IL]=bus->data;
-															tris=OFF;
-															mreq=false;
+															cpu->regs[IL]=bus->data;
+															bus->tris=OFF;
+															bus->mreq=false;
 															bus->addr=0;
-															dT=-1;
-															M++;
+															cpu->dT=-1;
+															cpu->M++;
 														break;
 													}
 												break;
 											}
 										break;
 										case 3: // x0 z2 p3 == LD (nn)<=>A
-											switch(ods.q)
+											switch(cpu->ods.q)
 											{
 												case 0: // x0 z2 p3 q0 == LD (nn),A: M3=MW(3)
-													STEP_MW((internal[2]<<8)|internal[1], regs[3]);
-													if(M>3)
-														M=0;
+													STEP_MW(I16, cpu->regs[3]);
+													if(cpu->M>3)
+														cpu->M=0;
 												break;
 												case 1: // x0 z2 p3 q1 == LD A,(nn): M3=MR(3)
-													switch(dT)
+													switch(cpu->dT)
 													{
 														case 0:
-															bus->addr=(internal[2]<<8)|internal[1];
+															bus->addr=I16;
 														break;
 														case 1:
-															tris=IN;
-															mreq=true;
+															bus->tris=IN;
+															bus->mreq=true;
 														break;
 														case 2:
-															regs[3]=bus->data;
-															tris=OFF;
-															mreq=false;
+															cpu->regs[3]=bus->data;
+															bus->tris=OFF;
+															bus->mreq=false;
 															bus->addr=0;
-															dT=-1;
-															M=0;
+															cpu->dT=-1;
+															cpu->M=0;
 														break;
 													}
 												break;
@@ -1425,26 +1425,26 @@ int main(int argc, char * argv[])
 								break;
 								case 4: // x0 z4 == INC r[y]; M3 should only happen if DD/FD and r[y] is (HL)
 								case 5: // x0 z5 == DEC r[y]; M3 should only happen if DD/FD and r[y] is (HL)
-									if(ods.y==6)
+									if(cpu->ods.y==6)
 									{
-										if(shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M3=MR(3)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M3=MR(3)
 										{
-											switch(dT)
+											switch(cpu->dT)
 											{
 												case 0:
-													bus->addr=(*IHL)+((signed char)internal[1]);
+													bus->addr=(*IHL)+((signed char)cpu->internal[1]);
 												break;
 												case 1:
-													tris=IN;
-													mreq=true;
+													bus->tris=IN;
+													bus->mreq=true;
 												break;
 												case 2:
-													internal[2]=bus->data;
-													tris=OFF;
-													mreq=false;
+													cpu->internal[2]=bus->data;
+													bus->tris=OFF;
+													bus->mreq=false;
 													bus->addr=0;
-													dT=-1;
-													M++;
+													cpu->dT=-1;
+													cpu->M++;
 												break;
 											}
 										}
@@ -1467,20 +1467,20 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 1: // x1
-							if((ods.y==6)&&(ods.z==6)) // x1 z6 y6 == HALT: no M3
+							if((cpu->ods.y==6)&&(cpu->ods.z==6)) // x1 z6 y6 == HALT: no M3
 							{
 								fprintf(stderr, ZERR3);
 								errupt++;
 							}
 							else // x1 !(z6 y6) == LD r[y],r[z]
 							{
-								if(ods.y==6)
+								if(cpu->ods.y==6)
 								{
-									if(shiftstate&0xC) // LD (IXY+d),r[z]: M3=MW(3)
+									if(cpu->shiftstate&0xC) // LD (IXY+d),r[z]: M3=MW(3)
 									{
-										STEP_MW(*IHL+(signed char)internal[1], regs[tbl_r[ods.z]]); // H and L unchanged eg. LD (IX+d),H (not IXH)
-										if(M>3)
-											M=0;
+										STEP_MW(*IHL+(signed char)cpu->internal[1], cpu->regs[tbl_r[cpu->ods.z]]); // H and L unchanged eg. LD (IX+d),H (not IXH)
+										if(cpu->M>3)
+											cpu->M=0;
 									}
 									else
 									{
@@ -1488,13 +1488,13 @@ int main(int argc, char * argv[])
 										errupt++;
 									}
 								}
-								else if(ods.z==6)
+								else if(cpu->ods.z==6)
 								{
-									if(shiftstate&0xC) // LD r[y],(IXY+d): M3=MR(3)
+									if(cpu->shiftstate&0xC) // LD r[y],(IXY+d): M3=MR(3)
 									{
-										STEP_MR(*IHL+(signed char)internal[1], &regs[tbl_r[ods.y]]); // H and L unchanged eg. LD H,(IX+d) (not IXH)
-										if(M>3)
-											M=0;
+										STEP_MR(*IHL+(signed char)cpu->internal[1], &cpu->regs[tbl_r[cpu->ods.y]]); // H and L unchanged eg. LD H,(IX+d) (not IXH)
+										if(cpu->M>3)
+											cpu->M=0;
 									}
 									else
 									{
@@ -1510,16 +1510,16 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 3: // x3
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 5: // x3 z5
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 1: // x3 z5 q1
-											switch(ods.p)
+											switch(cpu->ods.p)
 											{
 												case 0: // x3 z5 q1 p0 == CALL nn: M3=SWH(3)
-													if(dT==0)
+													if(cpu->dT==0)
 														(*SP)--;
 													STEP_MW(*SP, (*PC)>>8);
 												break;
@@ -1549,45 +1549,28 @@ int main(int argc, char * argv[])
 				}
 			break;
 			case 4: // M4
-				if(shiftstate&0x01)
+				if(cpu->shiftstate&0x01)
 				{
 					fprintf(stderr, ZERR1);
 					errupt++;
 				}
-				else if(shiftstate&0x02)
+				else if(cpu->shiftstate&0x02)
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 1: // s2 x1
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 3: // s2 x1 z3
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 0: // s2 x1 z3 q0 == LD (nn), rp[p] : M4=MWH(3)
-											STEP_MW(((internal[2]<<8)|internal[1])+1, regs[tbl_rp[ods.p]+1]);
-											if(M>4)
-												M=0;
+											STEP_MW(I16+1, cpu->regs[tbl_rp[cpu->ods.p]+1]);
+											if(cpu->M>4)
+												cpu->M=0;
 										break;
 										case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M4=MRH(3)
-											switch(dT)
-											{
-												case 0:
-													bus->addr=((internal[2]<<8)|internal[1])+1;
-												break;
-												case 1:
-													tris=IN;
-													mreq=true;
-												break;
-												case 2:
-													regs[tbl_rp[ods.p]+1]=bus->data;
-													tris=OFF;
-													mreq=false;
-													bus->addr=0;
-													dT=-1;
-													M=0;
-												break;
-											}
+											STEP_MR(I16+1, &cpu->regs[tbl_rp[cpu->ods.p]+1]);
 										break;
 									}
 								break;
@@ -1605,41 +1588,24 @@ int main(int argc, char * argv[])
 				}
 				else
 				{
-					switch(ods.x)
+					switch(cpu->ods.x)
 					{
 						case 0: // x0
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 2: // x0 z2
-									switch(ods.p)
+									switch(cpu->ods.p)
 									{
 										case 2: // x0 z2 p2 == LD (nn)<=>HL
-											switch(ods.q)
+											switch(cpu->ods.q)
 											{
 												case 0: // x0 z2 p2 q0 == LD (nn),HL: M4=MWH(3)
-													STEP_MW(((internal[2]<<8)|internal[1])+1, regs[IH]);
-													if(M>4)
-														M=0;
+													STEP_MW(I16+1, cpu->regs[IH]);
+													if(cpu->M>4)
+														cpu->M=0;
 												break;
 												case 1: // x0 z2 p2 q1 == LD HL,(nn): M4=MRH(3)
-													switch(dT)
-													{
-														case 0:
-															bus->addr=((internal[2]<<8)|internal[1])+1;
-														break;
-														case 1:
-															tris=IN;
-															mreq=true;
-														break;
-														case 2:
-															regs[IH]=bus->data;
-															tris=OFF;
-															mreq=false;
-															bus->addr=0;
-															dT=-1;
-															M=0;
-														break;
-													}
+													STEP_MR(I16+1, &cpu->regs[IH]);
 												break;
 											}
 										break;
@@ -1651,15 +1617,15 @@ int main(int argc, char * argv[])
 								break;
 								case 4: // x0 z4 == INC r[y]; M4 should only happen if DD/FD and r[y] is (HL)
 								case 5: // x0 z5 == DEC r[y]; M4 should only happen if DD/FD and r[y] is (HL)
-									if(ods.y==6)
+									if(cpu->ods.y==6)
 									{
-										if(shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M4=MW(4)
+										if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M4=MW(4)
 										{
-											STEP_MW((*IHL)+((signed char)internal[1]), internal[2]+((ods.z&1)?-1:1));
-											if(M>4)
+											STEP_MW((*IHL)+((signed char)cpu->internal[1]), cpu->internal[2]+((cpu->ods.z&1)?-1:1));
+											if(cpu->M>4)
 											{
-												dT--;
-												M=0;
+												cpu->dT--;
+												cpu->M=0;
 											}
 										}
 										else
@@ -1681,21 +1647,21 @@ int main(int argc, char * argv[])
 							}
 						break;
 						case 3: // x3
-							switch(ods.z)
+							switch(cpu->ods.z)
 							{
 								case 5: // x3 z5
-									switch(ods.q)
+									switch(cpu->ods.q)
 									{
 										case 1: // x3 z5 q1
-											switch(ods.p)
+											switch(cpu->ods.p)
 											{
 												case 0: // x3 z5 q1 p0 == CALL nn: M4=SWL(3)
-													if(dT==0)
+													if(cpu->dT==0)
 														(*SP)--;
 													STEP_MW(*SP, (*PC));
-													if(M>4)
+													if(cpu->M>4)
 													{
-														M=0;
+														cpu->M=0;
 														(*PC)=I16;
 													}
 												break;
@@ -1729,12 +1695,12 @@ int main(int argc, char * argv[])
 				errupt++;
 			break;
 		}
-		if(oM&&!M) // when M is set to 0, shift is reset
+		if(oM&&!cpu->M) // when M is set to 0, shift is reset
 		{
-			shiftstate=0;
-			disp=false;
+			cpu->shiftstate=0;
+			cpu->disp=false;
 		}
-		scrn_update(screen, Tstates, Fstate, RAM, &waitline, portfe, &tris, &bus->addr, &mreq, iorq, bus->data);
+		scrn_update(screen, Tstates, Fstate, RAM, bus);
 		if(Tstates>=69888)
 		{
 			SDL_Flip(screen);
@@ -1815,7 +1781,7 @@ int main(int argc, char * argv[])
 		}
 	}
 	
-	show_state(RAM, regs, Tstates, M, dT, internal, shiftstate, IFF, intmode, tris, bus->addr, bus->data, mreq, iorq, m1, rfsh, waitline);
+	show_state(RAM, cpu, Tstates, bus);
 	
 	// clean up
 	if(SDL_MUSTLOCK(screen))
