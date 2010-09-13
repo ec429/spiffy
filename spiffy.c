@@ -722,6 +722,12 @@ int main(int argc, char * argv[])
 						case 3: // x3
 							switch(cpu->ods.z)
 							{
+								case 0: // x3 z0 == RET cc[y]: M1=IO(1)
+									cpu->dT--;
+									cpu->M++;
+									if(!cc(cpu->ods.y, cpu->regs[2]))
+										cpu->M=0;
+								break;
 								case 1: // x3 z1
 									switch(cpu->ods.q)
 									{
@@ -1119,6 +1125,9 @@ int main(int argc, char * argv[])
 						case 3: // x3
 							switch(cpu->ods.z)
 							{
+								case 0: // x3 z0 == RET cc[y]: M2=SRL(3)
+									STEP_SR(1);
+								break;
 								case 1: // x3 z1
 									switch(cpu->ods.q)
 									{
@@ -1413,6 +1422,14 @@ int main(int argc, char * argv[])
 						case 3: // x3
 							switch(cpu->ods.z)
 							{
+								case 0: // x3 z0 == RET cc[y]: M3=SRH(3)
+									STEP_SR(2);
+									if(cpu->M>3)
+									{
+										*PC=I16;
+										cpu->M=0;
+									}
+								break;
 								case 5: // x3 z5
 									switch(cpu->ods.q)
 									{
