@@ -731,6 +731,9 @@ int main(int argc, char * argv[])
 										case 1: // x3 z1 q1
 											switch(cpu->ods.p)
 											{
+												case 0: // x3 z1 q1 p0 == RET: M1=SRH(3)
+													STEP_SR(2);
+												break;
 												case 1: // x3 z1 q1 p1 == EXX: M1=IO(0)
 													for(i=4;i<10;i++) // BCDEHL
 													{
@@ -1373,9 +1376,7 @@ int main(int argc, char * argv[])
 											switch(cpu->ods.p)
 											{
 												case 0: // x3 z5 q1 p0 == CALL nn: M3=SWH(3)
-													if(cpu->dT==0)
-														(*SP)--;
-													STEP_MW(*SP, (*PC)>>8);
+													STEP_SW((*PC)>>8);
 												break;
 												default: // x3 z5 q1 p?
 													fprintf(stderr, ZERR3);
@@ -1512,9 +1513,7 @@ int main(int argc, char * argv[])
 											switch(cpu->ods.p)
 											{
 												case 0: // x3 z5 q1 p0 == CALL nn: M4=SWL(3)
-													if(cpu->dT==0)
-														(*SP)--;
-													STEP_MW(*SP, (*PC));
+													STEP_SW(*PC);
 													if(cpu->M>4)
 													{
 														cpu->M=0;

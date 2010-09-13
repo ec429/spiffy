@@ -15,6 +15,7 @@
 #define STEP_PR(a,v)	step_pr(cpu, a, v, bus)
 #define STEP_PW(a,v)	step_pw(cpu, a, v, bus)
 #define STEP_SR(n)		step_sr(cpu, n, bus)
+#define STEP_SW(v)		step_sw(cpu, v, bus)
 
 // Flags... [7]SZ5H3PNC[0]
 #define FS 0x80
@@ -65,6 +66,7 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char  val, bus_t *bus);
 void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus);
 void step_pw(z80 *cpu, unsigned short addr, unsigned char  val, bus_t *bus);
 void step_sr(z80 *cpu, int ernal, bus_t *bus);
+void step_sw(z80 *cpu, unsigned char val, bus_t *bus);
 
 // Opcodes and Opcode Groups
 void op_alu(z80 *cpu, unsigned char operand);
