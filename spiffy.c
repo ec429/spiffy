@@ -587,11 +587,11 @@ int main(int argc, char * argv[])
 									{
 										if(!cpu->ods.q) // x0 z3 q0 == INC rp[p]: M1=IO(2)
 										{
-											(*(unsigned short *)(cpu->regs+IRP(tbl_rp[cpu->ods.p])))++;
+											(*IRPP(cpu->ods.p))++;
 										}
 										else // x0 z3 q1 == DEC rp[p]: M1=IO(2)
 										{
-											(*(unsigned short *)(cpu->regs+IRP(tbl_rp[cpu->ods.p])))--;
+											(*IRPP(cpu->ods.p))--;
 										}
 										cpu->M=0;
 										cpu->dT=-2;
@@ -1005,8 +1005,7 @@ int main(int argc, char * argv[])
 										STEP_OD(2);
 										if(cpu->M>2)
 										{
-											cpu->regs[IRP(tbl_rp[cpu->ods.p])]=cpu->internal[1];
-											cpu->regs[IRP(tbl_rp[cpu->ods.p])+1]=cpu->internal[2];
+											*IRPP(cpu->ods.p)=I16;
 											cpu->M=0;
 											cpu->dT=-1;
 										}
@@ -1206,7 +1205,7 @@ int main(int argc, char * argv[])
 											if(cpu->M>2)
 											{
 												cpu->M=0;
-												cpu->regs[IRP(tbl_rp2[cpu->ods.p])]=I16;
+												*IRPP(cpu->ods.p)=I16;
 											}
 										break;
 										case 1: // x3 z1 q1

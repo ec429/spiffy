@@ -53,6 +53,7 @@ unsigned char tbl_im[4];
 #define IL	((cpu->shiftstate&4)?0xa:(cpu->shiftstate&8)?0xc:8) // L, IXl or IYl (regs offset)
 #define IRP(r)	((r==8)?IL:r) // IXYfy an rp offset
 #define IR(r)	((r==8)?IL:(r==9)?IH:r) // IXYfy a regs offset
+#define IRPP(p)	(unsigned short *)(cpu->regs+IRP(tbl_rp2[p])) // make a pointer to a 16-bit value from IRP register
 
 // Helpers
 int parity(unsigned short int num);
