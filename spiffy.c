@@ -410,8 +410,20 @@ int main(int argc, char * argv[])
 							}
 							else // CB x2 == RES y,r[z]
 							{
-								fprintf(stderr, ZERR0);
-								errupt++;
+								if(cpu->ods.z==6) // CB x2 z6 == RES y,(HL): M1=MR(4)
+								{
+									STEP_MR(*HL, &cpu->internal[1]);
+									if(cpu->M>1)
+									{
+										cpu->internal[1]&=~(1<<cpu->ods.y);
+										cpu->dT=-2;
+									}
+								}
+								else // CB x2 !z6 == RES y,r[z]: M1=IO(0)
+								{
+									cpu->regs[tbl_r[cpu->ods.z]]&=~(1<<cpu->ods.y);
+									cpu->M=0;
+								}
 							}
 						break;
 						case 3: // CB x3 == SET y,r[z]
@@ -897,10 +909,19 @@ int main(int argc, char * argv[])
 								if(cpu->M>2)
 									cpu->M=0;
 							}
-							else
+							else // CB x2/3 == RES/SET y,r[z]
 							{
-								fprintf(stderr, ZERR0);
-								errupt++;
+								if(cpu->ods.z==6) // CB x2/3 z6 = RES/SET y,(HL)
+								{
+									STEP_MW(*HL, cpu->internal[1]);
+									if(cpu->M>2)
+										cpu->M=0;
+								}
+								else // no M2
+								{
+									fprintf(stderr, ZERR2);
+									errupt++;
+								}
 							}
 						break;
 						default:
