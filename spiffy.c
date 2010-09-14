@@ -1390,6 +1390,8 @@ int main(int argc, char * argv[])
 												break;
 												case 1: // x0 z2 p3 q1 == LD A,(nn): M3=MR(3)
 													STEP_MR(I16, &cpu->regs[3]);
+													if(cpu->M>3)
+														cpu->M=0;
 												break;
 											}
 										break;
