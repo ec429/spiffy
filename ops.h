@@ -76,3 +76,4 @@ void op_adc16(z80 *cpu);
 void op_sbc16(z80 *cpu);
 unsigned char op_inc8(z80 *cpu, unsigned char operand);
 unsigned char op_dec8(z80 *cpu, unsigned char operand);
+void op_ra(z80 *cpu);

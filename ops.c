@@ -624,3 +624,26 @@ unsigned char op_dec8(z80 *cpu, unsigned char operand)
 	cpu->regs[2]|=FN; // N (subtraction) always set
 	return(src);
 }
+
+void op_ra(z80 *cpu)
+{
+	// R{L|R}[C]A: Rotate {Left|Right} [Circular] Accumulator, F=--503-0C.  5 and 3 from the NEW value of A
+	bool r=(cpu->ods.y&1);
+	bool hi=r?cpu->regs[3]&0x01:cpu->regs[3]&0x80;
+	bool c=cpu->regs[2]&FC;
+	cpu->regs[3]=r?cpu->regs[3]>>1:cpu->regs[3]<<1;
+	cpu->regs[2]&=FS|FZ|F5|F3|FV;
+	cpu->regs[2]|=hi?FC:0;
+	if(hi)
+	{
+		if(cpu->ods.y&2) // THRU Carry (9-bit)
+		{
+			cpu->regs[3]|=c?0x80:0x01; // old carry (RLA/RRA)
+		}
+		else // INTO Carry (8-bit)
+		{
+			cpu->regs[3]|=r?0x80:0x01; // new carry (RLCA/RRCA)
+		}
+	}
+	cpu->regs[2]|=(cpu->regs[3]&(F5|F3)); // 5 and 3 from the NEW value of A
+}

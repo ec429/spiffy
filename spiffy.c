@@ -655,6 +655,13 @@ int main(int argc, char * argv[])
 								case 7: // x0 z7
 									switch(cpu->ods.y)
 									{
+										case 0: // rotates on Accumulator: M1=IO(0)
+										case 1:
+										case 2:
+										case 3:
+											op_ra(cpu);
+											cpu->M=0;
+										break;
 										case 6: // x0 z7 y6 == SCF: M1=IO(0)
 											// flags:
 											// --*0*-01
