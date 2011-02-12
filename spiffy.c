@@ -442,8 +442,20 @@ int main(int argc, char * argv[])
 							}
 							else // CB x3 == SET y,r[z]
 							{
-								fprintf(stderr, ZERR0);
-								errupt++;
+								if(cpu->ods.z==6) // CB x2 z6 == SET y,(HL): M1=MR(4)
+								{
+									STEP_MR(*HL, &cpu->internal[1]);
+									if(cpu->M>1)
+									{
+										cpu->internal[1]|=(1<<cpu->ods.y);
+										cpu->dT=-2;
+									}
+								}
+								else // CB x3 !z6 == SET y,r[z]: M1=IO(0)
+								{
+									cpu->regs[tbl_r[cpu->ods.z]]|=(1<<cpu->ods.y);
+									cpu->M=0;
+								}
 							}
 						break;
 						default:
@@ -829,6 +841,9 @@ int main(int argc, char * argv[])
 										break;
 										case 2: // x3 z3 y2 == OUT (n),A: M1=OD(3)
 											STEP_OD(1);
+										break;
+										case 4: // x3 z3 y4 == EX (SP),HL: M1=SRL(3)
+											STEP_SR(1);
 										break;
 										case 5: // x3 z3 y5 == EX DE,HL: M1=IO(0)
 											cpu->M=0;
@@ -1272,6 +1287,17 @@ int main(int argc, char * argv[])
 												cpu->dT=-1;
 											}
 										break;
+										case 4: // x3 z3 y4 == EX (SP),HL: M2=SRH(4)
+											STEP_SR(2);
+											if(cpu->M>2)
+											{
+												unsigned short tmp=*HL;
+												*HL=I16;
+												cpu->internal[1]=tmp&0xFF;
+												cpu->internal[2]=tmp>>8;
+												cpu->dT=-1;
+											}
+										break;
 										default: // x3 z3 y?
 											fprintf(stderr, ZERR3);
 											errupt++;
@@ -1549,6 +1575,18 @@ int main(int argc, char * argv[])
 										cpu->M=0;
 									}
 								break;
+								case 3: // x3 z3
+									switch(cpu->ods.y)
+									{
+										case 4: // x3 z3 y4 == EX (SP),HL: M3=SWH(3)
+											STEP_SW(2);
+										break;
+										default: // x3 z3 y?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 5: // x3 z5
 									switch(cpu->ods.q)
 									{
@@ -1691,6 +1729,23 @@ int main(int argc, char * argv[])
 						case 3: // x3
 							switch(cpu->ods.z)
 							{
+								case 3: // x3 z3
+									switch(cpu->ods.y)
+									{
+										case 4: // x3 z3 y4 == EX (SP),HL: M4=SWL(5)
+											STEP_SW(1);
+											if(cpu->M>4)
+											{
+												cpu->M=0;
+												cpu->dT=-2;
+											}
+										break;
+										default: // x3 z3 y?
+											fprintf(stderr, ZERR3);
+											errupt++;
+										break;
+									}
+								break;
 								case 5: // x3 z5
 									switch(cpu->ods.q)
 									{
