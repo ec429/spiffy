@@ -5,14 +5,14 @@ Decoding-bits:
 	xxppqzzz
 
 Registers (Spiffy offsets):
-	PCAFBCDEHLIxIyIRSPafbcdehl
+	PCAFBCDEHLIxIyiRSPafbcdehl
 	1032547698badcfe1032547698
 	PC = Program Counter
 	A = Accumulator
 	F = Flags register [7]SZ5H3PNC[0]
 	BC, DE, HL: user registers
 	Ix, Iy: Index registers
-	I: Interrupt Vector
+	i: Interrupt Vector
 	R: Memory Refresh
 	SP: Stack Pointer
 	afbcdehl: Alternate register set (EX/EXX)
@@ -39,3 +39,5 @@ IM:
 
 R register:
 	Sequences of prefixes (eg. FDDDFDCB d XX) should only increment R by two.  Current implementation increments it somewhat more than that.
+
+Register starting values: http://www.worldofspectrum.org/forums/showthread.php?t=34574
