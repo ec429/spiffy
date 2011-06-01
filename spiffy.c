@@ -406,7 +406,7 @@ int main(int argc, char * argv[])
 										cpu->regs[2]|=FH;
 										if(!nz) cpu->regs[2]|=FZ|FP;
 										else if(cpu->ods.y==7) cpu->regs[2]|=FS;
-										cpu->dT=-2;
+										cpu->dT=-1;
 										cpu->M=0;
 									}
 								}
@@ -633,6 +633,34 @@ int main(int argc, char * argv[])
 								case 2: // x0 z2
 									switch(cpu->ods.p)
 									{
+										case 0: // x0 z2 p0 == LD (BC)<=>A
+											if(cpu->ods.q) // x0 z2 p0 q1 == LD A,(BC): M1=MR(3)
+											{
+												STEP_MR(*BC, &cpu->regs[3]);
+												if(cpu->M>1)
+													cpu->M=0;
+											}
+											else // x0 z2 p0 q0 == LD (BC),A: M1=MW(3)
+											{
+												STEP_MW(*BC, cpu->regs[3]);
+												if(cpu->M>1)
+													cpu->M=0;
+											}
+										break;
+										case 1: // x0 z2 p1 == LD (DE)<=>A
+											if(cpu->ods.q) // x0 z2 p1 q1 == LD A,(DE): M1=MR(3)
+											{
+												STEP_MR(*DE, &cpu->regs[3]);
+												if(cpu->M>1)
+													cpu->M=0;
+											}
+											else // x0 z2 p1 q0 == LD (DE),A: M1=MW(3)
+											{
+												STEP_MW(*DE, cpu->regs[3]);
+												if(cpu->M>1)
+													cpu->M=0;
+											}
+										break;
 										case 2: // x0 z2 p2 == LD (nn)<=>HL: M1=ODL(3)
 										case 3: // x0 z2 p3 == LD (nn)<=>A: M1=ODL(3)
 											STEP_OD(1);
