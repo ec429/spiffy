@@ -1729,6 +1729,8 @@ int main(int argc, char * argv[])
 										break;
 										case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M4=MRH(3)
 											STEP_MR(I16+1, &cpu->regs[tbl_rp[cpu->ods.p]+1]);
+											if(cpu->M>4)
+												cpu->M=0;
 										break;
 									}
 								break;
