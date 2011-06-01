@@ -390,8 +390,45 @@ int main(int argc, char * argv[])
 							}
 							else // CB x1 == BIT y,r[z]
 							{
-								fprintf(stderr, ZERR0);
-								errupt++;
+								if(cpu->ods.z==6) // CB x1 z6 == BIT y,(HL): M1=MR(4)
+								{
+									STEP_MR(*HL, &cpu->internal[1]);
+									if(cpu->M>1)
+									{
+										bool nz=cpu->internal[1]&(1<<cpu->ods.y);
+										// flags
+										// SZ5H3PNC
+										// *Zm1mZ0-
+										// ZP: BIT == 0
+										// S: BIT && y=7
+										// 53: from MEMPTR (TODO: give a rat's ass about MEMPTR)  current impl: always 0
+										cpu->regs[2]&=FC;
+										cpu->regs[2]|=FH;
+										if(!nz) cpu->regs[2]|=FZ|FP;
+										else if(cpu->ods.y==7) cpu->regs[2]|=FS;
+										cpu->dT=-2;
+										cpu->M=0;
+									}
+								}
+								else // CB x1 !z6 == BIT y,r[z]: M1=IO(0)
+								{
+									bool nz=cpu->regs[tbl_r[cpu->ods.z]]&(1<<cpu->ods.y);
+									// flags
+									// SZ5H3PNC
+									// *Z*1*Z0-
+									// ZP: BIT == 0
+									// S/5/3: BIT && y=7/5/3
+									cpu->regs[2]&=FC;
+									cpu->regs[2]|=FH;
+									if(!nz) cpu->regs[2]|=FZ|FP;
+									else
+									{
+										if(cpu->ods.y==7) cpu->regs[2]|=FS;
+										if(cpu->ods.y==5) cpu->regs[2]|=F5;
+										if(cpu->ods.y==3) cpu->regs[2]|=F3;
+									}
+									cpu->M=0;
+								}
 							}
 						break;
 						case 2: // CB x2 == RES y,r[z]
