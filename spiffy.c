@@ -898,6 +898,9 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 2: // x3 z2 == JP cc[y],nn: M1=ODL(3)
+									STEP_OD(1);
+								break;
 								case 3: // x3 z3
 									switch(cpu->ods.y)
 									{
@@ -929,6 +932,9 @@ int main(int argc, char * argv[])
 											errupt++;
 										break;
 									}
+								break;
+								case 4: // x3 z4 == CALL cc[y],nn: M1=ODL(3)
+									STEP_OD(1);
 								break;
 								case 5: // x3 z5
 									switch(cpu->ods.q)
@@ -1138,7 +1144,7 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
-								case 4: // x0 z54== INC r[y]
+								case 4: // x0 z4 == INC r[y]
 									if(cpu->ods.y==6) // x0 z4 y6 == INC (HL)
 									{
 										if(cpu->shiftstate&0xC) // DD/FD x0 z4 y6 = INC (IXY+d): M2=IO(5)
@@ -1336,6 +1342,15 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 2: // x3 z2 == JP cc[y],nn: M2=ODH(3)
+									STEP_OD(2);
+									if(cpu->M>2)
+									{
+										if(cc(cpu->ods.y, cpu->regs[2]))
+											*PC=I16;
+										cpu->M=0;
+									}
+								break;
 								case 3: // x3 z3
 									switch(cpu->ods.y)
 									{
@@ -1371,6 +1386,16 @@ int main(int argc, char * argv[])
 											fprintf(stderr, ZERR3);
 											errupt++;
 										break;
+									}
+								break;
+								case 4: // x3 z4 == CALL cc[y],nn: M2=ODH(cc?3:4)
+									STEP_OD(2);
+									if(cpu->M>2)
+									{
+										if(cc(cpu->ods.y, cpu->regs[2]))
+											cpu->dT=-1;
+										else
+											cpu->M=0;
 									}
 								break;
 								case 5: // x3 z5
@@ -1659,6 +1684,9 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 4: // x3 z4 == CALL cc[y],nn: cc true; M3=SWH(3)
+									STEP_SW(2);
+								break;
 								case 5: // x3 z5
 									switch(cpu->ods.q)
 									{
@@ -1826,6 +1854,15 @@ int main(int argc, char * argv[])
 											fprintf(stderr, ZERR3);
 											errupt++;
 										break;
+									}
+								break;
+								case 4: // x3 z4 == CALL cc[y],nn: cc true; M4=SWL(3)
+									STEP_SW(1);
+									if(cpu->M>4)
+									{
+										*PC=I16;
+										cpu->M=0;
+										cpu->dT=-2;
 									}
 								break;
 								case 5: // x3 z5
