@@ -963,6 +963,10 @@ int main(int argc, char * argv[])
 										cpu->M=0;
 									}
 								break;
+								case 7: // x3 z7 == RST y*8: M1=IO(1)
+									cpu->dT--;
+									cpu->M++;
+								break;
 								default: // x3 z?
 									fprintf(stderr, ZERR2);
 									errupt++;
@@ -1395,6 +1399,9 @@ int main(int argc, char * argv[])
 										break;
 									}
 								break;
+								case 7: // x3 z7 == RST y*8: M2=SWH(3)
+									STEP_SW((*PC)>>8);
+								break;
 								default: // x3 z?
 									fprintf(stderr, ZERR2);
 									errupt++;
@@ -1676,6 +1683,14 @@ int main(int argc, char * argv[])
 											fprintf(stderr, ZERR3);
 											errupt++;
 										break;
+									}
+								break;
+								case 7: // x3 z7 == RST y*8: M3=SWL(3)
+									STEP_SW(*PC);
+									if(cpu->M>3)
+									{
+										cpu->M=0;
+										(*PC)=cpu->ods.y<<3;
 									}
 								break;
 								default: // x3 z?
