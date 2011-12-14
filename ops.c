@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010
+	Copyright Edward Cree, 2010-11
 	ops - Z80 core operations
 */
 
@@ -646,4 +646,53 @@ void op_ra(z80 *cpu)
 		}
 	}
 	cpu->regs[2]|=(cpu->regs[3]&(F5|F3)); // 5 and 3 from the NEW value of A
+}
+
+unsigned char op_r(z80 *cpu, unsigned char operand)
+{
+	// R{L|R}[C] r[z]: Rotate {Left|Right} [Circular] register, F=SZ503P0C.  5 and 3 from the result
+	bool r=(cpu->ods.y&1);
+	bool hi=r?operand&0x01:operand&0x80;
+	bool c=cpu->regs[2]&FC;
+	operand=r?operand>>1:operand<<1;
+	cpu->regs[2]=hi?FC:0;
+	if(hi)
+	{
+		if(cpu->ods.y&2) // THRU Carry (9-bit)
+		{
+			operand|=c?0x80:0x01; // old carry (RL/RR)
+		}
+		else // INTO Carry (8-bit)
+		{
+			operand|=r?0x80:0x01; // new carry (RLC/RRC)
+		}
+	}
+	cpu->regs[2]|=(operand&(FS|F5|F3)); // 5 and 3 from the NEW value of r[z]
+	if(parity(operand)) cpu->regs[2]|=FP;
+	if(!operand) cpu->regs[2]|=FZ;
+	return(operand);
+}
+
+unsigned char op_s(z80 *cpu, unsigned char operand)
+{
+	// S{L|R}{L|A} r[z]: Shift {Left|Right} {Logical|Arithmetic} register, F=SZ503P0C.  5 and 3 from the result
+	bool r=(cpu->ods.y&1);
+	bool hi=r?operand&0x01:operand&0x80;
+	bool s=operand&0x80;
+	operand=r?operand>>1:operand<<1;
+	cpu->regs[2]=hi?FC:0;
+	if(cpu->ods.y&2) // Logical
+	{
+		if(!r) // SLL undocumented opcode
+			operand|=0x01;
+	}
+	else // Arithmetic
+	{
+		if(r&&s) // SRA sign extension
+			operand|=0x80;
+	}
+	cpu->regs[2]|=(operand&(FS|F5|F3)); // 5 and 3 from the NEW value of r[z]
+	if(parity(operand)) cpu->regs[2]|=FP;
+	if(!operand) cpu->regs[2]|=FZ;
+	return(operand);
 }

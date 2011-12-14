@@ -37,7 +37,4 @@ block instructions:
 IM:
 	The undoc IM 0/1 (ED 4E and others) sets IM 1 (Paul Dunn, personal communication)
 
-R register:
-	Sequences of prefixes (eg. FDDDFDCB d XX) should only increment R by two.  Current implementation increments it somewhat more than that.
-
 Register starting values: http://www.worldofspectrum.org/forums/showthread.php?t=34574

@@ -40,12 +40,12 @@
 #define VERSION_REV	0
 
 #define VERSION_MSG "spiffy %hhu.%hhu.%hhu\n\
- Copyright (C) 2010 Edward Cree.\n\
+ Copyright (C) 2010-11 Edward Cree.\n\
  License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n\
  This is free software: you are free to change and redistribute it.\n\
  There is NO WARRANTY, to the extent permitted by law.\n",VERSION_MAJ, VERSION_MIN, VERSION_REV
 
-#define GPL_MSG "spiffy Copyright (C) 2010 Edward Cree.\n\
+#define GPL_MSG "spiffy Copyright (C) 2010-11 Edward Cree.\n\
  This program comes with ABSOLUTELY NO WARRANTY; for details see the GPL v3.\n\
  This is free software, and you are welcome to redistribute it\n\
  under certain conditions: GPL v3+\n"
@@ -365,12 +365,48 @@ int main(int argc, char * argv[])
 				}
 			break;
 			case 1: // M1
-				if(cpu->shiftstate&0x01)
+				if(cpu->shiftstate&0x01) // CB
 				{
 					switch(cpu->ods.x)
 					{
+						case 0: // CB x0 == rot[y] r[z]
+							if(cpu->shiftstate&0x0C) // FD/DD CB x0 == LD r[z], rot[y] (IX+d): M1=MR(4)
+							{
+								STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
+								if(cpu->M>1)
+								{
+									if(cpu->ods.y&4)
+										cpu->internal[2]=op_s(cpu, cpu->internal[2]);
+									else
+										cpu->internal[2]=op_r(cpu, cpu->internal[2]);
+									if(cpu->ods.z!=6)
+										cpu->regs[tbl_r[cpu->ods.z]]=cpu->internal[2]; // H and L are /not/ IXYfied
+									cpu->dT=-2;
+								}
+							}
+							else
+							{
+								if(cpu->ods.z==6) // CB x0 z6 == rot[y] (HL): M1=MR(4)
+								{
+									STEP_MR(*HL, &cpu->internal[1]);
+									if(cpu->M>1)
+									{
+										cpu->dT=-1;
+										cpu->M++;
+									}
+								}
+								else // CB x0 !z6 == rot[y] r[z]: M1=IO(0)
+								{
+									if(cpu->ods.y&4)
+										cpu->regs[tbl_r[cpu->ods.z]]=op_s(cpu, cpu->regs[tbl_r[cpu->ods.z]]);
+									else
+										cpu->regs[tbl_r[cpu->ods.z]]=op_r(cpu, cpu->regs[tbl_r[cpu->ods.z]]);
+									cpu->M=0;
+								}
+							}
+						break;
 						case 1: // CB x1 == BIT y,r[z]
-							if(cpu->shiftstate&0x0C) // FD/DD CB d x2 == BIT y,(IXY+d): M1=MR(4)
+							if(cpu->shiftstate&0x0C) // FD/DD CB d x1 == BIT y,(IXY+d): M1=MR(4)
 							{
 								STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
 								if(cpu->M>1)
@@ -504,19 +540,38 @@ int main(int argc, char * argv[])
 						break;
 					}
 				}
-				else if(cpu->shiftstate&0x02)
+				else if(cpu->shiftstate&0x02) // ED
 				{
 					switch(cpu->ods.x)
 					{
-						case 0: // s2 x0x3 == LNOP
+						case 0: // ED x0x3 == LNOP
 						case 3:
 							cpu->M=0;
 						break;
-						case 1: // s2 x1
+						case 1: // ED x1
 							switch(cpu->ods.z)
 							{
-								case 2: // s2 x1 z2
-									if(!cpu->ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M1=IO(4)
+								case 0: // ED x1 z0 == IN r[y],(C): M1=PR(4)
+									STEP_PR(*BC,&cpu->internal[1]);
+									if(cpu->M>1)
+									{
+										if(cpu->ods.y!=6)
+											cpu->regs[tbl_r[cpu->ods.y]]=cpu->internal[1];
+										// Flags: SZ503P0-
+										cpu->regs[2]&=FC;
+										cpu->regs[2]|=(cpu->internal[1]&(FS|F5|F3));
+										if(!cpu->internal[1]) cpu->regs[2]|=FZ;
+										if(parity(cpu->internal[1])) cpu->regs[2]|=FP;
+										cpu->M=0;
+									}
+								break;
+								case 1: // ED x1 z1 == OUT (C),r[y]: M1=PW(4)
+									STEP_PW(*BC,(cpu->ods.y==6)?0:cpu->regs[tbl_r[cpu->ods.y]]);
+									if(cpu->M>1)
+										cpu->M=0;
+								break;
+								case 2: // ED x1 z2
+									if(!cpu->ods.q) // ED x1 z2 q0 == SBC HL,rp[p]: M1=IO(4)
 									{
 										if(cpu->dT>=4)
 										{
@@ -524,7 +579,7 @@ int main(int argc, char * argv[])
 											cpu->dT=0;
 										}
 									}
-									else // s2 x1 z2 q1 == ADC HL,rp[p]: M1=IO(4)
+									else // ED x1 z2 q1 == ADC HL,rp[p]: M1=IO(4)
 									{
 										if(cpu->dT>=4)
 										{
@@ -533,17 +588,32 @@ int main(int argc, char * argv[])
 										}
 									}
 								break;
-								case 3: // s2 x1 z3 == LD rp[p]<=>(nn): M1=ODL(3)
+								case 3: // ED x1 z3 == LD rp[p]<=>(nn): M1=ODL(3)
 									STEP_OD(1);
 								break;
-								case 6: // s2 x1 z6 == IM im[y]: M1=IO(0)
+								case 4: // ED x1 z4 == NEG: M1=IO(0)
+								{
+									bool h=cpu->regs[3]&0x0f;
+									cpu->regs[3]=-cpu->regs[3];
+									// Flags: SZ5H3V1C
+									cpu->regs[2]=FN|(cpu->regs[3]&(FS|F5|F3));
+									if(cpu->regs[3]==0x80) cpu->regs[2]|=FV;
+									if(!cpu->regs[3]) cpu->regs[2]|=FZ|FC;
+									if(h) cpu->regs[2]|=FH;
+									cpu->M=0;
+								}
+								break;
+								case 5: // ED x1 z5 == RETI/N: M1=SRL(3)
+									STEP_SR(1);
+								break;
+								case 6: // ED x1 z6 == IM im[y]: M1=IO(0)
 									cpu->intmode=tbl_im[cpu->ods.y&3];
 									cpu->M=0;
 								break;
-								case 7: // s2 x1 z7
+								case 7: // ED x1 z7
 									switch(cpu->ods.y)
 									{
-										case 0: // s2 x1 z7 y0 == LD I,A: M1=IO(1)
+										case 0: // ED x1 z7 y0 == LD I,A: M1=IO(1)
 											if(cpu->dT>=0)
 											{
 												cpu->regs[15]=cpu->regs[3];
@@ -566,7 +636,7 @@ int main(int argc, char * argv[])
 								break;
 							}
 						break;
-						case 2: // s2 x2
+						case 2: // ED x2
 							if((cpu->ods.z<4)&&(cpu->ods.y>3)) // bli[y,z]
 							{
 								op_bli(cpu, bus);
@@ -576,7 +646,7 @@ int main(int argc, char * argv[])
 								cpu->M=0;
 							}
 						break;
-						default: // s2 x?
+						default: // ED x?
 							fprintf(stderr, ZERR1);
 							errupt++;
 						break;
@@ -594,6 +664,14 @@ int main(int argc, char * argv[])
 									{
 										case 0: // x0 z0 y0 == NOP: M1=IO(0)
 											cpu->M=0;
+										break;
+										case 1: // x0 z0 y1 == EX AF,AF': M1=IO(0)
+										{
+											unsigned short tmp=*AF;
+											*AF=*(unsigned short int *)(cpu->regs+18);
+											*(unsigned short int *)(cpu->regs+18)=tmp;
+											cpu->M=0;
+										}
 										break;
 										case 2: // x0 z0 y2 == DJNZ d: M1=IO(1)
 											cpu->M++;
@@ -752,6 +830,79 @@ int main(int argc, char * argv[])
 										case 2:
 										case 3:
 											op_ra(cpu);
+											cpu->M=0;
+										break;
+										case 4: // x0 z7 y4 == DAA: M1=IO(0)
+										{
+											unsigned char diff=0, l=cpu->regs[3]&0x0F, h=(cpu->regs[3]&0xF0)>>4;
+											bool c,hc;
+											if(cpu->regs[2]&FC)
+											{
+												if(l<10)
+												{
+													if(cpu->regs[2]&FH)
+														diff=0x66;
+													else
+														diff=0x60;
+												}
+												else
+													diff=0x66;
+												c=true;
+											}
+											else
+											{
+												if(l<10)
+												{
+													if(h<10)
+													{
+														if(cpu->regs[2]&FH)
+															diff=0x06;
+														else
+															diff=0;
+														c=false;
+													}
+													else
+													{
+														if(cpu->regs[2]&FH)
+															diff=0x66;
+														else
+															diff=0x60;
+														c=true;
+													}
+												}
+												else
+												{
+													if(h<9)
+													{
+														diff=0x06;
+														c=false;
+													}
+													else
+													{
+														diff=0x66;
+														c=true;
+													}
+												}
+											}
+											if(cpu->regs[2]&FN)
+												hc=(cpu->regs[2]&FH)&&(l<6);
+											else
+												hc=(l>9);
+											cpu->regs[3]+=diff;
+											// Flags: SZ5H3P-C
+											cpu->regs[2]&=FN;
+											cpu->regs[2]|=cpu->regs[3]&(FS|F5|F3);
+											if(c) cpu->regs[2]|=FC;
+											if(hc) cpu->regs[2]|=FH;
+											if(!cpu->regs[3]) cpu->regs[2]|=FZ;
+											if(parity(cpu->regs[3])) cpu->regs[2]|=FP;
+											cpu->M=0;
+										}
+										case 5: // x0 z7 y5 == CPL: M1=IO(0)
+											cpu->regs[3]=~cpu->regs[3];
+											cpu->regs[2]&=FS|FZ|FP|FC;
+											cpu->regs[2]|=FH|FN;
+											cpu->regs[2]|=cpu->regs[3]&(F5|F3);
 											cpu->M=0;
 										break;
 										case 6: // x0 z7 y6 == SCF: M1=IO(0)
@@ -990,10 +1141,26 @@ int main(int argc, char * argv[])
 				}
 			break;
 			case 2: // M2
-				if(cpu->shiftstate&0x01)
+				if(cpu->shiftstate&0x01) // CB
 				{
 					switch(cpu->ods.x)
 					{
+						case 0: // CB x0 == rot[y] r[z]
+							if(cpu->ods.z==6) // CB x0 z6 == rot[y] (HL)
+							{
+								if(cpu->shiftstate&0x0C) // FD/DD CB d x0 z6 == rot[y],(IXY+d): M2=MW(3)
+									STEP_MW((*IHL)+((signed char)cpu->internal[1]), cpu->internal[2]);
+								else // CB x0 z6 == rot[y] (HL): M2=MW(3)
+									STEP_MW(*HL, cpu->internal[1]);
+								if(cpu->M>2)
+									cpu->M=0;
+							}
+							else // no M2
+							{
+								fprintf(stderr, ZERR2);
+								errupt++;
+							}
+						break;
 						case 2: // CB x2 == RES y,r[z]
 						case 3: // CB x3 == SET y,r[z]
 							if(cpu->shiftstate&0x0C) // FD/DD CB d x2/3 == LD r[z],RES/SET y,(IXY+d): M2=MW(3)
@@ -1023,15 +1190,15 @@ int main(int argc, char * argv[])
 						break;
 					}
 				}
-				else if(cpu->shiftstate&0x02)
+				else if(cpu->shiftstate&0x02) // ED
 				{
 					switch(cpu->ods.x)
 					{
-						case 1: // s2 x1
+						case 1: // ED x1
 							switch(cpu->ods.z)
 							{
-								case 2: // s2 x1 z2
-									if(!cpu->ods.q) // s2 x1 z2 q0 == SBC HL,rp[p]: M2=IO(3)
+								case 2: // ED x1 z2
+									if(!cpu->ods.q) // ED x1 z2 q0 == SBC HL,rp[p]: M2=IO(3)
 									{
 										if(cpu->dT>=2)
 										{
@@ -1040,7 +1207,7 @@ int main(int argc, char * argv[])
 											cpu->dT=-1;
 										}
 									}
-									else // s2 x1 z2 q1 == ADC HL,rp[p]: M2=IO(3)
+									else // ED x1 z2 q1 == ADC HL,rp[p]: M2=IO(3)
 									{
 										if(cpu->dT>=2)
 										{
@@ -1050,16 +1217,24 @@ int main(int argc, char * argv[])
 										}
 									}
 								break;
-								case 3: // s2 x1 z3 == LD rp[p]<=>(nn): M2=ODH(3)
+								case 3: // ED x1 z3 == LD rp[p]<=>(nn): M2=ODH(3)
 									STEP_OD(2);
 								break;
-								default:
+								case 5: // ED x1 z5 == RETI/N: M2=SRH(3)
+									STEP_SR(2);
+									if(cpu->M>2)
+									{
+										cpu->IFF[0]=cpu->IFF[1];
+										cpu->M=0;
+										*PC=I16;
+									}
+								break;default:
 									fprintf(stderr, ZERR2);
 									errupt++;
 								break;
 							}
 						break;
-						case 2: // s2 x2
+						case 2: // ED x2
 							if((cpu->ods.z<4)&&(cpu->ods.y>3)) // bli[y,z]
 							{
 								op_bli(cpu, bus);

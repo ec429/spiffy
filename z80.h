@@ -2,7 +2,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010
+	Copyright Edward Cree, 2010-11
 	z80 - structures for Z80 communication
 */
 

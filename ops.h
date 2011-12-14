@@ -2,13 +2,14 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010
+	Copyright Edward Cree, 2010-11
 	ops - Z80 core operations
 */
 
 #include <stdbool.h>
 #include "z80.h"
 
+// M-cycle call wrappers
 #define STEP_OD(n)		step_od(cpu, n, bus)
 #define STEP_MR(a,v)	step_mr(cpu, a, v, bus)
 #define STEP_MW(a,v)	step_mw(cpu, a, v, bus)
@@ -60,7 +61,7 @@ int parity(unsigned short int num);
 od od_bits(unsigned char opcode);
 bool cc(unsigned char which, unsigned char flags);
 
-// M-cycles
+// M-cycle bus sequencers
 void step_od(z80 *cpu, int ernal, bus_t *bus);
 void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus);
 void step_mw(z80 *cpu, unsigned short addr, unsigned char  val, bus_t *bus);
@@ -78,3 +79,5 @@ void op_sbc16(z80 *cpu);
 unsigned char op_inc8(z80 *cpu, unsigned char operand);
 unsigned char op_dec8(z80 *cpu, unsigned char operand);
 void op_ra(z80 *cpu);
+unsigned char op_r(z80 *cpu, unsigned char operand);
+unsigned char op_s(z80 *cpu, unsigned char operand);
