@@ -680,7 +680,9 @@ run_test(FILE *f)
 	while(!errupt)
 	{
 		do_ram(memory, bus, true);
+		fflush(stdout);
 		errupt=z80_tstep(cpu, bus, errupt);
+		fflush(stderr);
 		if(++tstates>end_tstates)
 		{
 			if((cpu->M==0)&&(cpu->dT==0)&&!cpu->block_ints)

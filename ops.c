@@ -656,16 +656,13 @@ unsigned char op_r(z80 *cpu, unsigned char operand)
 	bool c=cpu->regs[2]&FC;
 	operand=r?operand>>1:operand<<1;
 	cpu->regs[2]=hi?FC:0;
-	if(hi)
+	if(cpu->ods.y&2) // THRU Carry (9-bit)
 	{
-		if(cpu->ods.y&2) // THRU Carry (9-bit)
-		{
-			operand|=c?0x80:0x01; // old carry (RL/RR)
-		}
-		else // INTO Carry (8-bit)
-		{
-			operand|=r?0x80:0x01; // new carry (RLC/RRC)
-		}
+		if(c) operand|=r?0x80:0x01; // old carry (RL/RR)
+	}
+	else // INTO Carry (8-bit)
+	{
+		if(hi) operand|=r?0x80:0x01; // new carry (RLC/RRC)
 	}
 	cpu->regs[2]|=(operand&(FS|F5|F3)); // 5 and 3 from the NEW value of r[z]
 	if(parity(operand)) cpu->regs[2]|=FP;

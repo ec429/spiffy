@@ -77,7 +77,6 @@ void z80_reset(z80 *cpu, bus_t *bus)
 
 int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 {
-	cpu->block_ints=false;
 	cpu->dT++;
 	if(bus->waitline)
 		cpu->dT=min(cpu->dT, cpu->waitlim);
@@ -235,8 +234,11 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 								STEP_MR(*HL, &cpu->internal[1]);
 								if(cpu->M>1)
 								{
-									cpu->dT=-1;
-									cpu->M++;
+									if(cpu->ods.y&4)
+										cpu->internal[1]=op_s(cpu, cpu->internal[1]);
+									else
+										cpu->internal[1]=op_r(cpu, cpu->internal[1]);
+									cpu->dT=-2;
 								}
 							}
 							else // CB x0 !z6 == rot[y] r[z]: M1=IO(0)
@@ -289,7 +291,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									cpu->regs[2]|=FH;
 									if(!nz) cpu->regs[2]|=FZ|FP;
 									else if(cpu->ods.y==7) cpu->regs[2]|=FS;
-									cpu->dT=-1;
+									cpu->dT=-2;
 									cpu->M=0;
 								}
 							}
@@ -1947,6 +1949,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 	{
 		cpu->shiftstate=0;
 		cpu->disp=false;
+		cpu->block_ints=false;
 	}
 	return(errupt);
 }
