@@ -47,6 +47,10 @@ unsigned char tbl_im[4];
 #define Intvec (unsigned char *)(cpu->regs+15)
 #define Refresh (unsigned char *)(cpu->regs+14)
 #define SP (unsigned short int *)(cpu->regs+16)
+#define AF_ (unsigned short int *)(cpu->regs+18)
+#define BC_ (unsigned short int *)(cpu->regs+20)
+#define DE_ (unsigned short int *)(cpu->regs+22)
+#define HL_ (unsigned short int *)(cpu->regs+24)
 
 #define I16 ((cpu->internal[2]<<8)+cpu->internal[1]) // 16 bit literal from internal registers
 #define IHL (unsigned short int *)((cpu->shiftstate&4)?Ix:(cpu->shiftstate&8)?Iy:HL) // HL except where modified by DD/FD prefixes (pointer to word)
@@ -54,7 +58,8 @@ unsigned char tbl_im[4];
 #define IL	((cpu->shiftstate&4)?0xa:(cpu->shiftstate&8)?0xc:8) // L, IXl or IYl (regs offset)
 #define IRP(r)	((r==8)?IL:r) // IXYfy an rp offset
 #define IR(r)	((r==8)?IL:(r==9)?IH:r) // IXYfy a regs offset
-#define IRPP(p)	(unsigned short *)(cpu->regs+IRP(tbl_rp2[p])) // make a pointer to a 16-bit value from IRP register
+#define IRPP(p)		(unsigned short *)(cpu->regs+IRP(tbl_rp[p])) // make a pointer to a 16-bit value from IRP register
+#define IRP2P(p)	(unsigned short *)(cpu->regs+IRP(tbl_rp2[p])) // make a pointer to a 16-bit value from IRP register
 
 // Helpers
 int parity(unsigned short int num);

@@ -306,12 +306,12 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 			cpu->regs[3]=res;
 		}
 		break;
-		case 2: // SUB A,op: A-=operand, F=(XXVX1X)=[SZ5H3V1C]
+		case 2: // SUB op: A-=operand, F=(XXVX1X)=[SZ5H3V1C]
 		{
 			signed short int d=cpu->regs[3]-operand;
 			signed char sd=(signed char)cpu->regs[3]-(signed char)operand;
 			signed char hd=(cpu->regs[3]&0x0f)-(operand&0x0f);
-			cpu->regs[2]=((d>=-0x80 && d<0)?FS:0); // S true if -128<=d<0
+			cpu->regs[2]=d&FS;
 			cpu->regs[2]|=(d==0?FZ:0); // Z true if d=0
 			cpu->regs[2]|=(d&(F5|F3)); // 53 cf bits 5,3 of d; this is not the same as CP r (which takes them from r)
 			cpu->regs[2]|=(hd<0?FH:0); // H true if half-carry (here be dragons)
@@ -327,7 +327,7 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 			signed short int d=cpu->regs[3]-operand-C;
 			signed char sd=(signed char)cpu->regs[3]-(signed char)operand;
 			signed char hd=(cpu->regs[3]&0x0f)-(operand&0x0f)-C;
-			cpu->regs[2]=((d>=-0x80 && d<0)?FS:0); // S true if -128<=d<0
+			cpu->regs[2]=d&FS;
 			cpu->regs[2]|=(d==0?FZ:0); // Z true if d=0
 			cpu->regs[2]|=(d&(F5|F3)); // 53 cf bits 5,3 of d; this is not the same as CP r (which takes them from r)
 			cpu->regs[2]|=(hd<0?FH:0); // H true if half-carry (here be dragons)
@@ -637,16 +637,13 @@ void op_ra(z80 *cpu)
 	cpu->regs[3]=r?cpu->regs[3]>>1:cpu->regs[3]<<1;
 	cpu->regs[2]&=FS|FZ|F5|F3|FV;
 	cpu->regs[2]|=hi?FC:0;
-	if(hi)
+	if(cpu->ods.y&2) // THRU Carry (9-bit)
 	{
-		if(cpu->ods.y&2) // THRU Carry (9-bit)
-		{
-			cpu->regs[3]|=c?0x80:0x01; // old carry (RLA/RRA)
-		}
-		else // INTO Carry (8-bit)
-		{
-			cpu->regs[3]|=r?0x80:0x01; // new carry (RLCA/RRCA)
-		}
+		if(c) cpu->regs[3]|=r?0x80:0x01; // old carry (RLA/RRA)
+	}
+	else // INTO Carry (8-bit)
+	{
+		if(hi) cpu->regs[3]|=r?0x80:0x01; // new carry (RLCA/RRCA)
 	}
 	cpu->regs[2]|=(cpu->regs[3]&(F5|F3)); // 5 and 3 from the NEW value of A
 }

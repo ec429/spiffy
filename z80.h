@@ -3,8 +3,10 @@
 	spiffy - ZX spectrum emulator
 	
 	Copyright Edward Cree, 2010-11
-	z80 - structures for Z80 communication
+	z80.h - Z80 communication
 */
+
+#include <stdbool.h>
 
 typedef enum {OFF,IN,OUT} tristate;
 
@@ -26,6 +28,7 @@ typedef struct
 	int intmode; // Interrupt Mode
 	int waitlim; // internal; max dT to allow while WAIT is active
 	bool disp; // have we had the displacement byte? (DD/FD CB)
+	bool halt; // are we HALTed?
 	int dT; // T-state within M-cycle
 	int M; // note: my M-cycles do not correspond to official labelling
 	unsigned char internal[3]; // Internal Z80 registers
@@ -44,6 +47,11 @@ typedef struct
 	bool m1; // ¬M1 line
 	bool rfsh; // ¬RFSH line
 	bool waitline; // ¬WAIT line
+	bool halt; // ¬HALT line
 	unsigned char portfe; // last byte written to port 0xFE (used by ULA; should really be part of ULA internal data)
 }
 bus_t;
+
+void z80_init(void);
+void z80_reset(z80 *cpu, bus_t *bus);
+int z80_tstep(z80 *cpu, bus_t *bus, int errupt);
