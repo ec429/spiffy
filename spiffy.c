@@ -168,7 +168,7 @@ int main(int argc, char * argv[])
 	FILE *fp = fopen(ROM_FILE, "rb");
 	unsigned char RAM[65536];
 	ramtop=65536;
-	int i;
+	unsigned int i;
 	for(i=0;i<ramtop;i++)
 	{
 		if(i<16384)
@@ -279,7 +279,7 @@ int main(int argc, char * argv[])
 				bus->portfe=bus->data;
 		}
 		
-		if(debug)
+		if(debug&&(cpu->M==0)&&(cpu->dT==0))
 		{
 			show_state(RAM, cpu, Tstates, bus);
 			if(bugstep) getchar();
@@ -625,9 +625,6 @@ int main(int argc, char * argv[])
 											if(cpu->dT>=0)
 											{
 												cpu->regs[15]=cpu->regs[3];
-												cpu->regs[2]&=~FP;
-												if(cpu->IFF[1])
-													cpu->regs[2]|=FP;
 												cpu->M=0;
 												cpu->dT=-1;
 											}
@@ -2337,14 +2334,14 @@ void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
 		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
 		off = (*DE) + 8*(i-2);
 		off-=off%8;
-		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
-		off = I16 + 4*(i-2);
+		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
+		/*off = I16 + 4*(i-2);
 		off-=off%4;
-		printf("%04x: %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3]);
+		printf("%04x: %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3]);*/
 	}
-	printf("\n");
+	/*printf("\n");
 	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, cpu->M, cpu->dT, cpu->internal[0], cpu->internal[1], cpu->internal[2], cpu->shiftstate);
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait");
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait");*/
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!

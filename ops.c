@@ -309,12 +309,13 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 		case 2: // SUB A,op: A-=operand, F=(XXVX1X)=[SZ5H3V1C]
 		{
 			signed short int d=cpu->regs[3]-operand;
+			signed char sd=(signed char)cpu->regs[3]-(signed char)operand;
 			signed char hd=(cpu->regs[3]&0x0f)-(operand&0x0f);
 			cpu->regs[2]=((d>=-0x80 && d<0)?FS:0); // S true if -128<=d<0
 			cpu->regs[2]|=(d==0?FZ:0); // Z true if d=0
 			cpu->regs[2]|=(d&(F5|F3)); // 53 cf bits 5,3 of d; this is not the same as CP r (which takes them from r)
 			cpu->regs[2]|=(hd<0?FH:0); // H true if half-carry (here be dragons)
-			cpu->regs[2]|=(d<-0xff?FV:0); // V if overflow
+			cpu->regs[2]|=((sd>(signed char)cpu->regs[3])==((signed char)operand>0)?FV:0); // V if overflow
 			cpu->regs[2]|=FN; // N always true
 			cpu->regs[2]|=(d<0?FC:0);
 			cpu->regs[3]=d;
@@ -324,12 +325,13 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 		{
 			int C=cpu->regs[2]&FC;
 			signed short int d=cpu->regs[3]-operand-C;
+			signed char sd=(signed char)cpu->regs[3]-(signed char)operand;
 			signed char hd=(cpu->regs[3]&0x0f)-(operand&0x0f)-C;
 			cpu->regs[2]=((d>=-0x80 && d<0)?FS:0); // S true if -128<=d<0
 			cpu->regs[2]|=(d==0?FZ:0); // Z true if d=0
 			cpu->regs[2]|=(d&(F5|F3)); // 53 cf bits 5,3 of d; this is not the same as CP r (which takes them from r)
 			cpu->regs[2]|=(hd<0?FH:0); // H true if half-carry (here be dragons)
-			cpu->regs[2]|=(d<-0xff?FV:0); // V if overflow
+			cpu->regs[2]|=((sd>(signed char)cpu->regs[3])==((signed char)operand>0)?FV:0); // V if overflow
 			cpu->regs[2]|=FN; // N always true
 			cpu->regs[2]|=(d<0?FC:0);
 			cpu->regs[3]=d;
@@ -354,15 +356,16 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 			cpu->regs[2]|=(cpu->regs[3]&(F5|F3)); // 53 cf bits 5,3 of A
 			cpu->regs[2]|=FP*parity(cpu->regs[3]);
 		break;
-		case 7: // // CP op: Compare operand with A, F=(XXVX1X)=[SZ5H3V1C]
+		case 7: // CP op: Compare operand with A, F=(XXVX1X)=[SZ5H3V1C]
 		{
 			signed short int d=cpu->regs[3]-operand;
+			signed char sd=(signed char)cpu->regs[3]-(signed char)operand;
 			signed char hd=(cpu->regs[3]&0x0f)-(operand&0x0f);
-			cpu->regs[2]=((d>=-0x80 && d<0)?FS:0); // S true if -128<=d<0
-			cpu->regs[2]|=(d==0?FZ:0); // Z true if d=0
+			cpu->regs[2]=d&FS;
+			cpu->regs[2]|=((d&0xff)==0?FZ:0); // Z true if d=0
 			cpu->regs[2]|=(operand&(F5|F3)); // 53 cf bits 5,3 of r (NOT D!!!)
 			cpu->regs[2]|=(hd<0?FH:0); // H true if half-carry (here be dragons)
-			cpu->regs[2]|=(d<-0xff?FV:0); // V if overflow
+			cpu->regs[2]|=((sd>(signed char)cpu->regs[3])==((signed char)operand>0)?FV:0); // V if overflow
 			cpu->regs[2]|=FN; // N always true
 			cpu->regs[2]|=(d<0?FC:0);
 		}

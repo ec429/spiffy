@@ -1,7 +1,7 @@
 # Makefile for spiffy
-CC ?= gcc
-CFLAGS ?= -Wall
-SDL = `sdl-config --cflags --libs` -lSDL_ttf
+CC := gcc
+CFLAGS := -Wall -Wextra --std=gnu99 -g
+SDL := `sdl-config --cflags --libs` -lSDL_ttf
 
 all: spiffy
 
