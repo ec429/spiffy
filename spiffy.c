@@ -279,7 +279,7 @@ int main(int argc, char * argv[])
 				bus->portfe=bus->data;
 		}
 		
-		if(debug&&(cpu->M==0)&&(cpu->dT==0))
+		if(debug&&(cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))
 		{
 			show_state(RAM, cpu, Tstates, bus);
 			if(bugstep) getchar();

@@ -589,9 +589,9 @@ void op_sbc16(z80 *cpu)
 	signed short int *DD = (signed short int *)IHL;
 	signed short int *SS = (signed short int *)(cpu->regs+tbl_rp[cpu->ods.p]);
 	int C=cpu->regs[2]&1;
-	signed long int res = (*DD)-(*SS)-C;
+	signed long int res = (signed long int)(*DD)-(signed long int)(*SS)-(signed long int)C;
 	signed short int hd=((*DD)&0x0fff)-((*SS)&0x0fff)-C;
-	cpu->regs[2]=((res>=-0x8000 && res<0)?FS:0); // S true if -0x8000<=result<0
+	cpu->regs[2]=((res&0x8000)?FS:0); // S high bit of res
 	cpu->regs[2]|=((res&0xffff)==0?FZ:0); // Z true if d=0
 	cpu->regs[2]|=((res&0x2800)/0x100); // 53 cf bits 13,11 of res
 	cpu->regs[2]|=(hd<0?FH:0); // H true if half-carry in the high byte (here be dragons)
