@@ -91,6 +91,7 @@ int main(int argc, char * argv[])
 		font=TTF_OpenFont("Vera.ttf", 12);
 	}
 	bool debug=false; // Generate debugging info?
+	bool bugstep=false; // Single-step?
 	int breakpoint=-1;
 	int arg;
 	for (arg=1; arg<argc; arg++)
@@ -107,6 +108,10 @@ int main(int argc, char * argv[])
 		else if(strncmp(argv[arg], "-b=", 3) == 0)
 		{ // activate debugging mode at a breakpoint
 			sscanf(argv[arg]+3, "%04x", &breakpoint);
+		}
+		else if((strcmp(argv[arg], "--step") == 0) || (strcmp(argv[arg], "-s") == 0))
+		{ // activate single-step mode under debugger
+			bugstep=true;
 		}
 		else
 		{ // unrecognised option, assume it's a filename
@@ -275,7 +280,10 @@ int main(int argc, char * argv[])
 		}
 		
 		if(debug)
+		{
 			show_state(RAM, cpu, Tstates, bus);
+			if(bugstep) getchar();
+		}
 		
 		if((cpu->dT==0)&&bus->rfsh)
 		{
@@ -1999,7 +2007,7 @@ int main(int argc, char * argv[])
 									{
 										if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M4=MW(4)
 										{
-											STEP_MW((*IHL)+((signed char)cpu->internal[1]), cpu->internal[2]+((cpu->ods.z&1)?-1:1));
+											STEP_MW((*IHL)+((signed char)cpu->internal[1]), ((cpu->ods.z&1)?op_dec8:op_inc8)(cpu, cpu->internal[2]));
 											if(cpu->M>4)
 											{
 												cpu->dT--;
