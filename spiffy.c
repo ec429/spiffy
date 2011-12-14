@@ -1061,7 +1061,9 @@ int main(int argc, char * argv[])
 										case 0: // x3 z3 y0 == JP nn: M1=ODL(3)
 											STEP_OD(1);
 										break;
+										// x3 z3 y1 == CB prefix
 										case 2: // x3 z3 y2 == OUT (n),A: M1=OD(3)
+										case 3: // x3 z3 y3 == IN A,(n): M1=OD(3)
 											STEP_OD(1);
 										break;
 										case 4: // x3 z3 y4 == EX (SP),HL: M1=SRL(3)
@@ -1543,6 +1545,14 @@ int main(int argc, char * argv[])
 										break;
 										case 2: // x3 z3 y2 == OUT (n),A: M2=PW(4)
 											STEP_PW((cpu->regs[3]<<8)+cpu->internal[1], cpu->regs[3]);
+											if(cpu->M>2)
+											{
+												cpu->M=0;
+												cpu->dT=-1;
+											}
+										break;
+										case 3: // x3 z3 y3 == IN A,(n): M2=PR(4)
+											STEP_PR((cpu->regs[3]<<8)+cpu->internal[1], &cpu->regs[3]);
 											if(cpu->M>2)
 											{
 												cpu->M=0;
