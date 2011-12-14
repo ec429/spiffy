@@ -287,7 +287,7 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 			cpu->regs[2]|=((res&0xff)==0?FZ:0); // Z true if res=0
 			cpu->regs[2]|=(res&(F5|F3)); // 53 cf bits 5,3 of res
 			cpu->regs[2]|=(hd>0x0f?FH:0); // H true if half-carry (here be dragons)
-			cpu->regs[2]|=((cpu->regs[3]<0x80 && operand>0xff-cpu->regs[3])?FV:0); // V if overflow
+			cpu->regs[2]|=((operand<0x80)==((signed char)res<(signed char)cpu->regs[3]))?FV:0; // V if overflow
 			cpu->regs[2]|=(res>0xff?FC:0); // C if carry
 			cpu->regs[3]=res;
 		}
@@ -301,7 +301,7 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 			cpu->regs[2]|=((res&0xff)==0?FZ:0); // Z true if res=0
 			cpu->regs[2]|=(res&(F5|F3)); // 53 cf bits 5,3 of res
 			cpu->regs[2]|=(hd>0x0f?FH:0); // H true if half-carry (here be dragons)
-			cpu->regs[2]|=(((cpu->regs[3]<0x80 && operand>0xff-cpu->regs[3])-C)?FV:0); // V if overflow (strange rules, may not be accurately implemented in other op_ functions yet)
+			cpu->regs[2]|=((operand<0x80)==((signed char)res<(signed char)cpu->regs[3]))?FV:0; // V if overflow
 			cpu->regs[2]|=(res>0xff?FC:0); // C if carry
 			cpu->regs[3]=res;
 		}
@@ -555,7 +555,7 @@ void op_add16(z80 *cpu) // ADD HL(IxIy),rp2[p]
 {
 	// ADD dd,ss: dd+=ss, F=(X   0?)=[  5?3 0C].  Note: It's not the same as ADC
 	unsigned short int *DD = IHL;
-	unsigned short int *SS = (unsigned short int *)(cpu->regs+tbl_rp2[cpu->ods.p]);
+	unsigned short int *SS = (unsigned short int *)(cpu->regs+tbl_rp[cpu->ods.p]);
 	if(cpu->ods.p==2) SS=DD;
 	signed long int res = (*DD)+(*SS);
 	signed short int hd=((*DD)&0x0fff)+((*SS)&0x0fff);

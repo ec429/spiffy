@@ -146,7 +146,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				break;
 				case 2:
 					(*PC)++;
-					bool rfix=false;
+					bool rfix=false, rblock=false;
 					cpu->internal[0]=bus->data;
 					if((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!cpu->disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
 					{
@@ -154,6 +154,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						cpu->block_ints=true;
 						cpu->dT=-1;
 						cpu->disp=true;
+						rblock=true;
 					}
 					else
 					{
@@ -189,13 +190,16 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						}
 						cpu->dT=-2;
 						if(cpu->disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
+						{
 							cpu->dT--;
-						cpu->disp=false;
+							cpu->disp=false;
+							rblock=true;
+						}
 					}
 					bus->mreq=true;
 					bus->m1=false;
 					bus->tris=OFF;
-					if(rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))
+					if((rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))&&!rblock)
 					{
 						bus->rfsh=true;
 						bus->addr=((*Intvec)<<8)+*Refresh;
@@ -302,15 +306,18 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 								// SZ5H3PNC
 								// *Z*1*Z0-
 								// ZP: BIT == 0
-								// S/5/3: BIT && y=7/5/3
+								// S: BIT && y=7
+								// 53: from r
 								cpu->regs[2]&=FC;
 								cpu->regs[2]|=FH;
+								cpu->regs[2]|=cpu->regs[tbl_r[cpu->ods.z]]&(F5|F3); // this is how the FUSE testsuite and some other docs say 53 work
 								if(!nz) cpu->regs[2]|=FZ|FP;
 								else
 								{
 									if(cpu->ods.y==7) cpu->regs[2]|=FS;
-									if(cpu->ods.y==5) cpu->regs[2]|=F5;
-									if(cpu->ods.y==3) cpu->regs[2]|=F3;
+									// this is how The Undocumented Z80 Documented says 53 work
+									/*if(cpu->ods.y==5) cpu->regs[2]|=F5;
+									if(cpu->ods.y==3) cpu->regs[2]|=F3;*/
 								}
 								cpu->M=0;
 							}
@@ -664,6 +671,11 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 										cpu->M=0;
 									}
 								}
+								else // LD (IXY+d),n: M1=OD(5)
+								{
+									if((cpu->M>1)&&(cpu->shiftstate&0x0C))
+										cpu->dT-=2;
+								}
 							break;
 							case 7: // x0 z7
 								switch(cpu->ods.y)
@@ -996,19 +1008,25 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				switch(cpu->ods.x)
 				{
 					case 0: // CB x0 == rot[y] r[z]
-						if(cpu->ods.z==6) // CB x0 z6 == rot[y] (HL)
+						if(cpu->shiftstate&0x0C) // FD/DD CB d x0 z6 == rot[y],(IXY+d): M2=MW(3)
 						{
-							if(cpu->shiftstate&0x0C) // FD/DD CB d x0 z6 == rot[y],(IXY+d): M2=MW(3)
-								STEP_MW((*IHL)+((signed char)cpu->internal[1]), cpu->internal[2]);
-							else // CB x0 z6 == rot[y] (HL): M2=MW(3)
-								STEP_MW(*HL, cpu->internal[1]);
+							STEP_MW((*IHL)+((signed char)cpu->internal[1]), cpu->internal[2]);
 							if(cpu->M>2)
 								cpu->M=0;
 						}
-						else // no M2
+						else
 						{
-							fprintf(stderr, ZERR2);
-							errupt++;
+							if(cpu->ods.z==6) // CB x0 z6 == rot[y] (HL): M2=MW(3)
+							{
+								STEP_MW(*HL, cpu->internal[1]);
+								if(cpu->M>2)
+									cpu->M=0;
+							}
+							else // no M2
+							{
+								fprintf(stderr, ZERR2);
+								errupt++;
+							}
 						}
 					break;
 					case 2: // CB x2 == RES y,r[z]
