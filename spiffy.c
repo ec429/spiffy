@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010
+	Copyright Edward Cree, 2010-11
 	License: GNU GPL v3+
 	
 	Acknowledgements (Heavily used references)
@@ -294,20 +294,20 @@ int main(int argc, char * argv[])
 						bus->addr=*PC;
 						bus->iorq=false;
 						bus->mreq=false;
-						bus->m1=true; // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?  Or just for the first prefix?  I implement the former)
+						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)); // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?  Or just for the first prefix?  I implement the former.  However, after DD/FD CB, the next two fetches (d and XX) are not M1)
 					break;
 					case 1:
 						bus->tris=IN;
 						bus->addr=*PC;
 						bus->iorq=false;
-						bus->m1=true;
+						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C));
 						bus->mreq=true;
 					break;
 					case 2:
 						(*PC)++;
 						cpu->internal[0]=bus->data;
 						if((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!cpu->disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
-						{ // Possible further M1 line incorrectness, as I have M1 active for d
+						{
 							cpu->internal[1]=bus->data;
 							cpu->block_ints=true;
 							cpu->dT=-1;
@@ -351,12 +351,15 @@ int main(int argc, char * argv[])
 						}
 						bus->mreq=true;
 						bus->m1=false;
-						bus->rfsh=true;
 						bus->tris=OFF;
-						bus->addr=((*Intvec)<<8)+*Refresh;
-						(*Refresh)++;
-						if(!((*Refresh)&0x7f)) // preserve the high bit of R
-							(*Refresh)^=0x80;
+						if(!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))
+						{
+							bus->rfsh=true;
+							bus->addr=((*Intvec)<<8)+*Refresh;
+							(*Refresh)++;
+							if(!((*Refresh)&0x7f)) // preserve the high bit of R
+								(*Refresh)^=0x80;
+						}
 						cpu->waitlim=1;
 					break;
 				}
