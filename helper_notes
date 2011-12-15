@@ -35,6 +35,6 @@ block instructions:
 		OTxx: B--; OUT port(BC),(HL); HL+-; R? B? PC-=2.
 
 IM:
-	The undoc IM 0/1 (ED 4E and others) sets IM 1 (Paul Dunn, personal communication)
+	The undoc IM 0/1 (ED 4E and others) sets IM 0 (The Undocumented Z80 Documented)
 
 Register starting values: http://www.worldofspectrum.org/forums/showthread.php?t=34574

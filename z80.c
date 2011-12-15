@@ -44,9 +44,9 @@ void z80_init(void)
 	tbl_rp2[2]=8;
 	tbl_rp2[3]=2;
 	// Fill in other decoding tables
-	// tbl_im: 0 1 1 2
-	tbl_im[0]=0;
-	tbl_im[1]=tbl_im[2]=1;
+	// tbl_im: 0 0 1 2
+	tbl_im[0]=tbl_im[1]=0;
+	tbl_im[2]=1;
 	tbl_im[3]=2;
 }
 
@@ -169,16 +169,16 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 							cpu->shiftstate=0x02; // ED may not combine
 							cpu->block_ints=true;
 						}
-						else if((cpu->internal[0]==0xDD)&&(!cpu->shiftstate&0x01)) // CB DD is an instruction, not a shift
+						else if((cpu->internal[0]==0xDD)&&!(cpu->shiftstate&0x03)) // CB/ED DD is an instruction, not a shift
 						{
-							cpu->shiftstate&=~(0x0A); // ED,FD may not combine with DD
+							cpu->shiftstate&=~(0x08); // FD may not combine with DD
 							cpu->shiftstate|=0x04;
 							cpu->block_ints=true;
 							cpu->disp=false;
 						}
-						else if((cpu->internal[0]==0xFD)&&(!cpu->shiftstate&0x01)) // CB FD is an instruction, not a shift
+						else if((cpu->internal[0]==0xFD)&&!(cpu->shiftstate&0x03)) // CB/ED FD is an instruction, not a shift
 						{
-							cpu->shiftstate&=~(0x06); // DD,ED may not combine with FD
+							cpu->shiftstate&=~(0x04); // DD may not combine with FD
 							cpu->shiftstate|=0x08;
 							cpu->block_ints=true;
 							cpu->disp=false;
@@ -195,6 +195,10 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 							cpu->disp=false;
 							rblock=true;
 						}
+					}
+					if(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4))
+					{ // IN-- and OT-- functions take an extra Tstate
+						cpu->dT--;
 					}
 					bus->mreq=true;
 					bus->m1=false;
@@ -451,7 +455,8 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 								// Flags: SZ5H3V1C
 								cpu->regs[2]=FN|(cpu->regs[3]&(FS|F5|F3));
 								if(cpu->regs[3]==0x80) cpu->regs[2]|=FV;
-								if(!cpu->regs[3]) cpu->regs[2]|=FZ|FC;
+								if(!cpu->regs[3]) cpu->regs[2]|=FZ;
+								else cpu->regs[2]|=FC;
 								if(h) cpu->regs[2]|=FH;
 								cpu->M=0;
 							}
@@ -469,10 +474,66 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									case 0: // ED x1 z7 y0 == LD I,A: M1=IO(1)
 										if(cpu->dT>=0)
 										{
-											cpu->regs[15]=cpu->regs[3];
+											*Intvec=cpu->regs[3];
 											cpu->M=0;
-											cpu->dT=-1;
+											cpu->dT--;
 										}
+									break;
+									case 1: // ED x1 z7 y1 == LD R,A: M1=IO(1)
+										if(cpu->dT>=0)
+										{
+											*Refresh=cpu->regs[3];
+											cpu->M=0;
+											cpu->dT--;
+										}
+									break;
+									case 2: // ED x1 z7 y2 == LD A,I: M1=IO(1)
+										if(cpu->dT>=0)
+										{
+											// Flags: SZ503i0- (i = IFF2)
+											cpu->regs[3]=*Intvec;
+											cpu->regs[2]&=FC;
+											cpu->regs[2]|=cpu->regs[3]&(FS|F5|F3);
+											if(!cpu->regs[3]) cpu->regs[2]|=FZ;
+											if(cpu->IFF[1]) cpu->regs[2]|=FP;
+											cpu->M=0;
+											cpu->dT--;
+										}
+									break;
+									case 3: // ED x1 z7 y3 == LD A,R: M1=IO(1)
+										if(cpu->dT>=0)
+										{
+											// Flags: SZ503i0- (i = IFF2)
+											cpu->regs[3]=*Refresh;
+											cpu->regs[2]&=FC;
+											cpu->regs[2]|=cpu->regs[3]&(FS|F5|F3);
+											if(!cpu->regs[3]) cpu->regs[2]|=FZ;
+											if(cpu->IFF[1]) cpu->regs[2]|=FP;
+											cpu->M=0;
+											cpu->dT--;
+										}
+									break;
+									case 4: // ED x1 z7 y4 == RRD: M1=MR(3)
+										STEP_MR(*HL, &cpu->internal[1]);
+										if(cpu->M>1)
+										{
+											unsigned char A=cpu->regs[3];
+											cpu->regs[3]=(cpu->regs[3]&0xf0)|(cpu->internal[1]&0x0f);
+											cpu->internal[1]=((A&0x0f)<<4)|(cpu->internal[1]>>4);
+										}
+									break;
+									case 5: // ED x1 z7 y5 == RLD: M1=MR(3)
+										STEP_MR(*HL, &cpu->internal[1]);
+										if(cpu->M>1)
+										{
+											unsigned char A=cpu->regs[3];
+											cpu->regs[3]=(cpu->regs[3]&0xf0)|(cpu->internal[1]>>4);
+											cpu->internal[1]=(A&0x0f)|(cpu->internal[1]<<4);
+										}
+									break;
+									case 6: // ED x1 z7 y6 == NOP
+									case 7: // ED x1 z7 y7 == NOP
+										cpu->M=0;
 									break;
 									default:
 										fprintf(stderr, ZERR3);
@@ -1096,7 +1157,22 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									cpu->M=0;
 									*PC=I16;
 								}
-							break;default:
+							break;
+							case 7:
+								switch(cpu->ods.y)
+								{
+									case 4: // ED x1 z7 y4 == RRD: M2=IO(4)
+									case 5: // ED x1 z7 y5 == RLD: M2=IO(4)
+										cpu->M++;
+										cpu->dT-=4;
+									break;
+									default:
+										fprintf(stderr, ZERR3);
+										errupt++;
+									break;
+								}
+							break;
+							default:
 								fprintf(stderr, ZERR2);
 								errupt++;
 							break;
@@ -1429,11 +1505,11 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 										STEP_SR(2);
 										if(cpu->M>2)
 										{
-											unsigned short tmp=*HL;
-											*HL=I16;
+											unsigned short tmp=*IHL;
+											*IHL=I16;
 											cpu->internal[1]=tmp&0xFF;
 											cpu->internal[2]=tmp>>8;
-											cpu->dT=-1;
+											cpu->dT--;
 										}
 									break;
 									default: // x3 z3 y?
@@ -1495,36 +1571,56 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 			}
 		break;
 		case 3: // M3
-			if(cpu->shiftstate&0x01)
+			if(cpu->shiftstate&0x01) // CB
 			{
 				fprintf(stderr, ZERR1);
 				errupt++;
 			}
-			else if(cpu->shiftstate&0x02)
+			else if(cpu->shiftstate&0x02) // ED
 			{
 				switch(cpu->ods.x)
 				{
-					case 1: // s2 x1
+					case 1: // ED x1
 						switch(cpu->ods.z)
 						{
-							case 3: // s2 x1 z3
+							case 3: // ED x1 z3
 								switch(cpu->ods.q)
 								{
-									case 0: // s2 x1 z3 q0 == LD (nn), rp[p] : M3=MWL(3)
+									case 0: // ED x1 z3 q0 == LD (nn), rp[p] : M3=MWL(3)
 										STEP_MW(I16, cpu->regs[tbl_rp[cpu->ods.p]]);
 									break;
-									case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M3=MRL(3)
+									case 1: // ED x1 z3 q1 == LD rp[p], (nn) : M3=MRL(3)
 										STEP_MR(I16, &cpu->regs[tbl_rp[cpu->ods.p]]);
 									break;
 								}
 							break;
-							default: // s2 x1 z?
+							case 7:
+								switch(cpu->ods.y)
+								{
+									case 4: // ED x1 z7 y4 == RRD: M3=MW(3)
+									case 5: // ED x1 z7 y5 == RLD: M3=MW(3)
+										// Flags: SZ503P0-
+										cpu->regs[2]&=FC;
+										cpu->regs[2]|=cpu->regs[3]&(FS|F5|F3);
+										if(!cpu->regs[3]) cpu->regs[2]|=FZ;
+										if(parity(cpu->regs[3])) cpu->regs[2]|=FP;
+										STEP_MW(*HL, cpu->internal[1]);
+										if(cpu->M>3)
+											cpu->M=0;
+									break;
+									default:
+										fprintf(stderr, ZERR3);
+										errupt++;
+									break;
+								}
+							break;
+							default: // ED x1 z?
 								fprintf(stderr, ZERR2);
 								errupt++;
 							break;
 						}
 					break;
-					case 2: // s2 x2
+					case 2: // ED x2
 						if((cpu->ods.z<4)&&(cpu->ods.y>3)) // bli[y,z]
 						{
 							op_bli(cpu, bus);
@@ -1534,7 +1630,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 							cpu->M=0;
 						}
 					break;
-					default: // s2 x?
+					default: // ED x?
 						fprintf(stderr, ZERR1);
 						errupt++;
 					break;
@@ -1730,7 +1826,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 								switch(cpu->ods.y)
 								{
 									case 4: // x3 z3 y4 == EX (SP),HL: M3=SWH(3)
-										STEP_SW(2);
+										STEP_SW(cpu->internal[2]);
 									break;
 									default: // x3 z3 y?
 										fprintf(stderr, ZERR3);
@@ -1789,40 +1885,40 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 			}
 		break;
 		case 4: // M4
-			if(cpu->shiftstate&0x01)
+			if(cpu->shiftstate&0x01) // CB
 			{
 				fprintf(stderr, ZERR1);
 				errupt++;
 			}
-			else if(cpu->shiftstate&0x02)
+			else if(cpu->shiftstate&0x02) // ED
 			{
 				switch(cpu->ods.x)
 				{
-					case 1: // s2 x1
+					case 1: // ED x1
 						switch(cpu->ods.z)
 						{
-							case 3: // s2 x1 z3
+							case 3: // ED x1 z3
 								switch(cpu->ods.q)
 								{
-									case 0: // s2 x1 z3 q0 == LD (nn), rp[p] : M4=MWH(3)
+									case 0: // ED x1 z3 q0 == LD (nn), rp[p] : M4=MWH(3)
 										STEP_MW(I16+1, cpu->regs[tbl_rp[cpu->ods.p]+1]);
 										if(cpu->M>4)
 											cpu->M=0;
 									break;
-									case 1: // s2 x1 z3 q1 == LD rp[p], (nn) : M4=MRH(3)
+									case 1: // ED x1 z3 q1 == LD rp[p], (nn) : M4=MRH(3)
 										STEP_MR(I16+1, &cpu->regs[tbl_rp[cpu->ods.p]+1]);
 										if(cpu->M>4)
 											cpu->M=0;
 									break;
 								}
 							break;
-							default: // s2 x1 z?
+							default: // ED x1 z?
 								fprintf(stderr, ZERR2);
 								errupt++;
 							break;
 						}
 					break;
-					default: // s2 x?
+					default: // ED x?
 						fprintf(stderr, ZERR1);
 						errupt++;
 					break;
@@ -1897,11 +1993,11 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 								switch(cpu->ods.y)
 								{
 									case 4: // x3 z3 y4 == EX (SP),HL: M4=SWL(5)
-										STEP_SW(1);
+										STEP_SW(cpu->internal[1]);
 										if(cpu->M>4)
 										{
 											cpu->M=0;
-											cpu->dT=-2;
+											cpu->dT-=2;
 										}
 									break;
 									default: // x3 z3 y?

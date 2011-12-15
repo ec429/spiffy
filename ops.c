@@ -476,21 +476,15 @@ void op_bli(z80 *cpu, bus_t *bus)
 						// N=internal[1].7
 						// Take register C, add one to it if the instruction increases HL otherwise decrease it by one. Now, add the the value of the I/O port (read or written) to it, and the carry of this last addition is copied to the C and H flag (so C and H flag are the same).
 						// C=H=carry of add((C+-1), internal[1])
-						// P/V flag: weirdness!
+						// P/V flag: parity of (((internal[1] + L) & 7) ^ B)
 						cpu->regs[2]&=(FS|FZ|F5|F3);
 						cpu->regs[2]|=(cpu->internal[1]&0x80)?FN:0;
 						unsigned char mp=(cpu->ods.y&1)?cpu->regs[4]+1:cpu->regs[4]-1;
-						int r=mp+cpu->internal[1];
-						if((r>0x7f)||(r<-0x80))
+						unsigned short r=mp+cpu->internal[1];
+						if(r>255)
 							cpu->regs[2]|=(FC|FH); // crazy stuff, but that's what http://www.gaby.de/z80/z80undoc3.txt says
-						// The ludicrously INSANE P/V flag weirdness, based on http://www.gaby.de/z80/z80undoc3.txt
-						bool bits1[]={0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1};
-						bool bits2[]={0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0};
-						bool temp1=(cpu->ods.y&1?bits1:bits2)[((cpu->regs[4]&3)<<2)|(cpu->internal[0]&3)];
-						bool temp2=(cpu->regs[5]&0xF)?((cpu->regs[5]&1)||((cpu->regs[5]&4)&&!(cpu->regs[5]&2))):((cpu->regs[5]&0x10)||((cpu->regs[5]&0x40)&&!(cpu->regs[5]&0x20)));
-						if(parity(cpu->regs[5]))
-							temp2=!temp2;
-						cpu->regs[2]|=((temp1?1:0+temp2?1:0+(cpu->regs[4]>>2)+(cpu->internal[1]>>2))&1)?FP:0;
+						if(parity((mp&7)^cpu->regs[5]))
+							cpu->regs[2]|=FP;
 						if((cpu->ods.y&2) && (cpu->regs[5]))
 						{
 							// M has already been incremented
@@ -511,23 +505,12 @@ void op_bli(z80 *cpu, bus_t *bus)
 						// SZ5H3VNC
 						// SZ5*3***  SZ53 affected as in DEC B
 						// N=internal[1].7
-						// Take register C, add one to it if the instruction increases HL otherwise decrease it by one. Now, add the the value of the I/O port (read or written) to it, and the carry of this last addition is copied to the C and H flag (so C and H flag are the same).
-						// C=H=carry of add((C+-1), internal[1])
-						// P/V flag: weirdness!
+						// C=H=carry of add(L, internal[1])
+						// P/V flag: parity of (((internal[1] + L) & 7) ^ B)
 						cpu->regs[2]&=(FS|FZ|F5|F3);
 						cpu->regs[2]|=(cpu->internal[1]&0x80)?FN:0;
-						unsigned char mp=(cpu->ods.y&1)?cpu->regs[4]+1:cpu->regs[4]-1;
-						int r=mp+cpu->internal[1];
-						if((r>0x7f)||(r<-0x80))
-							cpu->regs[2]|=(FC|FH); // crazy stuff, but that's what http://www.gaby.de/z80/z80undoc3.txt says
-						// The ludicrously INSANE P/V flag weirdness, based on http://www.gaby.de/z80/z80undoc3.txt
-						bool bits1[]={0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1};
-						bool bits2[]={0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0};
-						bool temp1=(cpu->ods.y&1?bits1:bits2)[((cpu->regs[4]&3)<<2)|(cpu->internal[0]&3)];
-						bool temp2=(cpu->regs[5]&0xF)?((cpu->regs[5]&1)||((cpu->regs[5]&4)&&!(cpu->regs[5]&2))):((cpu->regs[5]&0x10)||((cpu->regs[5]&0x40)&&!(cpu->regs[5]&0x20)));
-						if(parity(cpu->regs[5]))
-							temp2=!temp2;
-						cpu->regs[2]|=((temp1?1:0+temp2?1:0+(cpu->regs[4]>>2)+(cpu->internal[1]>>2))&1)?FP:0;
+						if((unsigned short)cpu->internal[1]+(unsigned short)cpu->regs[8]>0xff) cpu->regs[2]|=(FH|FC);
+						if(parity(((cpu->internal[1]+cpu->regs[8])&7)^cpu->regs[5])) cpu->regs[2]|=FP;
 						if((cpu->ods.y&2) && (cpu->regs[5]))
 						{
 							// M has already been incremented
@@ -579,7 +562,7 @@ void op_adc16(z80 *cpu)
 	cpu->regs[2]|=((res&0x2800)/0x100); // 53 cf bits 13,11 of res
 	cpu->regs[2]|=(hd>0x0fff?FH:0); // H true if half-carry in the high byte (here be dragons)
 	cpu->regs[2]|=((res>0x7fff)||(res<-0x8000)?FV:0); // V if overflow (not sure about this code)
-	cpu->regs[2]|=((unsigned long)*DD+(unsigned long)*SS>0xffff?FC:0); // C if carry (not sure about this code either)
+	cpu->regs[2]|=((long)(unsigned short)*DD+(long)(unsigned short)*SS+(long)C>0xffff?FC:0); // C if carry
 	*DD=res&0xffff;
 }
 
@@ -597,7 +580,7 @@ void op_sbc16(z80 *cpu)
 	cpu->regs[2]|=(hd<0?FH:0); // H true if half-carry in the high byte (here be dragons)
 	cpu->regs[2]|=((res>0x7fff)||(res<-0x8000)?FV:0); // V if overflow (not sure about this code)
 	cpu->regs[2]|=FN; // N always true
-	cpu->regs[2]|=((unsigned)*DD<(unsigned)*SS?FC:0); // C if carry (not sure about this code either)
+	cpu->regs[2]|=((unsigned)*DD<(unsigned)*SS+(long)C?FC:0); // C if carry (not sure about this code either)
 	*DD=res&0xffff;
 }
 
