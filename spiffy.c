@@ -530,12 +530,12 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 			ig=(ink&4)?t:0;
 			ib=(ink&1)?t:0;
 			if(ink==1) ib+=15;
-			unsigned char s=1<<((Tstates%4)<<1);
+			unsigned char s=0x80>>((Tstates%4)<<1);
 			bool d=uladb&s;
 			if(flash && (Fstate&0x10))
 				d=!d;
 			pset(screen, col, line, d?ir:pr, d?ig:pg, d?ib:pb);
-			d=uladb&(s<<1);
+			d=uladb&(s>>1);
 			if(flash && (Fstate&0x10))
 				d=!d;
 			pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
