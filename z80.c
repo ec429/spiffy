@@ -92,7 +92,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 		bus->addr=0;
 		bus->mreq=false;
 	}
-	if(cpu->nmiacc) // XXX This should take a non-zero amount of time!  Also, it should stack the return value!
+	if(unlikely(cpu->nmiacc)) // XXX This should take a non-zero amount of time!  Also, it should stack the return value!
 	{
 		*PC=0x0066;
 		cpu->halt=false;
@@ -100,7 +100,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 		if(cpu->halt)
 			return(errupt);
 	}
-	else if(cpu->intacc)
+	else if(unlikely(cpu->intacc))
 	{
 		switch(cpu->intmode)
 		{
@@ -182,7 +182,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 		if(cpu->halt)
 			return(errupt);
 	}
-	if(cpu->halt)
+	if(unlikely(cpu->halt))
 	{
 		cpu->M=0;
 		switch(cpu->dT)
@@ -234,7 +234,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 	switch(cpu->M)
 	{
 		case 0: // M0 = OCF(4)
-			if(!(cpu->intacc||cpu->nmiacc))
+			if(likely(!(cpu->intacc||cpu->nmiacc)))
 			{
 				switch(cpu->dT)
 				{
@@ -304,7 +304,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 								rblock=true;
 							}
 						}
-						if(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4))
+						if(unlikely(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4)))
 						{ // IN-- and OT-- functions take an extra Tstate
 							cpu->dT--;
 						}

@@ -7,7 +7,7 @@
 
 #include "ops.h"
 
-int parity(unsigned short int num)
+inline int parity(unsigned short int num)
 {
 	int i,p=1;
 	for(i=0;i<16;i++)
@@ -17,7 +17,7 @@ int parity(unsigned short int num)
 	return(p%2);
 }
 
-od od_bits(unsigned char opcode)
+inline od od_bits(unsigned char opcode)
 {
 	od rv;
 	rv.x=opcode>>6;
@@ -28,7 +28,7 @@ od od_bits(unsigned char opcode)
 	return(rv);
 }
 
-bool cc(unsigned char which, unsigned char flags)
+inline bool cc(unsigned char which, unsigned char flags)
 {
 	bool rv;
 	switch((which%8)>>1) // if we get a bad which, we'll just assume that only the low three bits matter (bad, I know, but might come in handy)
@@ -49,7 +49,7 @@ bool cc(unsigned char which, unsigned char flags)
 	return((rv==0)^(which%2));
 }
 
-void step_od(z80 *cpu, int ernal, bus_t *bus)
+inline void step_od(z80 *cpu, int ernal, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -81,7 +81,7 @@ void step_od(z80 *cpu, int ernal, bus_t *bus)
 	}
 }
 
-void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
+inline void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -108,7 +108,7 @@ void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 	}
 }
 
-void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
+inline void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -141,7 +141,7 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 	}
 }
 
-void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
+inline void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -172,7 +172,7 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 	}
 }
 
-void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
+inline void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -205,7 +205,7 @@ void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 	}
 }
 
-void step_sr(z80 *cpu, int ernal, bus_t *bus)
+inline void step_sr(z80 *cpu, int ernal, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -233,7 +233,7 @@ void step_sr(z80 *cpu, int ernal, bus_t *bus)
 	}
 }
 
-void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
+inline void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -363,7 +363,7 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 	}
 }
 
-void op_bli(z80 *cpu, bus_t *bus)
+inline void op_bli(z80 *cpu, bus_t *bus)
 {
 	/*
 	y: 4=I 5=D 6=IR 7=DR	== b0: DEC (else INC); b1: REPEAT

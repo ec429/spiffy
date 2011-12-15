@@ -28,6 +28,9 @@
 #include "z80.h"
 #include "vchips.h"
 
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
+
 // SDL surface params
 #define OSIZ_X	320
 #define OSIZ_Y	320
@@ -78,9 +81,9 @@ audiobuf;
 #endif
 
 // helper fns
-void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus);
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus);
-int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
+void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
+void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus);
+int dtext(SDL_Surface * scrn, int x, int y, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
 bool pos_rect(pos p, SDL_Rect r);
 
 #ifdef CORETEST
@@ -104,6 +107,9 @@ int main(int argc, char * argv[])
 	bool debugcycle=false; // Single-Tstate stepping?
 	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
+	#endif
+	#ifdef AUDIO
+	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
 	#endif
 	const char *fn=NULL;
 	unsigned int breakpoint=-1;
@@ -221,7 +227,6 @@ int main(int argc, char * argv[])
 	}
 #endif	
 
-	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
 	int frametime[600];
 	for(int i=0;i<600;i++) frametime[i]=time(NULL)-11+(i/50);
 	
@@ -256,7 +261,7 @@ int main(int argc, char * argv[])
 	libspectrum_tape *deck=NULL;
 	bool play=false;
 	
-	if(fn)
+	if(ls&&fn)
 	{
 		FILE *fp=fopen(fn, "rb");
 		string data=sslurp(fp);
@@ -319,7 +324,7 @@ int main(int argc, char * argv[])
 	// Main program loop
 	while(!errupt)
 	{
-		if((!debug)&&(*PC==breakpoint)&&bus->m1)
+		if(unlikely((!debug)&&(*PC==breakpoint)&&bus->m1))
 		{
 			debug=true;
 		}
@@ -335,11 +340,11 @@ int main(int argc, char * argv[])
 			abuf.wp=newwp;
 		}
 		#endif
-		if(!deck)
-			play=false;
 		if(play)
 		{
-			if(T_to_tape_edge)
+			if(!deck)
+				play=false;
+			else if(T_to_tape_edge)
 				T_to_tape_edge--;
 			else
 			{
@@ -363,15 +368,16 @@ int main(int argc, char * argv[])
 				SDL_FillRect(screen, &playbutton, endoftape?SDL_MapRGB(screen->format, 0x3f, 0x3f, 0x3f):play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 			}
 		}
-		do_ram(RAM, bus, false);
+		if(bus->mreq)
+			do_ram(RAM, bus, false);
 		
-		if(bus->iorq&&(bus->tris==OUT))
+		if(unlikely(bus->iorq&&(bus->tris==OUT)))
 		{
 			if(!(bus->addr&0x01))
 				bus->portfe=bus->data;
 		}
 		
-		if(bus->iorq&&(bus->tris==IN))
+		if(unlikely(bus->iorq&&(bus->tris==IN)))
 		{
 			if(!(bus->addr&0x01))
 			{
@@ -393,7 +399,7 @@ int main(int argc, char * argv[])
 				bus->data=0xff; // technically this is wrong, TODO floating bus
 		}
 		
-		if(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle))
+		if(unlikely(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle)))
 		{
 			show_state(RAM, cpu, Tstates, bus);
 			if(bugstep) getchar();
@@ -401,10 +407,10 @@ int main(int argc, char * argv[])
 		
 		errupt=z80_tstep(cpu, bus, errupt);
 
-		scrn_update(screen, Tstates, Fstate, RAM, bus);
-		if(Tstates==32)
+		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus);
+		if(unlikely(Tstates==32))
 			bus->irq=false;
-		if(Tstates>=69888)
+		if(unlikely(Tstates>=69888))
 		{
 			bus->irq=true;
 			SDL_Flip(screen);
@@ -734,7 +740,7 @@ SDL_Surface * gf_init()
 	return(screen);
 }
 
-void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
+inline void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
 	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
@@ -819,16 +825,16 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
 		{
 			int d=a->cbuf[(a->rp+AUDIOBUFLEN-j)%AUDIOBUFLEN];
-			if(j==AUDIOBUFLEN/2) v+=d;
-			else v+=d*sin((j-AUDIOBUFLEN/2)*M_PI)/(double)(j-AUDIOBUFLEN/2);
+			if(j==AUDIOBUFLEN/2) v+=d*0.6;
+			else v+=d*sin((j-AUDIOBUFLEN/2)*0.6)/(double)(j-AUDIOBUFLEN/2);
 		}
-		stream[i]=floor(v+127.5);
+		stream[i]=floor(v*3.0+63.75);
 		a->rp=(a->rp+1)%AUDIOBUFLEN;
 	}
 }
 #endif
 
-void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
+void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus)
 {
 	int i;
 	printf("\nState: %c%c%c%c%c%c%c%c\n", cpu->regs[2]&0x80?'S':'-', cpu->regs[2]&0x40?'Z':'-', cpu->regs[2]&0x20?'5':'-', cpu->regs[2]&0x10?'H':'-', cpu->regs[2]&0x08?'3':'-', cpu->regs[2]&0x04?'P':'-', cpu->regs[2]&0x02?'N':'-', cpu->regs[2]&0x01?'C':'-');
@@ -872,13 +878,13 @@ void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
 	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->halt?"HALT":"halt");
 }
 
-void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
+void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
-	bool contend=false;
 	int line=((Tstates+12)/224)-16;
 	int col=(((Tstates+12)%224)<<1);
-	if((line>=0) && (line<296))
+	if(likely((line>=0) && (line<296)))
 	{
+		bool contend=false;
 		if((col>=0) && (col<OSIZ_X))
 		{
 			int ccol=(col>>3)-4;
@@ -901,34 +907,37 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 			}
 			bus->waitline=contend&&(((((bus->addr)&0xC000)==0x4000)&&(bus->mreq||bus->iorq))||(bus->iorq&&bus->tris&&bus->oldtris&&!((bus->addr)%2)));
 			bus->oldtris=bus->tris;
-			int ink=ulaab&0x07;
-			int paper=(ulaab&0x38)>>3;
-			bool flash=ulaab&0x80;
-			bool bright=ulaab&0x40;
-			int pr,pg,pb,ir,ig,ib; // blue1 red2 green4
-			unsigned char t=bright?240:200;
-			pr=(paper&2)?t:0;
-			pg=(paper&4)?t:0;
-			pb=(paper&1)?t:0;
-			if(paper==1) pb+=15;
-			ir=(ink&2)?t:0;
-			ig=(ink&4)?t:0;
-			ib=(ink&1)?t:0;
-			if(ink==1) ib+=15;
-			unsigned char s=0x80>>(((Tstates+12)%4)<<1);
-			bool d=uladb&s;
-			if(flash && (Fstate&0x10))
-				d=!d;
-			pset(screen, col, line, d?ir:pr, d?ig:pg, d?ib:pb);
-			d=uladb&(s>>1);
-			if(flash && (Fstate&0x10))
-				d=!d;
-			pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
+			if(!(frames&frameskip))
+			{
+				int ink=ulaab&0x07;
+				int paper=(ulaab&0x38)>>3;
+				bool flash=ulaab&0x80;
+				bool bright=ulaab&0x40;
+				int pr,pg,pb,ir,ig,ib; // blue1 red2 green4
+				unsigned char t=bright?240:200;
+				pr=(paper&2)?t:0;
+				pg=(paper&4)?t:0;
+				pb=(paper&1)?t:0;
+				if(paper==1) pb+=15;
+				ir=(ink&2)?t:0;
+				ig=(ink&4)?t:0;
+				ib=(ink&1)?t:0;
+				if(ink==1) ib+=15;
+				unsigned char s=0x80>>(((Tstates+12)%4)<<1);
+				bool d=uladb&s;
+				if(flash && (Fstate&0x10))
+					d=!d;
+				pset(screen, col, line, d?ir:pr, d?ig:pg, d?ib:pb);
+				d=uladb&(s>>1);
+				if(flash && (Fstate&0x10))
+					d=!d;
+				pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
+			}
 		}
 	}
 }
 
-int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
+int dtext(SDL_Surface * scrn, int x, int y, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
 {
 	SDL_Color clrFg = {r, g, b,0};
 	SDL_Rect rcDest = {x, y, 100, 12};
