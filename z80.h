@@ -28,7 +28,6 @@ typedef struct
 	bool IFF[2]; // Interrupts Flip Flops
 	bool block_ints; // was the last opcode an EI or other INT-blocking opcode?
 	int intmode; // Interrupt Mode
-	int waitlim; // internal; max dT to allow while WAIT is active
 	bool disp; // have we had the displacement byte? (DD/FD CB)
 	bool halt; // are we HALTed?
 	int dT; // T-state within M-cycle

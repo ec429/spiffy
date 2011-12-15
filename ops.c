@@ -7,17 +7,18 @@
 
 #include "ops.h"
 
-inline int parity(unsigned short int num)
+int parity(unsigned short int num)
 {
-	int i,p=1;
-	for(i=0;i<16;i++)
+	int p=1;
+	while(num)
 	{
-		p+=((num&(1<<i))?1:0); // It's the naive way, I know, but it's not as if we're desperate for speed...
+		p^=(num&1);
+		num>>=1;
 	}
-	return(p%2);
+	return(p);
 }
 
-inline od od_bits(unsigned char opcode)
+od od_bits(unsigned char opcode)
 {
 	od rv;
 	rv.x=opcode>>6;
@@ -28,45 +29,40 @@ inline od od_bits(unsigned char opcode)
 	return(rv);
 }
 
-inline bool cc(unsigned char which, unsigned char flags)
+bool cc(unsigned char which, unsigned char flags)
 {
 	bool rv;
-	switch((which%8)>>1) // if we get a bad which, we'll just assume that only the low three bits matter (bad, I know, but might come in handy)
+	switch(which&6) // if we get a bad which, we'll just assume that only the low three bits matter (bad, I know, but might come in handy)
 	{
 		case 0: // Z
 			rv=flags&FZ;
 		break;
-		case 1: // C
+		case 2: // C
 			rv=flags&FC;
 		break;
-		case 2: // PE (1)
+		case 4: // PE (1)
 			rv=flags&FP;
 		break;
-		case 3: // M (S)
+		case 6: // M (S)
 			rv=flags&FS;
 		break;
 	}
-	return((rv==0)^(which%2));
+	return((rv==0)^(which&1));
 }
 
-inline void step_od(z80 *cpu, int ernal, bus_t *bus)
+void step_od(z80 *cpu, int ernal, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
-		case 0:
-			bus->tris=OFF;
-			bus->addr=(*PC);
-		break;
+		case 0: /* fallthrough */
 		case 1:
 			bus->tris=IN;
 			bus->addr=(*PC);
 			bus->mreq=true;
 		break;
 		case 2:
-			if(bus->waitline)
-			{
+			if(unlikely(bus->waitline))
 				cpu->dT--;
-			}
 			else
 			{
 				(*PC)++;
@@ -81,21 +77,19 @@ inline void step_od(z80 *cpu, int ernal, bus_t *bus)
 	}
 }
 
-inline void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
+void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
-		case 0:
-		case 1: /* fallthrough */
+		case 0: /* fallthrough */
+		case 1:
 			bus->tris=IN;
 			bus->addr=addr;
 			bus->mreq=true;
 		break;
 		case 2:
-			if(bus->waitline)
-			{
+			if(unlikely(bus->waitline))
 				cpu->dT--;
-			}
 			else
 			{
 				*val=bus->data;
@@ -108,7 +102,7 @@ inline void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bu
 	}
 }
 
-inline void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
+void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -125,10 +119,8 @@ inline void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus
 			bus->data=val;
 		break;
 		case 2:
-			if(bus->waitline)
-			{
+			if(unlikely(bus->waitline))
 				cpu->dT--;
-			}
 			else
 			{
 				bus->tris=OFF;
@@ -141,7 +133,7 @@ inline void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus
 	}
 }
 
-inline void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
+void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -156,10 +148,8 @@ inline void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bu
 			bus->iorq=true;
 		break;
 		case 3:
-			if(bus->waitline)
-			{
+			if(unlikely(bus->waitline))
 				cpu->dT--;
-			}
 			else
 			{
 				*val=bus->data;
@@ -172,7 +162,7 @@ inline void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bu
 	}
 }
 
-inline void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
+void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -190,10 +180,8 @@ inline void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus
 			bus->data=val;
 		break;
 		case 3:
-			if(bus->waitline)
-			{
+			if(unlikely(bus->waitline))
 				cpu->dT--;
-			}
 			else
 			{
 				bus->tris=OFF;
@@ -205,7 +193,7 @@ inline void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus
 	}
 }
 
-inline void step_sr(z80 *cpu, int ernal, bus_t *bus)
+void step_sr(z80 *cpu, int ernal, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -216,10 +204,8 @@ inline void step_sr(z80 *cpu, int ernal, bus_t *bus)
 			bus->mreq=true;
 		break;
 		case 2:
-			if(bus->waitline)
-			{
+			if(unlikely(bus->waitline))
 				cpu->dT--;
-			}
 			else
 			{
 				(*SP)++;
@@ -233,7 +219,7 @@ inline void step_sr(z80 *cpu, int ernal, bus_t *bus)
 	}
 }
 
-inline void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
+void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -250,10 +236,8 @@ inline void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 			bus->data=val;
 		break;
 		case 2:
-			if(bus->waitline)
-			{
+			if(unlikely(bus->waitline))
 				cpu->dT--;
-			}
 			else
 			{
 				bus->tris=OFF;
@@ -363,7 +347,7 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 	}
 }
 
-inline void op_bli(z80 *cpu, bus_t *bus)
+void op_bli(z80 *cpu, bus_t *bus)
 {
 	/*
 	y: 4=I 5=D 6=IR 7=DR	== b0: DEC (else INC); b1: REPEAT

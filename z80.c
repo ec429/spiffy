@@ -56,7 +56,6 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	cpu->block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
 	cpu->IFF[0]=cpu->IFF[1]=false;
 	cpu->intmode=0; // Interrupt Mode
-	cpu->waitlim=1; // internal; max dT to allow while WAIT is active
 	cpu->disp=false; // have we had the displacement byte? (DD/FD CB)
 	cpu->halt=false;
 	cpu->M=0; // note: my M-cycles do not correspond to official labelling
@@ -84,8 +83,6 @@ void z80_reset(z80 *cpu, bus_t *bus)
 int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 {
 	cpu->dT++;
-	if(bus->waitline)
-		cpu->dT=min(cpu->dT, cpu->waitlim);
 	if((cpu->dT==0)&&bus->rfsh)
 	{
 		bus->rfsh=false;
@@ -253,73 +250,77 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						bus->mreq=true;
 					break;
 					case 2:
-						(*PC)++;
-						bool rfix=false, rblock=false;
-						cpu->internal[0]=bus->data;
-						if((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!cpu->disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
-						{
-							cpu->internal[1]=bus->data;
-							cpu->block_ints=true;
-							cpu->dT=-1;
-							cpu->disp=true;
-							rblock=true;
-						}
+						if(unlikely(bus->waitline))
+							cpu->dT--;
 						else
 						{
-							if((cpu->internal[0]==0xCB)&&!(cpu->shiftstate&0x03)) // CB/ED CB is an instruction, not a shift
+							(*PC)++;
+							bool rfix=false, rblock=false;
+							cpu->internal[0]=bus->data;
+							if((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!cpu->disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
 							{
-								cpu->shiftstate|=0x01;
+								cpu->internal[1]=bus->data;
 								cpu->block_ints=true;
-								rfix=true;
-							}
-							else if((cpu->internal[0]==0xED)&&!(cpu->shiftstate&0x03)) // CB/ED ED is an instruction, not a shift
-							{
-								cpu->shiftstate=0x02; // ED may not combine
-								cpu->block_ints=true;
-							}
-							else if((cpu->internal[0]==0xDD)&&!(cpu->shiftstate&0x03)) // CB/ED DD is an instruction, not a shift
-							{
-								cpu->shiftstate&=~(0x08); // FD may not combine with DD
-								cpu->shiftstate|=0x04;
-								cpu->block_ints=true;
-								cpu->disp=false;
-							}
-							else if((cpu->internal[0]==0xFD)&&!(cpu->shiftstate&0x03)) // CB/ED FD is an instruction, not a shift
-							{
-								cpu->shiftstate&=~(0x04); // DD may not combine with FD
-								cpu->shiftstate|=0x08;
-								cpu->block_ints=true;
-								cpu->disp=false;
+								cpu->dT=-1;
+								cpu->disp=true;
+								rblock=true;
 							}
 							else
 							{
-								cpu->ods=od_bits(cpu->internal[0]);
-								cpu->M++;
+								if((cpu->internal[0]==0xCB)&&!(cpu->shiftstate&0x03)) // CB/ED CB is an instruction, not a shift
+								{
+									cpu->shiftstate|=0x01;
+									cpu->block_ints=true;
+									rfix=true;
+								}
+								else if((cpu->internal[0]==0xED)&&!(cpu->shiftstate&0x03)) // CB/ED ED is an instruction, not a shift
+								{
+									cpu->shiftstate=0x02; // ED may not combine
+									cpu->block_ints=true;
+								}
+								else if((cpu->internal[0]==0xDD)&&!(cpu->shiftstate&0x03)) // CB/ED DD is an instruction, not a shift
+								{
+									cpu->shiftstate&=~(0x08); // FD may not combine with DD
+									cpu->shiftstate|=0x04;
+									cpu->block_ints=true;
+									cpu->disp=false;
+								}
+								else if((cpu->internal[0]==0xFD)&&!(cpu->shiftstate&0x03)) // CB/ED FD is an instruction, not a shift
+								{
+									cpu->shiftstate&=~(0x04); // DD may not combine with FD
+									cpu->shiftstate|=0x08;
+									cpu->block_ints=true;
+									cpu->disp=false;
+								}
+								else
+								{
+									cpu->ods=od_bits(cpu->internal[0]);
+									cpu->M++;
+								}
+								cpu->dT=-2;
+								if(cpu->disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
+								{
+									cpu->dT--;
+									cpu->disp=false;
+									rblock=true;
+								}
 							}
-							cpu->dT=-2;
-							if(cpu->disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
-							{
+							if(unlikely(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4)))
+							{ // IN-- and OT-- functions take an extra Tstate
 								cpu->dT--;
-								cpu->disp=false;
-								rblock=true;
+							}
+							bus->mreq=false;
+							bus->m1=false;
+							bus->tris=OFF;
+							if((rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))&&!rblock)
+							{
+								bus->rfsh=true;
+								bus->addr=((*Intvec)<<8)+*Refresh;
+								(*Refresh)++;
+								if(!((*Refresh)&0x7f)) // preserve the high bit of R
+									(*Refresh)^=0x80;
 							}
 						}
-						if(unlikely(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4)))
-						{ // IN-- and OT-- functions take an extra Tstate
-							cpu->dT--;
-						}
-						bus->mreq=false;
-						bus->m1=false;
-						bus->tris=OFF;
-						if((rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))&&!rblock)
-						{
-							bus->rfsh=true;
-							bus->addr=((*Intvec)<<8)+*Refresh;
-							(*Refresh)++;
-							if(!((*Refresh)&0x7f)) // preserve the high bit of R
-								(*Refresh)^=0x80;
-						}
-						cpu->waitlim=1;
 					break;
 				}
 			}
