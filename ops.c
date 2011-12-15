@@ -6,6 +6,8 @@
 */
 
 #include "ops.h"
+#define max(a,b)	((a)>(b)?(a):(b))
+#define min(a,b)	((a)>(b)?(b):(a))
 
 int parity(unsigned short int num)
 {
@@ -113,6 +115,10 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 			bus->addr=addr;
 			bus->mreq=true;
 			bus->data=val;
+			cpu->steps=max(cpu->steps,1);
+			cpu->ste=MW;
+			cpu->sta=addr;
+			cpu->stv=val;
 		break;
 		case 1:
 			bus->tris=OUT;
@@ -142,6 +148,10 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 		case 0:
 			bus->tris=OFF;
 			bus->addr=addr;
+			cpu->steps=max(cpu->steps,2);
+			cpu->ste=PR;
+			cpu->sta=addr;
+			cpu->stp=val;
 		break;
 		case 1: /* fallthrough */
 			cpu->nothing=1;
@@ -174,6 +184,10 @@ void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 			bus->addr=addr;
 			bus->iorq=false;
 			bus->data=val;
+			cpu->steps=max(cpu->steps,2);
+			cpu->ste=PW;
+			cpu->sta=addr;
+			cpu->stv=val;
 		break;
 		case 1: /* fallthrough */
 			cpu->nothing=1;
@@ -233,6 +247,9 @@ void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 			bus->mreq=true;
 			bus->addr=--(*SP);
 			bus->data=val;
+			cpu->steps=max(cpu->steps,1);
+			cpu->ste=SW;
+			cpu->stv=val;
 		break;
 		case 1:
 			bus->tris=OUT;

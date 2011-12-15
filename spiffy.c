@@ -18,7 +18,7 @@
 #include <SDL.h>
 #include <SDL/SDL_audio.h>
 #include <SDL/SDL_ttf.h>
-#include <time.h>
+#include <sys/time.h>
 #include <errno.h>
 #include <math.h>
 #include <signal.h>
@@ -232,8 +232,9 @@ int main(int argc, char * argv[])
 	}
 #endif	
 
-	int frametime[600];
-	for(int i=0;i<600;i++) frametime[i]=time(NULL)-11+(i/50);
+	struct timeval frametime[100];
+	gettimeofday(frametime, NULL);
+	for(int i=1;i<100;i++) frametime[i]=frametime[0];
 	
 	// Mouse handling
 	pos mouse;
@@ -407,7 +408,9 @@ int main(int argc, char * argv[])
 		
 		if(cpu->nothing)
 		{
-			cpu->nothing--;
+			cpu->nothing--;	
+			if(cpu->steps)
+				cpu->steps--;
 			cpu->dT++;
 		}
 		else
@@ -422,15 +425,19 @@ int main(int argc, char * argv[])
 			SDL_Flip(screen);
 			Tstates-=69888;
 			Fstate=(Fstate+1)%32; // flash alternates every 16 frames
-			time_t now=time(NULL);
-			double spd=min(1200/(double)(now-frametime[frames%600]),999);
-			frametime[frames++%600]=now;
-			char text[32];
-			if(spd>=1)
-				sprintf(text, "Speed: %0.3g%%", spd);
-			else
-				sprintf(text, "Speed: <1%%");
-			dtext(screen, 8, 296, text, font, 255, 255, 0);
+			struct timeval tn;
+			gettimeofday(&tn, NULL);
+			double spd=min(200/(tn.tv_sec-frametime[frames%100].tv_sec+1e-6*(tn.tv_usec-frametime[frames%100].tv_usec)),999);
+			frametime[frames++%100]=tn;
+			if(!(frames%25))
+			{
+				char text[32];
+				if(spd>=1)
+					sprintf(text, "Speed: %0.3g%%", spd);
+				else
+					sprintf(text, "Speed: <1%%");
+				dtext(screen, 8, 296, text, font, 255, 255, 0);
+			}
 			while(SDL_PollEvent(&event))
 			{
 				switch (event.type)
@@ -1102,6 +1109,8 @@ run_test(FILE *f)
 		if(cpu->nothing)
 		{
 			cpu->nothing--;
+			if(cpu->steps)
+				cpu->steps--;
 			cpu->dT++;
 		}
 		else

@@ -22,6 +22,15 @@ typedef struct
 }
 od;
 
+typedef enum
+{
+	MW,
+	PR,
+	PW,
+	SW
+}
+stepper;
+
 typedef struct
 {
 	unsigned char regs[26]; // Registers (in little-endian pairs); see helper_notes for details
@@ -38,6 +47,10 @@ typedef struct
 	bool intacc; // accepted an INTerrupt?
 	bool nmiacc; // accepted an NMI?
 	int nothing; // number of Tstates doing nothing
+	int steps; // number of Tstates running a step_ and doing nothing else
+	stepper ste; // which step_?
+	int sta;
+	unsigned char stv, *stp;
 }
 z80;
 

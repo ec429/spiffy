@@ -65,6 +65,7 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	cpu->intacc=false;
 	cpu->nmiacc=false;
 	cpu->nothing=0;
+	cpu->steps=0;
 	
 	bus->tris=OFF;
 	bus->oldtris=false;
@@ -87,6 +88,28 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 	if(unlikely(cpu->nothing))
 	{
 		cpu->nothing--;
+		if(cpu->steps)
+			cpu->steps--;
+		return(errupt);
+	}
+	if(cpu->steps)
+	{
+		cpu->steps--;
+		switch(cpu->ste)
+		{
+			case MW:
+				STEP_MW(cpu->sta, cpu->stv);
+			break;
+			case PR:
+				STEP_PR(cpu->sta, cpu->stp);
+			break;
+			case PW:
+				STEP_PW(cpu->sta, cpu->stv);
+			break;
+			case SW:
+				STEP_SW(cpu->stv);
+			break;
+		}
 		return(errupt);
 	}
 	if((cpu->dT==0)&&bus->rfsh)
