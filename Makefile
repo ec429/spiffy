@@ -12,6 +12,8 @@ ops.o: ops.c ops.h z80.h
 
 z80.o: z80.c z80.h ops.h
 
+vchips.o: vchips.c vchips.h z80.h
+
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
 

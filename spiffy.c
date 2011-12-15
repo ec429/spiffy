@@ -663,7 +663,7 @@ int main(int argc, char * argv[])
 								}
 								else if(pos_rect(mouse, rewindbutton))
 								{
-									libspectrum_tape_nth_block(deck, 0);
+									if(deck) libspectrum_tape_nth_block(deck, 0);
 									endoftape=!deck;
 								}
 								SDL_FillRect(screen, &playbutton, endoftape?SDL_MapRGB(screen->format, 0x3f, 0x3f, 0x3f):play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
@@ -875,8 +875,8 @@ void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
 	bool contend=false;
-	int line=(Tstates/224)-16;
-	int col=((Tstates%224)<<1)-16;
+	int line=((Tstates+12)/224)-16;
+	int col=(((Tstates+12)%224)<<1);
 	if((line>=0) && (line<296))
 	{
 		if((col>=0) && (col<OSIZ_X))
@@ -891,7 +891,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 									abl=dbl;
 				uladb=RAM[(dbh<<8)+dbl];
 				ulaab=RAM[(abh<<8)+abl];
-				contend=!(((Tstates%8)==5)||((Tstates%8)==6));
+				contend=!(((Tstates%8)==0)||((Tstates%8)==1));
 			}
 			else
 			{
@@ -899,7 +899,8 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 				uladb=0xff;
 				ulaab=bus->portfe&0x07;
 			}
-			bus->waitline=contend&&((((bus->addr)&0xC000)==0x4000)||(bus->iorq&&(bus->tris)&&!((bus->addr)%2)));
+			bus->waitline=contend&&(((((bus->addr)&0xC000)==0x4000)&&(bus->mreq||bus->iorq))||(bus->iorq&&bus->tris&&bus->oldtris&&!((bus->addr)%2)));
+			bus->oldtris=bus->tris;
 			int ink=ulaab&0x07;
 			int paper=(ulaab&0x38)>>3;
 			bool flash=ulaab&0x80;
@@ -914,7 +915,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 			ig=(ink&4)?t:0;
 			ib=(ink&1)?t:0;
 			if(ink==1) ib+=15;
-			unsigned char s=0x80>>((Tstates%4)<<1);
+			unsigned char s=0x80>>(((Tstates+12)%4)<<1);
 			bool d=uladb&s;
 			if(flash && (Fstate&0x10))
 				d=!d;

@@ -62,7 +62,7 @@ int init_keyboard(void)
 		keymap *nk=realloc(kmap, nkmaps*sizeof(keymap));
 		if(!nk)
 		{
-			free(nkmaps);
+			free(kmap);
 			fclose(f);
 			return(-1);
 		}
@@ -70,4 +70,5 @@ int init_keyboard(void)
 		if(r==EOF) break;
 	}
 	fclose(f);
+	return(0);
 }

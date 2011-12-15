@@ -67,6 +67,7 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	cpu->nmiacc=false;
 	
 	bus->tris=OFF;
+	bus->oldtris=false;
 	bus->iorq=false;
 	bus->mreq=false;
 	bus->m1=false;
@@ -91,7 +92,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 		bus->addr=0;
 		bus->mreq=false;
 	}
-	if(cpu->nmiacc) // XXX This should take a non-zero amount of time!
+	if(cpu->nmiacc) // XXX This should take a non-zero amount of time!  Also, it should stack the return value!
 	{
 		*PC=0x0066;
 		cpu->halt=false;
@@ -132,12 +133,29 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				{
 					case 0:
 						cpu->halt=true;
-						if(cpu->dT>5)
+						switch(cpu->dT)
 						{
-							cpu->internal[1]=bus->data;
-							cpu->internal[0]=*Intvec;
-							cpu->M=1;
-							cpu->dT=-1;
+							case 0:
+								bus->addr=*PC;
+								bus->m1=true;
+							break;
+							case 2:
+								bus->iorq=true;
+							break;
+							case 4:
+								cpu->internal[1]=bus->data;
+								cpu->internal[2]=*Intvec;
+								bus->m1=false;
+								bus->iorq=false;
+								bus->mreq=true;
+								bus->rfsh=true;
+								bus->addr=((*Intvec)<<8)|*Refresh;
+							break;
+							case 6:
+								bus->rfsh=false;
+								cpu->M=1;
+								cpu->dT=-1;
+							break;
 						}
 					break;
 					case 1: // M1=SWH(3)
@@ -221,10 +239,10 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				switch(cpu->dT)
 				{
 					case 0:
-						bus->tris=OFF;
+						bus->tris=IN;
 						bus->addr=*PC;
 						bus->iorq=false;
-						bus->mreq=false;
+						bus->mreq=true;
 						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)); // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?	Or just for the first prefix?	I implement the former.	However, after DD/FD CB, the next two fetches (d and XX) are not M1)
 					break;
 					case 1:
@@ -290,7 +308,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						{ // IN-- and OT-- functions take an extra Tstate
 							cpu->dT--;
 						}
-						bus->mreq=true;
+						bus->mreq=false;
 						bus->m1=false;
 						bus->tris=OFF;
 						if((rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))&&!rblock)

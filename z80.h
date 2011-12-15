@@ -44,6 +44,7 @@ typedef struct
 	unsigned short int addr; // Address bus (A0-A15)
 	unsigned char data; // Data bus (D0-D7)
 	tristate tris; // encapsulates the ¬RD and ¬WR lines
+	bool oldtris; // ula stuff
 	bool iorq; // ¬IORQ line
 	bool mreq; // ¬MREQ line
 	bool m1; // ¬M1 line
