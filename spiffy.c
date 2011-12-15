@@ -28,9 +28,6 @@
 #include "z80.h"
 #include "vchips.h"
 
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
-
 // SDL surface params
 #define OSIZ_X	320
 #define OSIZ_Y	320
@@ -347,7 +344,7 @@ int main(int argc, char * argv[])
 		{
 			if(unlikely(!deck))
 				play=false;
-			else if(likely(T_to_tape_edge))
+			else if(T_to_tape_edge)
 				T_to_tape_edge--;
 			else
 			{
