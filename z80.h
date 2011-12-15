@@ -34,6 +34,8 @@ typedef struct
 	unsigned char internal[3]; // Internal Z80 registers
 	od ods;
 	int shiftstate;	// The 'shift state' resulting from prefixes.  bits as follows: 1=CB 2=ED 4=DD 8=FD.  Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
+	bool intacc; // accepted an INTerrupt?
+	bool nmiacc; // accepted an NMI?
 }
 z80;
 
@@ -47,7 +49,10 @@ typedef struct
 	bool m1; // ¬M1 line
 	bool rfsh; // ¬RFSH line
 	bool waitline; // ¬WAIT line
+	bool irq; // ¬INT line
+	bool nmi; // ¬NMI line
 	bool halt; // ¬HALT line
+	bool reti; // was the last opcode RETI?	(some hardware detects this, eg. PIO)
 	unsigned char portfe; // last byte written to port 0xFE (used by ULA; should really be part of ULA internal data)
 }
 bus_t;

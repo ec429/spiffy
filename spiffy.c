@@ -87,6 +87,7 @@ int main(int argc, char * argv[])
 	}
 	bool debug=false; // Generate debugging info?
 	bool bugstep=false; // Single-step?
+	bool debugcycle=true; // Single-Tstate stepping?
 	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
 	#endif
@@ -110,6 +111,14 @@ int main(int argc, char * argv[])
 		else if((strcmp(argv[arg], "--step") == 0) || (strcmp(argv[arg], "-s") == 0))
 		{ // activate single-step mode under debugger
 			bugstep=true;
+		}
+		else if((strcmp(argv[arg], "--Tstate") == 0) || (strcmp(argv[arg], "-T") == 0))
+		{ // activate single-Tstate stepping under debugger
+			debugcycle=true;
+		}
+		else if((strcmp(argv[arg], "--no-Tstate") == 0) || (strcmp(argv[arg], "+T") == 0))
+		{ // deactivate single-Tstate stepping under debugger
+			debugcycle=false;
 		}
 		#ifdef CORETEST
 		else if((strcmp(argv[arg], "--coretest") == 0) || (strcmp(argv[arg], "-c") == 0))
@@ -168,7 +177,17 @@ int main(int argc, char * argv[])
 	cls.w=OSIZ_X;
 	cls.h=OSIZ_Y-256;
 	int errupt = 0;
-	bus->portfe=0; // used by mixaudio (for the EAR) and the screen update (for the BORDCR)
+	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
+	bool ear=false; // tape reading EAR
+	bool kstate[8][5]; // keyboard state
+	for(int i=0;i<8;i++)
+		for(int j=0;j<5;j++)
+			kstate[i][j]=false;
+	if(init_keyboard())
+	{
+		fprintf(stderr, "spiffy: failed to load keymap\n");
+		return(1);
+	}
 #ifdef AUDIO
 	SDL_AudioSpec fmt;
 	fmt.freq = SAMPLE_RATE;
@@ -185,7 +204,7 @@ int main(int argc, char * argv[])
 	}
 #endif	
 
-	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
+	bool delay=true; // TODO attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
 	
 	// Mouse handling
 	pos mouse;
@@ -212,7 +231,6 @@ int main(int argc, char * argv[])
 	fclose(fp);
 	
 	z80_init(); // initialise decoding tables
-	bool reti=false; // was the last opcode RETI?	(some hardware detects this, eg. PIO)
 	int Fstate=0; // FLASH state
 	z80_reset(cpu, bus);
 	
@@ -243,7 +261,27 @@ int main(int argc, char * argv[])
 				bus->portfe=bus->data;
 		}
 		
-		if(debug&&(cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))
+		if(bus->iorq&&(bus->tris==IN))
+		{
+			if(!(bus->addr&0x01))
+			{
+				unsigned char hi=bus->addr>>8;
+				bus->data=(ear?0x40:0)|0x1f;
+				for(int i=0;i<8;i++)
+				{
+					if(!(hi&(1<<i)))
+					{
+						for(int j=0;j<5;j++)
+						{
+							if(kstate[i][j])
+								bus->data&=~(1<<j);
+						}
+					}
+				}
+			}
+		}
+		
+		if(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle))
 		{
 			show_state(RAM, cpu, Tstates, bus);
 			if(bugstep) getchar();
@@ -252,8 +290,11 @@ int main(int argc, char * argv[])
 		errupt=z80_tstep(cpu, bus, errupt);
 
 		scrn_update(screen, Tstates, Fstate, RAM, bus);
+		if(Tstates==32)
+			bus->irq=false;
 		if(Tstates>=69888)
 		{
+			bus->irq=true;
 			SDL_Flip(screen);
 			Tstates-=69888;
 			Fstate=(Fstate+1)%32; // flash alternates every 16 frames
@@ -262,7 +303,6 @@ int main(int argc, char * argv[])
 			double spd=(frames*2.0)/(double)(time(NULL)-start_time);
 			sprintf(text, "Speed: %0.3g%%", spd);
 			dtext(screen, 8, 296, text, font, 255, 255, 0);
-			// TODO generate an interrupt
 			while(SDL_PollEvent(&event))
 			{
 				switch (event.type)
@@ -274,21 +314,214 @@ int main(int argc, char * argv[])
 						if(event.key.type==SDL_KEYDOWN)
 						{
 							SDL_keysym key=event.key.keysym;
-							if(key.sym==SDLK_q)
+							if(key.sym==SDLK_ESCAPE)
 							{
-								errupt++;
+								debug=true;
+								bugstep=true;
 							}
-							/*
-							the ascii character is:
-							if ((key.unicode & 0xFF80) == 0)
+							else if(key.sym==SDLK_RETURN)
 							{
-								// it's (char)keysym.unicode & 0x7F;
+								kstate[6][0]=true;
 							}
-							else
+							else if(key.sym==SDLK_BACKSPACE)
 							{
-								// it's not [low] ASCII
+								kstate[0][0]=true;
+								kstate[4][0]=true;
 							}
-							*/
+							else if(key.sym==SDLK_LEFT)
+							{
+								kstate[0][0]=true;
+								kstate[3][4]=true;
+							}
+							else if(key.sym==SDLK_DOWN)
+							{
+								kstate[0][0]=true;
+								kstate[4][4]=true;
+							}
+							else if(key.sym==SDLK_UP)
+							{
+								kstate[0][0]=true;
+								kstate[4][3]=true;
+							}
+							else if(key.sym==SDLK_RIGHT)
+							{
+								kstate[0][0]=true;
+								kstate[4][2]=true;
+							}
+							else if(key.sym==SDLK_CAPSLOCK)
+							{
+								kstate[0][0]=true;
+								kstate[3][1]=true;
+							}
+							else if((key.sym==SDLK_LSHIFT)||(key.sym==SDLK_RSHIFT))
+							{
+								kstate[0][0]=true;
+							}
+							else if((key.sym==SDLK_LCTRL)||(key.sym==SDLK_RCTRL))
+							{
+								kstate[7][1]=true;
+							}
+							else if(key.sym==SDLK_LESS)
+							{
+								kstate[2][3]=true;
+								kstate[7][1]=true;
+							}
+							else if(key.sym==SDLK_GREATER)
+							{
+								kstate[2][4]=true;
+								kstate[7][1]=true;
+							}
+							else if(key.sym==SDLK_KP_PLUS)
+							{
+								kstate[6][2]=true;
+								kstate[7][1]=true;
+							}
+							else if((key.sym==SDLK_MINUS)||(key.sym==SDLK_KP_MINUS))
+							{
+								kstate[6][3]=true;
+								kstate[7][1]=true;
+							}
+							else if(key.sym==SDLK_EQUALS)
+							{
+								kstate[6][1]=true;
+								kstate[7][1]=true;
+							}
+							else if(key.sym==SDLK_QUESTION)
+							{
+								kstate[0][3]=true;
+								kstate[7][1]=true;
+							}
+							else if(key.sym==SDLK_KP_MULTIPLY)
+							{
+								kstate[7][4]=true;
+								kstate[7][1]=true;
+							}
+							else if(key.sym==SDLK_KP_DIVIDE)
+							{
+								kstate[0][4]=true;
+								kstate[7][1]=true;
+							}
+							else if((key.sym&0xFF80)==0)
+							{
+								char k=key.sym&0x7F;
+								for(unsigned int i=0;i<nkmaps;i++)
+								{
+									if(kmap[i].key==k)
+									{
+										kstate[kmap[i].row[0]][kmap[i].col[0]]=true;
+										if(kmap[i].twokey)
+											kstate[kmap[i].row[1]][kmap[i].col[1]]=true;
+									}
+								}
+							}
+							// else it's not [low] ASCII
+						}
+					break;
+					case SDL_KEYUP:
+						if(event.key.type==SDL_KEYUP)
+						{
+							SDL_keysym key=event.key.keysym;
+							if(key.sym==SDLK_ESCAPE)
+							{
+								debug=true;
+								bugstep=true;
+							}
+							else if(key.sym==SDLK_RETURN)
+							{
+								kstate[6][0]=false;
+							}
+							else if(key.sym==SDLK_BACKSPACE)
+							{
+								kstate[0][0]=false;
+								kstate[4][0]=false;
+							}
+							else if(key.sym==SDLK_LEFT)
+							{
+								kstate[0][0]=false;
+								kstate[3][4]=false;
+							}
+							else if(key.sym==SDLK_DOWN)
+							{
+								kstate[0][0]=false;
+								kstate[4][4]=false;
+							}
+							else if(key.sym==SDLK_UP)
+							{
+								kstate[0][0]=false;
+								kstate[4][3]=false;
+							}
+							else if(key.sym==SDLK_RIGHT)
+							{
+								kstate[0][0]=false;
+								kstate[4][2]=false;
+							}
+							else if(key.sym==SDLK_CAPSLOCK)
+							{
+								kstate[0][0]=false;
+								kstate[3][1]=false;
+							}
+							else if((key.sym==SDLK_LSHIFT)||(key.sym==SDLK_RSHIFT))
+							{
+								kstate[0][0]=false;
+							}
+							else if((key.sym==SDLK_LCTRL)||(key.sym==SDLK_RCTRL))
+							{
+								kstate[7][1]=false;
+							}
+							else if(key.sym==SDLK_LESS)
+							{
+								kstate[2][3]=false;
+								kstate[7][1]=false;
+							}
+							else if(key.sym==SDLK_GREATER)
+							{
+								kstate[2][4]=false;
+								kstate[7][1]=false;
+							}
+							else if(key.sym==SDLK_KP_PLUS)
+							{
+								kstate[6][2]=false;
+								kstate[7][1]=false;
+							}
+							else if((key.sym==SDLK_MINUS)||(key.sym==SDLK_KP_MINUS))
+							{
+								kstate[6][3]=false;
+								kstate[7][1]=false;
+							}
+							else if(key.sym==SDLK_EQUALS)
+							{
+								kstate[6][1]=false;
+								kstate[7][1]=false;
+							}
+							else if(key.sym==SDLK_QUESTION)
+							{
+								kstate[0][3]=false;
+								kstate[7][1]=false;
+							}
+							else if(key.sym==SDLK_KP_MULTIPLY)
+							{
+								kstate[7][4]=false;
+								kstate[7][1]=false;
+							}
+							else if(key.sym==SDLK_KP_DIVIDE)
+							{
+								kstate[0][4]=false;
+								kstate[7][1]=false;
+							}
+							else if((key.sym&0xFF80)==0)
+							{
+								char k=key.sym&0x7F;
+								for(unsigned int i=0;i<nkmaps;i++)
+								{
+									if(kmap[i].key==k)
+									{
+										kstate[kmap[i].row[0]][kmap[i].col[0]]=false;
+										if(kmap[i].twokey)
+											kstate[kmap[i].row[1]][kmap[i].col[1]]=false;
+									}
+								}
+							}
+							// else it's not [low] ASCII
 						}
 					break;
 					case SDL_MOUSEMOTION:
@@ -450,8 +683,8 @@ void mixaudio(void *portfe, Uint8 *stream, int len)
 void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
 {
 	int i;
-	printf("\nState:\n");
-	printf("P C	A F	B C	D E	H L	I x	I y	I R	S P	a f	b c	d e	h l	IFF IM\n");
+	printf("\nState: %c%c%c%c%c%c%c%c\n", cpu->regs[2]&0x80?'S':'-', cpu->regs[2]&0x40?'Z':'-', cpu->regs[2]&0x20?'5':'-', cpu->regs[2]&0x10?'H':'-', cpu->regs[2]&0x08?'3':'-', cpu->regs[2]&0x04?'P':'-', cpu->regs[2]&0x02?'N':'-', cpu->regs[2]&0x01?'C':'-');
+	printf("P C  A F  B C  D E  H L  I x  I y  I R  S P  a f  b c  d e  h l  IFF IM\n");
 	for(i=0;i<26;i+=2)
 	{
 		printf("%02x%02x ", cpu->regs[i+1], cpu->regs[i]);
@@ -484,8 +717,11 @@ void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
 		printf("%04x: %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3]);
 	}
 	printf("\n");
-	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u\n", Tstates, cpu->M, cpu->dT, cpu->internal[0], cpu->internal[1], cpu->internal[2], cpu->shiftstate);
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait");
+	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u", Tstates, cpu->M, cpu->dT, cpu->internal[0], cpu->internal[1], cpu->internal[2], cpu->shiftstate);
+	if(cpu->nmiacc) printf(" NMI!");
+	else if(cpu->intacc) printf(" INT!");
+	printf("\n");
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi");
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!

@@ -63,6 +63,8 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	cpu->dT=0;
 	cpu->internal[0]=cpu->internal[1]=cpu->internal[2]=0;
 	cpu->shiftstate=0;
+	cpu->intacc=false;
+	cpu->nmiacc=false;
 	
 	bus->tris=OFF;
 	bus->iorq=false;
@@ -72,6 +74,9 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	bus->addr=0;
 	bus->data=0;
 	bus->waitline=false;
+	bus->irq=false;
+	bus->nmi=false;
+	bus->reti=false;
 	bus->halt=false;
 }
 
@@ -86,7 +91,73 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 		bus->addr=0;
 		bus->mreq=false;
 	}
-	if(cpu->halt)
+	if(cpu->nmiacc)
+	{
+		*PC=0x0066;
+		cpu->halt=false;
+		cpu->nmiacc=false;
+	}
+	else if(cpu->intacc)
+	{
+		switch(cpu->intmode)
+		{
+			case 0:
+				if(cpu->dT>5) // XXX this will break horribly for opcodes longer than a single byte, but I have no idea how those work anyway
+				{
+					cpu->internal[0]=bus->data;
+					cpu->ods=od_bits(cpu->internal[0]);
+					cpu->M=1;
+					cpu->dT=0;
+					cpu->halt=false;
+					cpu->intacc=false;
+				}
+			break;
+			case 1:
+				if(cpu->dT>6)
+				{
+					cpu->internal[0]=0xff;
+					cpu->ods=od_bits(cpu->internal[0]);
+					cpu->M=1;
+					cpu->dT=0;
+					cpu->halt=false;
+					cpu->intacc=false;
+				}
+			break;
+			case 2:
+				switch(cpu->M)
+				{
+					case 0:
+						if(cpu->dT>5)
+						{
+							cpu->internal[1]=bus->data;
+							cpu->internal[0]=*Intvec;
+							cpu->M=1;
+							cpu->dT=-1;
+							cpu->halt=false;
+						}
+					break;
+					case 1: // M1=SWH(3)
+						STEP_SW((*PC)>>8);
+					break;
+					case 2: // M2=SWL(3)
+						STEP_SW(*PC);
+					break;
+					case 3: // M3=MRL(3)
+						STEP_MR(I16, &cpu->regs[0]);
+					break;
+					case 4: // M4=MRH(3)
+						STEP_MR(I16+1, &cpu->regs[1]);
+						if(cpu->M>4)
+						{
+							cpu->M=0;
+							cpu->intacc=false;
+						}
+					break;
+				}
+			break;
+		}
+	}
+	else if(cpu->halt)
 	{
 		cpu->M=0;
 		switch(cpu->dT)
@@ -128,91 +199,94 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 	switch(cpu->M)
 	{
 		case 0: // M0 = OCF(4)
-			switch(cpu->dT)
+			if(!(cpu->intacc||cpu->nmiacc))
 			{
-				case 0:
-					bus->tris=OFF;
-					bus->addr=*PC;
-					bus->iorq=false;
-					bus->mreq=false;
-					bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)); // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?	Or just for the first prefix?	I implement the former.	However, after DD/FD CB, the next two fetches (d and XX) are not M1)
-				break;
-				case 1:
-					bus->tris=IN;
-					bus->addr=*PC;
-					bus->iorq=false;
-					bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C));
-					bus->mreq=true;
-				break;
-				case 2:
-					(*PC)++;
-					bool rfix=false, rblock=false;
-					cpu->internal[0]=bus->data;
-					if((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!cpu->disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
-					{
-						cpu->internal[1]=bus->data;
-						cpu->block_ints=true;
-						cpu->dT=-1;
-						cpu->disp=true;
-						rblock=true;
-					}
-					else
-					{
-						if((cpu->internal[0]==0xCB)&&!(cpu->shiftstate&0x03)) // CB/ED CB is an instruction, not a shift
+				switch(cpu->dT)
+				{
+					case 0:
+						bus->tris=OFF;
+						bus->addr=*PC;
+						bus->iorq=false;
+						bus->mreq=false;
+						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)); // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?	Or just for the first prefix?	I implement the former.	However, after DD/FD CB, the next two fetches (d and XX) are not M1)
+					break;
+					case 1:
+						bus->tris=IN;
+						bus->addr=*PC;
+						bus->iorq=false;
+						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C));
+						bus->mreq=true;
+					break;
+					case 2:
+						(*PC)++;
+						bool rfix=false, rblock=false;
+						cpu->internal[0]=bus->data;
+						if((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!cpu->disp) // DD/FD CB d XX; d is displacement byte (this is an OD(3), not an OCF(4))
 						{
-							cpu->shiftstate|=0x01;
+							cpu->internal[1]=bus->data;
 							cpu->block_ints=true;
-							rfix=true;
-						}
-						else if((cpu->internal[0]==0xED)&&!(cpu->shiftstate&0x03)) // CB/ED ED is an instruction, not a shift
-						{
-							cpu->shiftstate=0x02; // ED may not combine
-							cpu->block_ints=true;
-						}
-						else if((cpu->internal[0]==0xDD)&&!(cpu->shiftstate&0x03)) // CB/ED DD is an instruction, not a shift
-						{
-							cpu->shiftstate&=~(0x08); // FD may not combine with DD
-							cpu->shiftstate|=0x04;
-							cpu->block_ints=true;
-							cpu->disp=false;
-						}
-						else if((cpu->internal[0]==0xFD)&&!(cpu->shiftstate&0x03)) // CB/ED FD is an instruction, not a shift
-						{
-							cpu->shiftstate&=~(0x04); // DD may not combine with FD
-							cpu->shiftstate|=0x08;
-							cpu->block_ints=true;
-							cpu->disp=false;
+							cpu->dT=-1;
+							cpu->disp=true;
+							rblock=true;
 						}
 						else
 						{
-							cpu->ods=od_bits(cpu->internal[0]);
-							cpu->M++;
+							if((cpu->internal[0]==0xCB)&&!(cpu->shiftstate&0x03)) // CB/ED CB is an instruction, not a shift
+							{
+								cpu->shiftstate|=0x01;
+								cpu->block_ints=true;
+								rfix=true;
+							}
+							else if((cpu->internal[0]==0xED)&&!(cpu->shiftstate&0x03)) // CB/ED ED is an instruction, not a shift
+							{
+								cpu->shiftstate=0x02; // ED may not combine
+								cpu->block_ints=true;
+							}
+							else if((cpu->internal[0]==0xDD)&&!(cpu->shiftstate&0x03)) // CB/ED DD is an instruction, not a shift
+							{
+								cpu->shiftstate&=~(0x08); // FD may not combine with DD
+								cpu->shiftstate|=0x04;
+								cpu->block_ints=true;
+								cpu->disp=false;
+							}
+							else if((cpu->internal[0]==0xFD)&&!(cpu->shiftstate&0x03)) // CB/ED FD is an instruction, not a shift
+							{
+								cpu->shiftstate&=~(0x04); // DD may not combine with FD
+								cpu->shiftstate|=0x08;
+								cpu->block_ints=true;
+								cpu->disp=false;
+							}
+							else
+							{
+								cpu->ods=od_bits(cpu->internal[0]);
+								cpu->M++;
+							}
+							cpu->dT=-2;
+							if(cpu->disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
+							{
+								cpu->dT--;
+								cpu->disp=false;
+								rblock=true;
+							}
 						}
-						cpu->dT=-2;
-						if(cpu->disp) // the XX in DD/FD CB b XX is an IO(5), not an OCF(4)
-						{
+						if(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4))
+						{ // IN-- and OT-- functions take an extra Tstate
 							cpu->dT--;
-							cpu->disp=false;
-							rblock=true;
 						}
-					}
-					if(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4))
-					{ // IN-- and OT-- functions take an extra Tstate
-						cpu->dT--;
-					}
-					bus->mreq=true;
-					bus->m1=false;
-					bus->tris=OFF;
-					if((rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))&&!rblock)
-					{
-						bus->rfsh=true;
-						bus->addr=((*Intvec)<<8)+*Refresh;
-						(*Refresh)++;
-						if(!((*Refresh)&0x7f)) // preserve the high bit of R
-							(*Refresh)^=0x80;
-					}
-					cpu->waitlim=1;
-				break;
+						bus->mreq=true;
+						bus->m1=false;
+						bus->tris=OFF;
+						if((rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))&&!rblock)
+						{
+							bus->rfsh=true;
+							bus->addr=((*Intvec)<<8)+*Refresh;
+							(*Refresh)++;
+							if(!((*Refresh)&0x7f)) // preserve the high bit of R
+								(*Refresh)^=0x80;
+						}
+						cpu->waitlim=1;
+					break;
+				}
 			}
 		break;
 		case 1: // M1
@@ -463,6 +537,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 							break;
 							case 5: // ED x1 z5 == RETI/N: M1=SRL(3)
 								STEP_SR(1);
+								bus->reti=true;
 							break;
 							case 6: // ED x1 z6 == IM im[y]: M1=IO(0)
 								cpu->intmode=tbl_im[cpu->ods.y&3];
@@ -2061,6 +2136,16 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 	}
 	if(oM&&!cpu->M) // when M is set to 0, shift is reset
 	{
+		if(bus->nmi&&!cpu->block_ints)
+		{
+			cpu->IFF[0]=false;
+			cpu->nmiacc=true;
+		}
+		else if(bus->irq&&cpu->IFF[0]&&!cpu->block_ints)
+		{
+			cpu->IFF[0]=cpu->IFF[1]=false;
+			cpu->intacc=true;
+		}
 		cpu->shiftstate=0;
 		cpu->disp=false;
 		cpu->block_ints=false;
