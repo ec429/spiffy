@@ -87,7 +87,7 @@ int main(int argc, char * argv[])
 	}
 	bool debug=false; // Generate debugging info?
 	bool bugstep=false; // Single-step?
-	bool debugcycle=true; // Single-Tstate stepping?
+	bool debugcycle=false; // Single-Tstate stepping?
 	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
 	#endif
@@ -721,7 +721,7 @@ void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus)
 	if(cpu->nmiacc) printf(" NMI!");
 	else if(cpu->intacc) printf(" INT!");
 	printf("\n");
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi");
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->halt?"HALT":"halt");
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
@@ -919,7 +919,7 @@ run_test(FILE *f)
 		fflush(stdout);
 		errupt=z80_tstep(cpu, bus, errupt);
 		fflush(stderr);
-		if(++tstates>end_tstates)
+		if(++tstates>=end_tstates)
 		{
 			if((cpu->M==0)&&(cpu->dT==0)&&!cpu->block_ints)
 				errupt++;

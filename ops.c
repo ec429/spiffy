@@ -408,7 +408,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 						*DE=(cpu->ods.y&1)?(*DE)-1:(*DE)+1;
 						*HL=(cpu->ods.y&1)?(*HL)-1:(*HL)+1;
 						(*BC)--;
-						cpu->dT=-3;
+						cpu->dT-=2;
 						int mp=cpu->internal[1]+cpu->regs[3];
 						// FLAGS!
 						// SZ5H3VNC

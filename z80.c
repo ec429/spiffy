@@ -91,17 +91,20 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 		bus->addr=0;
 		bus->mreq=false;
 	}
-	if(cpu->nmiacc)
+	if(cpu->nmiacc) // XXX This should take a non-zero amount of time!
 	{
 		*PC=0x0066;
 		cpu->halt=false;
 		cpu->nmiacc=false;
+		if(cpu->halt)
+			return(errupt);
 	}
 	else if(cpu->intacc)
 	{
 		switch(cpu->intmode)
 		{
 			case 0:
+				cpu->halt=true;
 				if(cpu->dT>5) // XXX this will break horribly for opcodes longer than a single byte, but I have no idea how those work anyway
 				{
 					cpu->internal[0]=bus->data;
@@ -113,6 +116,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				}
 			break;
 			case 1:
+				cpu->halt=true;
 				if(cpu->dT>6)
 				{
 					cpu->internal[0]=0xff;
@@ -127,6 +131,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				switch(cpu->M)
 				{
 					case 0:
+						cpu->halt=true;
 						if(cpu->dT>5)
 						{
 							cpu->internal[1]=bus->data;
@@ -156,8 +161,10 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				}
 			break;
 		}
+		if(cpu->halt)
+			return(errupt);
 	}
-	else if(cpu->halt)
+	if(cpu->halt)
 	{
 		cpu->M=0;
 		switch(cpu->dT)
@@ -191,6 +198,16 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				bus->m1=true;
 				bus->rfsh=false;
 				cpu->dT=-1;
+				if(bus->nmi&&!cpu->block_ints)
+				{
+					cpu->IFF[0]=false;
+					cpu->nmiacc=true;
+				}
+				else if(bus->irq&&cpu->IFF[0]&&!cpu->block_ints)
+				{
+					cpu->IFF[0]=cpu->IFF[1]=false;
+					cpu->intacc=true;
+				}
 			break;
 		}
 		return(errupt);
