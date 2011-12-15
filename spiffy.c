@@ -67,8 +67,8 @@ typedef struct _pos
 } pos;
 
 SDL_Surface * gf_init();
-void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
-int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, char b);
+void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
+int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
 #ifdef AUDIO
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
@@ -76,6 +76,7 @@ typedef struct
 	bool bits[AUDIOBUFLEN];
 	bool cbuf[AUDIOBUFLEN];
 	unsigned int rp, wp;
+	bool play;
 }
 audiobuf;
 #endif
@@ -322,15 +323,16 @@ int main(int argc, char * argv[])
 	bool endoftape=!(deck&&libspectrum_tape_present(deck));
 	
 	// Main program loop
-	while(!errupt)
+	while(likely(!errupt))
 	{
 		if(unlikely((!debug)&&(*PC==breakpoint)&&bus->m1))
 		{
 			debug=true;
 		}
 		Tstates++;
+		abuf.play=play;
 		#ifdef AUDIO
-		if(!(Tstates%(69888*50/SAMPLE_RATE)))
+		if(unlikely(!(Tstates%(69888*50/SAMPLE_RATE))))
 		{
 			unsigned int newwp=(abuf.wp+1)%AUDIOBUFLEN;
 			if(delay&&!play)
@@ -740,7 +742,7 @@ SDL_Surface * gf_init()
 	return(screen);
 }
 
-inline void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
+inline void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
 	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
@@ -748,7 +750,7 @@ inline void pset(SDL_Surface * screen, int x, int y, char r, char g, char b)
 	*pixloc = pixval;
 }
 
-int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, char b)
+int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b)
 {
 	if(x2<x1)
 	{
@@ -819,14 +821,15 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 	audiobuf *a=abuf;
 	for(int i=0;i<len;i++)
 	{
-		while(a->rp==a->wp) usleep(5e3);
+		while(!a->play&&(a->rp==a->wp)) usleep(5e3);
 		a->cbuf[a->rp]=a->bits[a->rp];
+		unsigned int l=a->play?AUDIOBUFLEN>>2:AUDIOBUFLEN;
 		double v=0;
-		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
+		for(unsigned int j=0;j<l;j++)
 		{
 			int d=a->cbuf[(a->rp+AUDIOBUFLEN-j)%AUDIOBUFLEN];
-			if(j==AUDIOBUFLEN/2) v+=d*0.6;
-			else v+=d*sin((j-AUDIOBUFLEN/2)*0.6)/(double)(j-AUDIOBUFLEN/2);
+			if(j==l/2) v+=d*0.6;
+			else v+=d*sin((j-l/2)*0.6)/(double)(j-l/2);
 		}
 		stream[i]=floor(v*3.0+63.75);
 		a->rp=(a->rp+1)%AUDIOBUFLEN;
