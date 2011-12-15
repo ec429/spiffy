@@ -1,9 +1,9 @@
 Spiffy: Yet another ZX Spectrum emulator
 Readme.
 
-Spiffy is currently in a fairly early stage of development; the Z80 core works (though may contain errors), and of peripherals only video, audio and tape input been added.
+Spiffy is currently in a fairly early stage of development; the Z80 core works (though may contain errors), and of peripherals only video, audio, the keyboard and tape input been added.
 Also, timings and contention are probably inaccurate.  In particular, the 'split bus' is not properly emulated, chiefly because I don't understand it.  (I need to read csmith's book!)
-Moreover, IM2 seems to be broken - every game that uses it crashes on loading.  I can't work out why.
+Moreover, IM2 seems to be broken - some games hang or crash on loading.  I can't work out why (I did fix one bug with IM2, and some software started working, but some others still don't).
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
