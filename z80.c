@@ -64,6 +64,7 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	cpu->shiftstate=0;
 	cpu->intacc=false;
 	cpu->nmiacc=false;
+	cpu->nothing=0;
 	
 	bus->tris=OFF;
 	bus->oldtris=false;
@@ -83,6 +84,11 @@ void z80_reset(z80 *cpu, bus_t *bus)
 int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 {
 	cpu->dT++;
+	if(unlikely(cpu->nothing))
+	{
+		cpu->nothing--;
+		return(errupt);
+	}
 	if((cpu->dT==0)&&bus->rfsh)
 	{
 		bus->rfsh=false;
@@ -241,13 +247,14 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						bus->iorq=false;
 						bus->mreq=true;
 						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)); // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?	Or just for the first prefix?	I implement the former.	However, after DD/FD CB, the next two fetches (d and XX) are not M1)
+						cpu->nothing=1;
 					break;
 					case 1:
 						bus->tris=IN;
 						bus->addr=*PC;
 						bus->iorq=false;
-						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C));
 						bus->mreq=true;
+						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C));
 					break;
 					case 2:
 						if(unlikely(bus->waitline))
@@ -800,9 +807,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									{
 										STEP_MR(*HL, &cpu->internal[1]);
 										if(cpu->M>1)
-										{
 											cpu->dT=-2;
-										}
 									}
 								}
 								else
@@ -822,9 +827,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									{
 										STEP_MR(*HL, &cpu->internal[1]);
 										if(cpu->M>1)
-										{
 											cpu->dT=-2;
-										}
 									}
 								}
 								else
@@ -2170,6 +2173,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 			errupt++;
 		break;
 	}
+	cpu->nothing=max(cpu->nothing,-1-cpu->dT);
 	if(oM&&!cpu->M) // when M is set to 0, shift is reset
 	{
 		if(bus->nmi&&!cpu->block_ints)

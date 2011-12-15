@@ -203,9 +203,13 @@ int main(int argc, char * argv[])
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
 	bool kstate[8][5]; // keyboard state
+	unsigned char kenc[8]; // encoded keyboard state
 	for(int i=0;i<8;i++)
+	{
 		for(int j=0;j<5;j++)
 			kstate[i][j]=false;
+		kenc[i]=0;
+	}
 	if(init_keyboard())
 	{
 		fprintf(stderr, "spiffy: failed to load keymap\n");
@@ -326,14 +330,12 @@ int main(int argc, char * argv[])
 	while(likely(!errupt))
 	{
 		if(unlikely((!debug)&&(*PC==breakpoint)&&bus->m1))
-		{
 			debug=true;
-		}
 		Tstates++;
-		abuf.play=play;
 		#ifdef AUDIO
 		if(unlikely(!(Tstates%(69888*50/SAMPLE_RATE))))
 		{
+			abuf.play=play;
 			unsigned int newwp=(abuf.wp+1)%AUDIOBUFLEN;
 			if(delay&&!play)
 				while(newwp==abuf.rp) usleep(5e3);
@@ -342,11 +344,11 @@ int main(int argc, char * argv[])
 			abuf.wp=newwp;
 		}
 		#endif
-		if(play)
+		if(likely(play))
 		{
-			if(!deck)
+			if(unlikely(!deck))
 				play=false;
-			else if(T_to_tape_edge)
+			else if(likely(T_to_tape_edge))
 				T_to_tape_edge--;
 			else
 			{
@@ -386,16 +388,8 @@ int main(int argc, char * argv[])
 				unsigned char hi=bus->addr>>8;
 				bus->data=(ear?0x40:0)|0x1f;
 				for(int i=0;i<8;i++)
-				{
 					if(!(hi&(1<<i)))
-					{
-						for(int j=0;j<5;j++)
-						{
-							if(kstate[i][j])
-								bus->data&=~(1<<j);
-						}
-					}
-				}
+						bus->data&=~kenc[i];
 			}
 			else
 				bus->data=0xff; // technically this is wrong, TODO floating bus
@@ -404,10 +398,20 @@ int main(int argc, char * argv[])
 		if(unlikely(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle)))
 		{
 			show_state(RAM, cpu, Tstates, bus);
-			if(bugstep) getchar();
+			if(bugstep)
+			{
+				if(getchar()=='c')
+					debug=false;
+			}
 		}
 		
-		errupt=z80_tstep(cpu, bus, errupt);
+		if(cpu->nothing)
+		{
+			cpu->nothing--;
+			cpu->dT++;
+		}
+		else
+			errupt=z80_tstep(cpu, bus, errupt);
 
 		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus);
 		if(unlikely(Tstates==32))
@@ -544,6 +548,12 @@ int main(int argc, char * argv[])
 									}
 								}
 							}
+							for(unsigned int i=0;i<8;i++)
+							{
+								kenc[i]=0;
+								for(unsigned int j=0;j<5;j++)
+									if(kstate[i][j]) kenc[i]|=(1<<j);
+							}
 							// else it's not [low] ASCII
 						}
 					break;
@@ -650,6 +660,12 @@ int main(int argc, char * argv[])
 											kstate[kmap[i].row[1]][kmap[i].col[1]]=false;
 									}
 								}
+							}
+							for(unsigned int i=0;i<8;i++)
+							{
+								kenc[i]=0;
+								for(unsigned int j=0;j<5;j++)
+									if(kstate[i][j]) kenc[i]|=(1<<j);
 							}
 							// else it's not [low] ASCII
 						}
@@ -1083,7 +1099,13 @@ run_test(FILE *f)
 	{
 		do_ram(memory, bus, true);
 		fflush(stdout);
-		errupt=z80_tstep(cpu, bus, errupt);
+		if(cpu->nothing)
+		{
+			cpu->nothing--;
+			cpu->dT++;
+		}
+		else
+			errupt=z80_tstep(cpu, bus, errupt);
 		fflush(stderr);
 		if(++tstates>=end_tstates)
 		{

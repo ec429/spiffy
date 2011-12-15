@@ -37,6 +37,7 @@ typedef struct
 	int shiftstate;	// The 'shift state' resulting from prefixes.  bits as follows: 1=CB 2=ED 4=DD 8=FD.  Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
 	bool intacc; // accepted an INTerrupt?
 	bool nmiacc; // accepted an NMI?
+	int nothing; // number of Tstates doing nothing
 }
 z80;
 

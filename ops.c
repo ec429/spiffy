@@ -55,6 +55,7 @@ void step_od(z80 *cpu, int ernal, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0: /* fallthrough */
+			cpu->nothing=1;
 		case 1:
 			bus->tris=IN;
 			bus->addr=(*PC);
@@ -82,6 +83,7 @@ void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0: /* fallthrough */
+			cpu->nothing=1;
 		case 1:
 			bus->tris=IN;
 			bus->addr=addr;
@@ -142,6 +144,7 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 			bus->addr=addr;
 		break;
 		case 1: /* fallthrough */
+			cpu->nothing=1;
 		case 2:
 			bus->tris=IN;
 			bus->addr=addr;
@@ -173,6 +176,7 @@ void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 			bus->data=val;
 		break;
 		case 1: /* fallthrough */
+			cpu->nothing=1;
 		case 2:
 			bus->tris=OUT;
 			bus->addr=addr;
@@ -198,6 +202,7 @@ void step_sr(z80 *cpu, int ernal, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0: /* fallthrough */
+			cpu->nothing=1;
 		case 1:
 			bus->tris=IN;
 			bus->addr=(*SP);
