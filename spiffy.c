@@ -14,11 +14,16 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <SDL.h>
 #include <SDL/SDL_audio.h>
 #include <SDL/SDL_ttf.h>
 #include <time.h>
 #include <errno.h>
+#include <math.h>
+#include <signal.h>
+#include <libspectrum.h>
+#include "bits.h"
 #include "ops.h"
 #include "z80.h"
 #include "vchips.h"
@@ -28,17 +33,18 @@
 #define OSIZ_Y	320
 #define OBPP	32
 
-//#define AUDIO		// Activates audio
+#define AUDIO		// Activates audio
 
 #ifdef AUDIO
 #define SAMPLE_RATE	8000 // Audio sample rate, Hz
+#define AUDIOBUFLEN	(SAMPLE_RATE/100)
 #endif
 
 #define ROM_FILE "48.rom" // Location of Spectrum ROM file (TODO: make configable)
 
 #define VERSION_MAJ	0
-#define VERSION_MIN	3
-#define VERSION_REV	1
+#define VERSION_MIN	4
+#define VERSION_REV	0
 
 #define VERSION_MSG "spiffy %hhu.%hhu.%hhu\n\
  Copyright (C) 2010-11 Edward Cree.\n\
@@ -61,13 +67,21 @@ SDL_Surface * gf_init();
 void pset(SDL_Surface * screen, int x, int y, char r, char g, char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, char b);
 #ifdef AUDIO
-void mixaudio(void *portfe, Uint8 *stream, int len);
+void mixaudio(void *abuf, Uint8 *stream, int len);
+typedef struct
+{
+	bool bits[AUDIOBUFLEN];
+	bool cbuf[AUDIOBUFLEN];
+	unsigned int rp, wp;
+}
+audiobuf;
 #endif
 
 // helper fns
 void show_state(unsigned char * RAM, z80 *cpu, int Tstates, bus_t *bus);
 void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM[65536], bus_t *bus);
 int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
+bool pos_rect(pos p, SDL_Rect r);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -91,6 +105,7 @@ int main(int argc, char * argv[])
 	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
 	#endif
+	const char *fn=NULL;
 	unsigned int breakpoint=-1;
 	int arg;
 	for (arg=1; arg<argc; arg++)
@@ -128,12 +143,12 @@ int main(int argc, char * argv[])
 		#endif
 		else
 		{ // unrecognised option, assume it's a filename
-			printf("Unrecognised option %s, exiting\n", argv[arg]);
-			return(2);
+			fn=argv[arg];
 		}
 	}
 	
 	printf(GPL_MSG);
+	bool ls=!libspectrum_init();
 	
 	#ifdef CORETEST
 	if(coretest)
@@ -171,11 +186,12 @@ int main(int argc, char * argv[])
 	SDL_EnableUNICODE(1);
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 	SDL_Event event;
-	SDL_Rect cls;
-	cls.x=0;
-	cls.y=256;
-	cls.w=OSIZ_X;
-	cls.h=OSIZ_Y-256;
+	SDL_Rect cls={0, 296, OSIZ_X, OSIZ_Y-296};
+	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
+	SDL_Rect playbutton={164, 298, 16, 20};
+	SDL_FillRect(screen, &playbutton, SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+	SDL_Rect rewindbutton={184, 298, 16, 20};
+	SDL_FillRect(screen, &rewindbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x6f));
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -193,9 +209,10 @@ int main(int argc, char * argv[])
 	fmt.freq = SAMPLE_RATE;
 	fmt.format = AUDIO_U8;
 	fmt.channels = 1;
-	fmt.samples = 64;
+	fmt.samples = AUDIOBUFLEN;
 	fmt.callback = mixaudio;
-	fmt.userdata = &bus->portfe;
+	audiobuf abuf = {.rp=0, .wp=0};
+	fmt.userdata = &abuf;
 
 	/* Open the audio device */
 	if ( SDL_OpenAudio(&fmt, NULL) < 0 ) {
@@ -204,12 +221,14 @@ int main(int argc, char * argv[])
 	}
 #endif	
 
-	bool delay=true; // TODO attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
+	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
+	int frametime[600];
+	for(int i=0;i<600;i++) frametime[i]=time(NULL)-11+(i/50);
 	
 	// Mouse handling
 	pos mouse;
 	SDL_GetMouseState(&mouse.x, &mouse.y);
-	SDL_ShowCursor(SDL_DISABLE);
+	//SDL_ShowCursor(SDL_DISABLE);
 	char button;
 	
 	// Spectrum State
@@ -234,16 +253,68 @@ int main(int argc, char * argv[])
 	int Fstate=0; // FLASH state
 	z80_reset(cpu, bus);
 	
-	SDL_Flip(screen);
+	libspectrum_tape *deck=NULL;
+	bool play=false;
 	
+	if(fn)
+	{
+		FILE *fp=fopen(fn, "rb");
+		string data=sslurp(fp);
+		fclose(fp);
+		libspectrum_id_t type;
+		if(libspectrum_identify_file_raw(&type, fn, (unsigned char *)data.buf, data.i))
+		{
+			free_string(&data);
+			fn=NULL;
+		}
+		else
+		{
+			libspectrum_class_t class;
+			if(libspectrum_identify_class(&class, type))
+			{
+				free_string(&data);
+				fn=NULL;
+			}
+			else
+			{
+				switch(class)
+				{
+					case LIBSPECTRUM_CLASS_TAPE:
+						if((deck=libspectrum_tape_alloc()))
+						{
+							if(libspectrum_tape_read(deck, (unsigned char *)data.buf, data.i, type, fn))
+							{
+								libspectrum_tape_free(deck);
+								free_string(&data);
+								fn=NULL;
+							}
+							else
+							{
+								fprintf(stderr, "Mounted tape '%s'\n", fn);
+							}
+						}
+					break;
+					default:
+						fprintf(stderr, "This class of file is not supported!\n");
+						free_string(&data);
+						fn=NULL;
+					break;
+				}
+			}
+		}
+	}
+	
+	SDL_Flip(screen);
 #ifdef AUDIO
 	// Start sound
 	SDL_PauseAudio(0);
 #endif
 	
-	time_t start_time=time(NULL);
 	int frames=0;
 	int Tstates=0;
+	uint32_t T_to_tape_edge=0;
+	int edgeflags=0;
+	bool endoftape=!(deck&&libspectrum_tape_present(deck));
 	
 	// Main program loop
 	while(!errupt)
@@ -253,6 +324,45 @@ int main(int argc, char * argv[])
 			debug=true;
 		}
 		Tstates++;
+		#ifdef AUDIO
+		if(!(Tstates%(69888*50/SAMPLE_RATE)))
+		{
+			unsigned int newwp=(abuf.wp+1)%AUDIOBUFLEN;
+			if(delay&&!play)
+				while(newwp==abuf.rp) usleep(5e3);
+			abuf.bits[abuf.wp]=(bus->portfe&0x10);
+			abuf.bits[abuf.wp]^=ear;
+			abuf.wp=newwp;
+		}
+		#endif
+		if(!deck)
+			play=false;
+		if(play)
+		{
+			if(T_to_tape_edge)
+				T_to_tape_edge--;
+			else
+			{
+				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP)
+					play=false;
+				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP48)
+					play=false;
+				if(!(edgeflags&LIBSPECTRUM_TAPE_FLAGS_NO_EDGE))
+					ear=!ear;
+				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_LEVEL_LOW)
+					ear=false;
+				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_LEVEL_HIGH)
+					ear=true;
+				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_TAPE)
+				{
+					endoftape=true;
+					play=false;
+				}
+				if(play)
+					libspectrum_tape_get_next_edge(&T_to_tape_edge, &edgeflags, deck);
+				SDL_FillRect(screen, &playbutton, endoftape?SDL_MapRGB(screen->format, 0x3f, 0x3f, 0x3f):play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+			}
+		}
 		do_ram(RAM, bus, false);
 		
 		if(bus->iorq&&(bus->tris==OUT))
@@ -279,6 +389,8 @@ int main(int argc, char * argv[])
 					}
 				}
 			}
+			else
+				bus->data=0xff; // technically this is wrong, TODO floating bus
 		}
 		
 		if(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle))
@@ -298,10 +410,14 @@ int main(int argc, char * argv[])
 			SDL_Flip(screen);
 			Tstates-=69888;
 			Fstate=(Fstate+1)%32; // flash alternates every 16 frames
-			frames++;
+			time_t now=time(NULL);
+			double spd=min(1200/(double)(now-frametime[frames%600]),999);
+			frametime[frames++%600]=now;
 			char text[32];
-			double spd=(frames*2.0)/(double)(time(NULL)-start_time);
-			sprintf(text, "Speed: %0.3g%%", spd);
+			if(spd>=1)
+				sprintf(text, "Speed: %0.3g%%", spd);
+			else
+				sprintf(text, "Speed: <1%%");
 			dtext(screen, 8, 296, text, font, 255, 255, 0);
 			while(SDL_PollEvent(&event))
 			{
@@ -319,6 +435,12 @@ int main(int argc, char * argv[])
 								debug=true;
 								bugstep=true;
 							}
+							#ifdef AUDIO
+							else if(key.sym==SDLK_KP_ENTER)
+							{
+								abuf.wp=(abuf.wp+1)%AUDIOBUFLEN;
+							}
+							#endif
 							else if(key.sym==SDLK_RETURN)
 							{
 								kstate[6][0]=true;
@@ -535,6 +657,16 @@ int main(int argc, char * argv[])
 						switch(button)
 						{
 							case SDL_BUTTON_LEFT:
+								if(pos_rect(mouse, playbutton))
+								{
+									play=!play;
+								}
+								else if(pos_rect(mouse, rewindbutton))
+								{
+									libspectrum_tape_nth_block(deck, 0);
+									endoftape=!deck;
+								}
+								SDL_FillRect(screen, &playbutton, endoftape?SDL_MapRGB(screen->format, 0x3f, 0x3f, 0x3f):play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 							break;
 							case SDL_BUTTON_RIGHT:
 							break;
@@ -567,9 +699,15 @@ int main(int argc, char * argv[])
 	
 	show_state(RAM, cpu, Tstates, bus);
 	
+	#ifdef AUDIO
+	// Stop sound
+	SDL_PauseAudio(1);
+	#endif
+	
 	// clean up
 	if(SDL_MUSTLOCK(screen))
 		SDL_UnlockSurface(screen);
+	raise(SIGKILL);
 	return(0);
 }
 
@@ -670,12 +808,22 @@ int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, char r, char g, c
 }
 
 #ifdef AUDIO
-void mixaudio(void *portfe, Uint8 *stream, int len)
+void mixaudio(void *abuf, Uint8 *stream, int len)
 {
-	int i;
-	for(i=0;i<len;i++)
+	audiobuf *a=abuf;
+	for(int i=0;i<len;i++)
 	{
-		stream[i]=(*((char *)portfe)&0x18)?255:0;
+		while(a->rp==a->wp) usleep(5e3);
+		a->cbuf[a->rp]=a->bits[a->rp];
+		double v=0;
+		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
+		{
+			int d=a->cbuf[(a->rp+AUDIOBUFLEN-j)%AUDIOBUFLEN];
+			if(j==AUDIOBUFLEN/2) v+=d;
+			else v+=d*sin((j-AUDIOBUFLEN/2)*M_PI)/(double)(j-AUDIOBUFLEN/2);
+		}
+		stream[i]=floor(v+127.5);
+		a->rp=(a->rp+1)%AUDIOBUFLEN;
 	}
 }
 #endif
@@ -782,12 +930,17 @@ void scrn_update(SDL_Surface *screen, int Tstates, int Fstate, unsigned char RAM
 int dtext(SDL_Surface * scrn, int x, int y, char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
 {
 	SDL_Color clrFg = {r, g, b,0};
-	SDL_Rect rcDest = {x, y, OSIZ_X, 12};
+	SDL_Rect rcDest = {x, y, 100, 12};
 	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
 	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
 	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
 	SDL_FreeSurface(sText);
 	return(0);
+}
+
+bool pos_rect(pos p, SDL_Rect r)
+{
+	return((p.x>=r.x)&&(p.y>=r.y)&&(p.x<r.x+r.w)&&(p.y<r.y+r.h));
 }
 
 #ifdef CORETEST

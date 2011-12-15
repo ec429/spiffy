@@ -138,7 +138,6 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 							cpu->internal[0]=*Intvec;
 							cpu->M=1;
 							cpu->dT=-1;
-							cpu->halt=false;
 						}
 					break;
 					case 1: // M1=SWH(3)
@@ -156,6 +155,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						{
 							cpu->M=0;
 							cpu->intacc=false;
+							cpu->halt=false;
 						}
 					break;
 				}
