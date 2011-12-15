@@ -94,8 +94,6 @@ static void dump_memory_state( unsigned char *memory, unsigned char *initial_mem
 static int run_test( FILE *f );
 #endif
 
-unsigned char uladb,ulaab,uladbb,ulaabb;
-
 int main(int argc, char * argv[])
 {
 	TTF_Font *font=NULL;
@@ -913,6 +911,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 		bool contend=false;
 		if((col>=0) && (col<OSIZ_X))
 		{
+			unsigned char uladb=0xff, ulaab=bus->portfe&0x07;
 			int ccol=(col>>3)-4;
 			int crow=(line>>3)-6;
 			if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
@@ -924,12 +923,6 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 				uladb=RAM[(dbh<<8)+dbl];
 				ulaab=RAM[(abh<<8)+abl];
 				contend=!(((Tstates%8)==0)||((Tstates%8)==1));
-			}
-			else
-			{
-				contend=false;
-				uladb=0xff;
-				ulaab=bus->portfe&0x07;
 			}
 			bus->waitline=contend&&(((((bus->addr)&0xC000)==0x4000)&&(bus->mreq||bus->iorq))||(bus->iorq&&bus->tris&&bus->oldtris&&!((bus->addr)%2)));
 			bus->oldtris=bus->tris;
