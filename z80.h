@@ -59,12 +59,12 @@ typedef struct
 	unsigned short int addr; // Address bus (A0-A15)
 	unsigned char data; // Data bus (D0-D7)
 	tristate tris; // encapsulates the ¬RD and ¬WR lines
-	bool oldtris; // ula stuff
 	bool iorq; // ¬IORQ line
 	bool mreq; // ¬MREQ line
 	bool m1; // ¬M1 line
 	bool rfsh; // ¬RFSH line
 	bool waitline; // ¬WAIT line
+	bool clk_inhibit; // when true, hold the CLK line low (used by ULA)
 	bool irq; // ¬INT line
 	bool nmi; // ¬NMI line
 	bool halt; // ¬HALT line

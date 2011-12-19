@@ -56,8 +56,11 @@ void step_od(z80 *cpu, int ernal, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
-		case 0: /* fallthrough */
-			cpu->nothing=1;
+		case 0:
+			bus->tris=OFF;
+			bus->addr=(*PC);
+			bus->mreq=false;
+		break;
 		case 1:
 			bus->tris=IN;
 			bus->addr=(*PC);
@@ -84,8 +87,11 @@ void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
-		case 0: /* fallthrough */
-			cpu->nothing=1;
+		case 0:
+			bus->tris=OFF;
+			bus->addr=addr;
+			bus->mreq=false;
+		break;
 		case 1:
 			bus->tris=IN;
 			bus->addr=addr;
@@ -113,7 +119,7 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 		case 0:
 			bus->tris=OFF;
 			bus->addr=addr;
-			bus->mreq=true;
+			bus->mreq=false;
 			bus->data=val;
 			cpu->steps=max(cpu->steps,1);
 			cpu->ste=MW;
@@ -148,6 +154,7 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 		case 0:
 			bus->tris=OFF;
 			bus->addr=addr;
+			bus->iorq=false;
 			cpu->steps=max(cpu->steps,2);
 			cpu->ste=PR;
 			cpu->sta=addr;
@@ -215,8 +222,11 @@ void step_sr(z80 *cpu, int ernal, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
-		case 0: /* fallthrough */
-			cpu->nothing=1;
+		case 0:
+			bus->tris=IN;
+			bus->addr=(*SP);
+			bus->mreq=false;
+		break;
 		case 1:
 			bus->tris=IN;
 			bus->addr=(*SP);
@@ -244,7 +254,7 @@ void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 	{
 		case 0:
 			bus->tris=OFF;
-			bus->mreq=true;
+			bus->mreq=false;
 			bus->addr=--(*SP);
 			bus->data=val;
 			cpu->steps=max(cpu->steps,1);

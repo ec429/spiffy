@@ -68,7 +68,6 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	cpu->steps=0;
 	
 	bus->tris=OFF;
-	bus->oldtris=false;
 	bus->iorq=false;
 	bus->mreq=false;
 	bus->m1=false;
@@ -84,6 +83,7 @@ void z80_reset(z80 *cpu, bus_t *bus)
 
 int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 {
+	if(bus->clk_inhibit) return(errupt);
 	cpu->dT++;
 	if(unlikely(cpu->nothing))
 	{
@@ -268,9 +268,9 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						bus->tris=IN;
 						bus->addr=*PC;
 						bus->iorq=false;
-						bus->mreq=true;
+						bus->mreq=false;
 						bus->m1=!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)); // M1 line may be incorrect in prefixed series (Should it remain active for each byte of the opcode?	Or just for the first prefix?	I implement the former.	However, after DD/FD CB, the next two fetches (d and XX) are not M1)
-						cpu->nothing=1;
+						//cpu->nothing=1;
 					break;
 					case 1:
 						bus->tris=IN;
@@ -345,6 +345,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 							if((rfix||!((cpu->shiftstate&0x01)&&(cpu->shiftstate&0x0C)&&!((cpu->internal[0]==0xFD)||(cpu->internal[0]==0xDD))))&&!rblock)
 							{
 								bus->rfsh=true;
+								bus->mreq=true;
 								bus->addr=((*Intvec)<<8)+*Refresh;
 								(*Refresh)++;
 								if(!((*Refresh)&0x7f)) // preserve the high bit of R

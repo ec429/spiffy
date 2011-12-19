@@ -78,9 +78,17 @@ typedef struct
 audiobuf;
 #endif
 
+typedef struct
+{
+	bool memwait;
+	bool iowait;
+	bool t1;
+}
+ula_t;
+
 // helper fns
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
-void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus);
+void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
 int dtext(SDL_Surface * scrn, int x, int y, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
 bool pos_rect(pos p, SDL_Rect r);
 
@@ -178,10 +186,9 @@ int main(int argc, char * argv[])
 	#endif
 	
 	// State
-	z80 _cpu;
-	z80 *cpu=&_cpu; // we want to work with a pointer
-	bus_t _bus;
-	bus_t *bus=&_bus;
+	z80 _cpu, *cpu=&_cpu; // we want to work with a pointer
+	bus_t _bus, *bus=&_bus;
+	ula_t _ula, *ula=&_ula;
 	
 	SDL_Surface * screen=gf_init();
 	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
@@ -422,7 +429,7 @@ int main(int argc, char * argv[])
 		else
 			errupt=z80_tstep(cpu, bus, errupt);
 
-		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus);
+		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
 		if(unlikely(Tstates==32))
 			bus->irq=false;
 		if(unlikely(Tstates>=69888))
@@ -917,7 +924,7 @@ void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bu
 	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->halt?"HALT":"halt");
 }
 
-void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
+void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
 	int line=((Tstates+12)/224)-16;
 	int col=(((Tstates+12)%224)<<1);
@@ -937,10 +944,25 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 									abl=dbl;
 				uladb=RAM[(dbh<<8)+dbl];
 				ulaab=RAM[(abh<<8)+abl];
-				contend=!(((Tstates%8)==0)||((Tstates%8)==1));
+				contend=!(((Tstates%8)==6)||((Tstates%8)==7));
 			}
-			bus->waitline=contend&&(((((bus->addr)&0xC000)==0x4000)&&(bus->mreq||bus->iorq))||(bus->iorq&&bus->tris&&bus->oldtris&&!((bus->addr)%2)));
-			bus->oldtris=bus->tris;
+			if(ula->t1)
+			{
+				if(((bus->addr&0xC000)==0x4000))
+					ula->memwait=true;
+				if(bus->iorq&&!(bus->addr&1))
+					ula->iowait=true;
+				ula->t1=false;
+			}
+			else
+			{
+				if(!bus->mreq)
+					ula->memwait=false;
+				if(!bus->iorq)
+					ula->iowait=false;
+				ula->t1=!bus->mreq;
+			}
+			bus->clk_inhibit=(ula->memwait||ula->iowait)&&contend;
 			if(!(frames&frameskip))
 			{
 				int ink=ulaab&0x07;
