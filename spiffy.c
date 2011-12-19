@@ -320,7 +320,6 @@ int main(int argc, char * argv[])
 	int Tstates=0;
 	uint32_t T_to_tape_edge=0;
 	int edgeflags=0;
-	bool endoftape=!(deck&&libspectrum_tape_present(deck));
 	
 	// Main program loop
 	while(likely(!errupt))
@@ -360,12 +359,13 @@ int main(int argc, char * argv[])
 					ear=true;
 				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_TAPE)
 				{
-					endoftape=true;
 					play=false;
+					T_to_tape_edge=0;
+					edgeflags=0;
 				}
 				if(play)
 					libspectrum_tape_get_next_edge(&T_to_tape_edge, &edgeflags, deck);
-				SDL_FillRect(screen, &playbutton, endoftape?SDL_MapRGB(screen->format, 0x3f, 0x3f, 0x3f):play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+				SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 			}
 		}
 		if(bus->mreq)
@@ -690,9 +690,8 @@ int main(int argc, char * argv[])
 								else if(pos_rect(mouse, rewindbutton))
 								{
 									if(deck) libspectrum_tape_nth_block(deck, 0);
-									endoftape=!deck;
 								}
-								SDL_FillRect(screen, &playbutton, endoftape?SDL_MapRGB(screen->format, 0x3f, 0x3f, 0x3f):play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+								SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 							break;
 							case SDL_BUTTON_RIGHT:
 							break;
