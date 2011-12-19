@@ -261,6 +261,8 @@ int main(int argc, char * argv[])
 	
 	libspectrum_tape *deck=NULL;
 	bool play=false;
+	int oldtapeblock=-1;
+	unsigned int tapeblocklen=0;
 	
 	if(ls&&fn)
 	{
@@ -347,6 +349,15 @@ int main(int argc, char * argv[])
 				T_to_tape_edge--;
 			else
 			{
+				int block;
+				if(likely(!libspectrum_tape_position(&block, deck)))
+				{
+					if(unlikely(block!=oldtapeblock))
+					{
+						tapeblocklen=(libspectrum_tape_block_length(libspectrum_tape_current_block(deck))+69887)/69888;
+						oldtapeblock=block;
+					}
+				}
 				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP)
 					play=false;
 				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP48)
@@ -419,7 +430,7 @@ int main(int argc, char * argv[])
 			bus->irq=true;
 			SDL_Flip(screen);
 			Tstates-=69888;
-			Fstate=(Fstate+1)%32; // flash alternates every 16 frames
+			Fstate=(Fstate+1)&0x1f; // flash alternates every 16 frames
 			struct timeval tn;
 			gettimeofday(&tn, NULL);
 			double spd=min(200/(tn.tv_sec-frametime[frames%100].tv_sec+1e-6*(tn.tv_usec-frametime[frames%100].tv_usec)),999);
@@ -432,6 +443,14 @@ int main(int argc, char * argv[])
 				else
 					sprintf(text, "Speed: <1%%");
 				dtext(screen, 8, 296, text, font, 255, 255, 0);
+			}
+			if(play)
+				tapeblocklen=max(tapeblocklen, 1)-1;
+			if(!(frames%25))
+			{
+				char text[32];
+				sprintf(text, "T%03u", (tapeblocklen+49)/50);
+				dtext(screen, 204, 298, text, font, 0xbf, 0xbf, 0xbf);
 			}
 			while(SDL_PollEvent(&event))
 			{
