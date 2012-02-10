@@ -43,7 +43,7 @@
 unsigned char sinc_rate=8;
 #define SINCBUFLEN		(AUDIOBUFLEN*sinc_rate)
 void update_sinc(unsigned char filterfactor);
-#endif
+#endif /* AUDIO */
 
 #define ROM_FILE "48.rom" // Location of Spectrum ROM file (TODO: make configable)
 
@@ -85,7 +85,7 @@ typedef struct
 audiobuf;
 
 double sincgroups[MAX_SINC_RATE][AUDIOBUFLEN];
-#endif
+#endif /* AUDIO */
 
 typedef struct
 {
@@ -106,7 +106,7 @@ static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned cha
 static void dump_z80_state( z80 *cpu, unsigned int tstates );
 static void dump_memory_state( unsigned char *memory, unsigned char *initial_memory );
 static int run_test( FILE *f );
-#endif
+#endif /* CORETEST */
 
 int main(int argc, char * argv[])
 {
@@ -120,12 +120,12 @@ int main(int argc, char * argv[])
 	bool debugcycle=false; // Single-Tstate stepping?
 	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
-	#endif
+	#endif /* CORETEST */
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
 	unsigned char filterfactor=32;
 	update_sinc(filterfactor);
-	#endif
+	#endif /* AUDIO */
 	const char *fn=NULL;
 	unsigned int breakpoint=-1;
 	int arg;
@@ -161,7 +161,7 @@ int main(int argc, char * argv[])
 		{ // run the core tests
 			coretest=true;
 		}
-		#endif
+		#endif /* CORETEST */
 		else
 		{ // unrecognised option, assume it's a filename
 			fn=argv[arg];
@@ -194,7 +194,7 @@ int main(int argc, char * argv[])
 		}
 		return 0;
 	}
-	#endif
+	#endif /* CORETEST */
 	
 	// State
 	z80 _cpu, *cpu=&_cpu; // we want to work with a pointer
@@ -215,8 +215,10 @@ int main(int argc, char * argv[])
 	SDL_FillRect(screen, &nextbutton, SDL_MapRGB(screen->format, 0x07, 0x07, 0x9f));
 	SDL_Rect rewindbutton={204, 298, 16, 18};
 	SDL_FillRect(screen, &rewindbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x6f));
+#ifdef AUDIO
 	SDL_Rect aw_up={56, 321, 7, 6}, aw_down={56, 328, 7, 6};
 	SDL_Rect sr_up={120, 321, 7, 6}, sr_down={120, 328, 7, 6};
+#endif /* AUDIO */
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -248,7 +250,7 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "Unable to open audio: %s\n", SDL_GetError());
 		return(3);
 	}
-#endif	
+#endif /* AUDIO */
 
 	struct timeval frametime[100];
 	gettimeofday(frametime, NULL);
@@ -339,7 +341,7 @@ int main(int argc, char * argv[])
 #ifdef AUDIO
 	// Start sound
 	SDL_PauseAudio(0);
-#endif
+#endif /* AUDIO */
 	
 	int frames=0;
 	int Tstates=0;
@@ -363,7 +365,7 @@ int main(int argc, char * argv[])
 			abuf.bits[abuf.wp]^=ear;
 			abuf.wp=newwp;
 		}
-		#endif
+		#endif /* AUDIO */
 		if(likely(play))
 		{
 			if(unlikely(!deck))
@@ -506,7 +508,7 @@ int main(int argc, char * argv[])
 							{
 								abuf.wp=(abuf.wp+1)%AUDIOBUFLEN;
 							}
-							#endif
+							#endif /* AUDIO */
 							else if(key.sym==SDLK_RETURN)
 							{
 								kstate[6][0]=true;
@@ -827,7 +829,7 @@ int main(int argc, char * argv[])
 	#ifdef AUDIO
 	// Stop sound
 	SDL_PauseAudio(1);
-	#endif
+	#endif /* AUDIO */
 	
 	// clean up
 	if(SDL_MUSTLOCK(screen))
@@ -996,7 +998,7 @@ void update_sinc(unsigned char filterfactor)
 		}
 	}
 }
-#endif
+#endif /* AUDIO */
 
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus)
 {
@@ -1279,4 +1281,4 @@ run_test(FILE *f)
 
 	return 1;
 }
-#endif
+#endif /* CORETEST */
