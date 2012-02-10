@@ -244,7 +244,7 @@ int main(int argc, char * argv[])
 #ifdef AUDIO
 	SDL_AudioSpec fmt;
 	fmt.freq = SAMPLE_RATE;
-	fmt.format = AUDIO_U8;
+	fmt.format = AUDIO_S16;
 	fmt.channels = 1;
 	fmt.samples = AUDIOBUFLEN;
 	fmt.callback = mixaudio;
@@ -813,13 +813,13 @@ int main(int argc, char * argv[])
 											fputc(SAMPLE_RATE>>8, a);
 											fputc(SAMPLE_RATE>>16, a);
 											fputc(SAMPLE_RATE>>24, a);
-											fputc(SAMPLE_RATE, a);
-											fputc(SAMPLE_RATE>>8, a);
-											fputc(SAMPLE_RATE>>16, a);
-											fputc(SAMPLE_RATE>>24, a);
-											fputc(1, a);
+											fputc(SAMPLE_RATE<<1, a);
+											fputc(SAMPLE_RATE>>7, a);
+											fputc(SAMPLE_RATE>>15, a);
+											fputc(SAMPLE_RATE>>23, a);
+											fputc(2, a);
 											fputc(0, a);
-											fputc(8, a);
+											fputc(16, a);
 											fputc(0, a);
 											fwrite("data", 1, 4, a);
 											fwrite("\377\377\377\377", 1, 4, a);
@@ -1017,7 +1017,7 @@ void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned
 void mixaudio(void *abuf, Uint8 *stream, int len)
 {
 	audiobuf *a=abuf;
-	for(int i=0;i<len;i++)
+	for(int i=0;i<len;i+=2)
 	{
 		for(unsigned int g=0;g<sinc_rate;g++)
 		{
@@ -1029,13 +1029,19 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		double v=0;
 		for(unsigned int j=0;j<l;j++)
 		{
-			int d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
-			v+=d*sincgroups[sinc_rate-(j%sinc_rate)-1][j/sinc_rate];
+			signed char d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
+			if(d)
+				v+=d*sincgroups[sinc_rate-(j%sinc_rate)-1][j/sinc_rate];
 		}
 		if(a->play) v*=0.2;
-		stream[i]=floor(v*4.0+127.5);
+		Uint16 samp=floor(v*1024.0);
+		stream[i]=samp;
+		stream[i+1]=samp>>8;
 		if(a->record)
+		{
 			fputc(stream[i], a->record);
+			fputc(stream[i+1], a->record);
+		}
 	}
 }
 
