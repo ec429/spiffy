@@ -81,6 +81,7 @@ typedef struct
 	bool cbuf[MAX_SINCBUFLEN];
 	unsigned int rp, wp; // read & write pointers for 'bits' circular buffer
 	bool play; // true if tape is playing (we mute and allow skipping)
+	FILE *record;
 }
 audiobuf;
 
@@ -121,9 +122,9 @@ int main(int argc, char * argv[])
 	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
 	#endif /* CORETEST */
+	bool pause=false;
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
-	bool pause=false;
 	unsigned char filterfactor=32;
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
@@ -219,6 +220,8 @@ int main(int argc, char * argv[])
 #ifdef AUDIO
 	SDL_Rect aw_up={56, 321, 7, 6}, aw_down={56, 328, 7, 6};
 	SDL_Rect sr_up={120, 321, 7, 6}, sr_down={120, 328, 7, 6};
+	SDL_Rect recordbutton={28, 340, 16, 18};
+	SDL_FillRect(screen, &recordbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x07));
 #endif /* AUDIO */
 	SDL_Rect pausebutton={8, 340, 16, 18};
 	SDL_FillRect(screen, &pausebutton, SDL_MapRGB(screen->format, 0x7f, 0x6f, 0x07));
@@ -245,7 +248,7 @@ int main(int argc, char * argv[])
 	fmt.channels = 1;
 	fmt.samples = AUDIOBUFLEN;
 	fmt.callback = mixaudio;
-	audiobuf abuf = {.rp=0, .wp=0};
+	audiobuf abuf = {.rp=0, .wp=0, .record=NULL};
 	fmt.userdata = &abuf;
 
 	/* Open the audio device */
@@ -782,9 +785,52 @@ int main(int argc, char * argv[])
 									sinc_rate=max(sinc_rate-1,1);
 									update_sinc(filterfactor);
 								}
+								else if(pos_rect(mouse, recordbutton))
+								{
+									if(abuf.record)
+									{
+										FILE *a=abuf.record;
+										abuf.record=NULL;
+										fclose(a);
+									}
+									else
+									{
+										FILE *a=fopen("record.wav", "wb");
+										if(a)
+										{
+											fwrite("RIFF", 1, 4, a);
+											fwrite("\377\377\377\377", 1, 4, a);
+											fwrite("WAVEfmt ", 1, 8, a);
+											fputc(16, a);
+											fputc(0, a);
+											fputc(0, a);
+											fputc(0, a);
+											fputc(1, a);
+											fputc(0, a);
+											fputc(1, a);
+											fputc(0, a);
+											fputc(SAMPLE_RATE, a);
+											fputc(SAMPLE_RATE>>8, a);
+											fputc(SAMPLE_RATE>>16, a);
+											fputc(SAMPLE_RATE>>24, a);
+											fputc(SAMPLE_RATE, a);
+											fputc(SAMPLE_RATE>>8, a);
+											fputc(SAMPLE_RATE>>16, a);
+											fputc(SAMPLE_RATE>>24, a);
+											fputc(1, a);
+											fputc(0, a);
+											fputc(8, a);
+											fputc(0, a);
+											fwrite("data", 1, 4, a);
+											fwrite("\377\377\377\377", 1, 4, a);
+										}
+										abuf.record=a;
+									}
+								}
 								#endif /* AUDIO */
 								SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 								SDL_FillRect(screen, &pausebutton, pause?SDL_MapRGB(screen->format, 0xbf, 0x6f, 0x07):SDL_MapRGB(screen->format, 0x7f, 0x6f, 0x07));
+								SDL_FillRect(screen, &recordbutton, abuf.record?SDL_MapRGB(screen->format, 0xff, 0x07, 0x07):SDL_MapRGB(screen->format, 0x7f, 0x07, 0x07));
 							break;
 							case SDL_BUTTON_RIGHT:
 								#ifdef AUDIO
@@ -988,6 +1034,8 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		}
 		if(a->play) v*=0.2;
 		stream[i]=floor(v*4.0+127.5);
+		if(a->record)
+			fputc(stream[i], a->record);
 	}
 }
 

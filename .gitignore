@@ -1,3 +1,5 @@
 spiffy
 *.o
 traces
+*.wav
+*.mp3
