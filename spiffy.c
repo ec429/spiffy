@@ -123,6 +123,7 @@ int main(int argc, char * argv[])
 	#endif /* CORETEST */
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
+	bool pause=false;
 	unsigned char filterfactor=32;
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
@@ -219,6 +220,8 @@ int main(int argc, char * argv[])
 	SDL_Rect aw_up={56, 321, 7, 6}, aw_down={56, 328, 7, 6};
 	SDL_Rect sr_up={120, 321, 7, 6}, sr_down={120, 328, 7, 6};
 #endif /* AUDIO */
+	SDL_Rect pausebutton={8, 340, 16, 18};
+	SDL_FillRect(screen, &pausebutton, SDL_MapRGB(screen->format, 0x7f, 0x6f, 0x07));
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -366,7 +369,7 @@ int main(int argc, char * argv[])
 			abuf.wp=newwp;
 		}
 		#endif /* AUDIO */
-		if(likely(play))
+		if(likely(play&&!pause))
 		{
 			if(unlikely(!deck))
 				play=false;
@@ -444,7 +447,7 @@ int main(int argc, char * argv[])
 				cpu->steps--;
 			cpu->dT++;
 		}
-		else
+		else if(!pause)
 			errupt=z80_tstep(cpu, bus, errupt);
 
 		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
@@ -469,7 +472,7 @@ int main(int argc, char * argv[])
 					sprintf(text, "Speed: <1%%");
 				dtext(screen, 8, 298, text, font, 255, 255, 0);
 			}
-			if(play)
+			if(play&&!pause)
 				tapeblocklen=max(tapeblocklen, 1)-1;
 			if(!(frames%25))
 			{
@@ -754,6 +757,10 @@ int main(int argc, char * argv[])
 								{
 									if(deck) libspectrum_tape_nth_block(deck, 0);
 								}
+								else if(pos_rect(mouse, pausebutton))
+								{
+									pause=!pause;
+								}
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -777,6 +784,7 @@ int main(int argc, char * argv[])
 								}
 								#endif /* AUDIO */
 								SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+								SDL_FillRect(screen, &pausebutton, pause?SDL_MapRGB(screen->format, 0xbf, 0x6f, 0x07):SDL_MapRGB(screen->format, 0x7f, 0x6f, 0x07));
 							break;
 							case SDL_BUTTON_RIGHT:
 								#ifdef AUDIO
