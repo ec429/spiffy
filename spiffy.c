@@ -71,8 +71,8 @@ typedef struct _pos
 SDL_Surface * gf_init();
 void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
-void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col);
-void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col);
+void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
+void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
 #ifdef AUDIO
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
@@ -215,8 +215,8 @@ int main(int argc, char * argv[])
 	SDL_FillRect(screen, &nextbutton, SDL_MapRGB(screen->format, 0x07, 0x07, 0x9f));
 	SDL_Rect rewindbutton={204, 298, 16, 18};
 	SDL_FillRect(screen, &rewindbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x6f));
-	SDL_Rect aw_up={56, 321, 6, 6}, aw_down={56, 327, 6, 6};
-	SDL_Rect sr_up={120, 321, 6, 6}, sr_down={120, 327, 6, 6};
+	SDL_Rect aw_up={56, 321, 7, 6}, aw_down={56, 328, 7, 6};
+	SDL_Rect sr_up={120, 321, 7, 6}, sr_down={120, 328, 7, 6};
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -477,12 +477,12 @@ int main(int argc, char * argv[])
 				#ifdef AUDIO
 				sprintf(text, "AW:%03hhu", filterfactor);
 				dtext(screen, 8, 320, text, font, 0x9f, 0x9f, 0x9f);
-				uparrow(screen, aw_up, 0xffffff);
-				downarrow(screen, aw_down, 0xffffff);
+				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
+				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
 				sprintf(text, "SR:%03hhu", sinc_rate);
 				dtext(screen, 72, 320, text, font, 0x9f, 0x9f, 0x9f);
-				uparrow(screen, sr_up, 0xffffff);
-				downarrow(screen, sr_down, 0xffffff);
+				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
+				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
 				#endif /* AUDIO */
 			}
 			while(SDL_PollEvent(&event))
@@ -932,8 +932,9 @@ int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, 
 	return(0);
 }
 
-void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col)
+void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol)
 {
+	SDL_FillRect(screen, &where, SDL_MapRGB(screen->format, bcol>>16, bcol>>8, bcol));
 	pset(screen, where.x+1, where.y+3, col>>16, col>>8, col);
 	pset(screen, where.x+2, where.y+2, col>>16, col>>8, col);
 	pset(screen, where.x+3, where.y+1, col>>16, col>>8, col);
@@ -941,13 +942,14 @@ void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col)
 	pset(screen, where.x+5, where.y+3, col>>16, col>>8, col);
 }
 
-void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col)
+void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol)
 {
-	pset(screen, where.x+1, where.y+3, col>>16, col>>8, col);
-	pset(screen, where.x+2, where.y+4, col>>16, col>>8, col);
-	pset(screen, where.x+3, where.y+5, col>>16, col>>8, col);
-	pset(screen, where.x+4, where.y+4, col>>16, col>>8, col);
-	pset(screen, where.x+5, where.y+3, col>>16, col>>8, col);
+	SDL_FillRect(screen, &where, SDL_MapRGB(screen->format, bcol>>16, bcol>>8, bcol));
+	pset(screen, where.x+1, where.y+2, col>>16, col>>8, col);
+	pset(screen, where.x+2, where.y+3, col>>16, col>>8, col);
+	pset(screen, where.x+3, where.y+4, col>>16, col>>8, col);
+	pset(screen, where.x+4, where.y+3, col>>16, col>>8, col);
+	pset(screen, where.x+5, where.y+2, col>>16, col>>8, col);
 }
 
 #ifdef AUDIO
