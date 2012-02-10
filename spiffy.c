@@ -119,18 +119,17 @@ int main(int argc, char * argv[])
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
 	{
-		unsigned int sinclen=AUDIOBUFLEN*SINC_RATE;
-		double sinc[sinclen];
-		for(unsigned int i=0;i<sinclen;i++)
+		double sinc[SINCBUFLEN];
+		for(unsigned int i=0;i<SINCBUFLEN;i++)
 		{
-			double v=16.0*(i/(double)sinclen-0.5);
+			double v=32.0*(i/(double)SINCBUFLEN-0.5);
 			sinc[i]=v?sin(v)/v:1;
 		}
 		for(unsigned int g=0;g<SINC_RATE;g++)
 		{
 			for(unsigned int j=0;j<AUDIOBUFLEN;j++)
 				sincgroups[g][j]=0;
-			for(unsigned int i=0;i<sinclen;i++)
+			for(unsigned int i=0;i<SINCBUFLEN;i++)
 			{
 				unsigned int j=(i+g)/SINC_RATE;
 				if(j<AUDIOBUFLEN)
