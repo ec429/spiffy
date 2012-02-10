@@ -474,14 +474,19 @@ int main(int argc, char * argv[])
 			if(!(frames%25))
 			{
 				char text[32];
-				sprintf(text, "T%03u", (tapeblocklen+49)/50);
+				int tapen=0;
+				if(deck)
+				{
+					libspectrum_tape_position(&tapen, deck);
+				}
+				snprintf(text, 32, "T%03u [%u]", (tapeblocklen+49)/50, tapen);
 				dtext(screen, 224, 298, text, font, 0xbf, 0xbf, 0xbf);
 				#ifdef AUDIO
-				sprintf(text, "AW:%03hhu", filterfactor);
+				snprintf(text, 32, "BW:%03hhu", filterfactor);
 				dtext(screen, 8, 320, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
-				sprintf(text, "SR:%03hhu", sinc_rate);
+				snprintf(text, 32, "SR:%03hhu", sinc_rate);
 				dtext(screen, 72, 320, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
@@ -984,7 +989,7 @@ void update_sinc(unsigned char filterfactor)
 	for(unsigned int i=0;i<SINCBUFLEN;i++)
 	{
 		double v=filterfactor*(i/(double)SINCBUFLEN-0.5);
-		sinc[i]=v?sin(v)/v:1;
+		sinc[i]=(v?sin(v)/v:1)*16.0/(double)sinc_rate;
 	}
 	for(unsigned int g=0;g<sinc_rate;g++)
 	{
