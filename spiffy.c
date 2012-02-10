@@ -30,16 +30,19 @@
 
 // SDL surface params
 #define OSIZ_X	320
-#define OSIZ_Y	320
+#define OSIZ_Y	360
 #define OBPP	32
 
 #define AUDIO		// Activates audio
 
 #ifdef AUDIO
-#define SINC_RATE	8
-#define SAMPLE_RATE	8000 // Audio sample rate, Hz
-#define AUDIOBUFLEN	(SAMPLE_RATE/100)
-#define SINCBUFLEN	(AUDIOBUFLEN*SINC_RATE)
+#define MAX_SINC_RATE	32
+#define SAMPLE_RATE		8000 // Audio sample rate, Hz
+#define AUDIOBUFLEN		(SAMPLE_RATE/100)
+#define MAX_SINCBUFLEN	(AUDIOBUFLEN*MAX_SINC_RATE)
+unsigned char sinc_rate=8;
+#define SINCBUFLEN		(AUDIOBUFLEN*sinc_rate)
+void update_sinc(unsigned char filterfactor);
 #endif
 
 #define ROM_FILE "48.rom" // Location of Spectrum ROM file (TODO: make configable)
@@ -68,18 +71,20 @@ typedef struct _pos
 SDL_Surface * gf_init();
 void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
+void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col);
+void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col);
 #ifdef AUDIO
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
 {
-	bool bits[SINCBUFLEN];
-	bool cbuf[SINCBUFLEN];
+	bool bits[MAX_SINCBUFLEN];
+	bool cbuf[MAX_SINCBUFLEN];
 	unsigned int rp, wp; // read & write pointers for 'bits' circular buffer
 	bool play; // true if tape is playing (we mute and allow skipping)
 }
 audiobuf;
 
-double sincgroups[SINC_RATE][AUDIOBUFLEN];
+double sincgroups[MAX_SINC_RATE][AUDIOBUFLEN];
 #endif
 
 typedef struct
@@ -118,25 +123,8 @@ int main(int argc, char * argv[])
 	#endif
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
-	{
-		double sinc[SINCBUFLEN];
-		for(unsigned int i=0;i<SINCBUFLEN;i++)
-		{
-			double v=32.0*(i/(double)SINCBUFLEN-0.5);
-			sinc[i]=v?sin(v)/v:1;
-		}
-		for(unsigned int g=0;g<SINC_RATE;g++)
-		{
-			for(unsigned int j=0;j<AUDIOBUFLEN;j++)
-				sincgroups[g][j]=0;
-			for(unsigned int i=0;i<SINCBUFLEN;i++)
-			{
-				unsigned int j=(i+g)/SINC_RATE;
-				if(j<AUDIOBUFLEN)
-					sincgroups[g][j]+=sinc[i];
-			}
-		}
-	}
+	unsigned char filterfactor=32;
+	update_sinc(filterfactor);
 	#endif
 	const char *fn=NULL;
 	unsigned int breakpoint=-1;
@@ -218,14 +206,17 @@ int main(int argc, char * argv[])
 	SDL_EnableUNICODE(1);
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 	SDL_Event event;
-	SDL_Rect cls={0, 296, OSIZ_X, OSIZ_Y-296};
+	line(screen, 0, 296, OSIZ_X-1, 296, 255, 255, 255);
+	SDL_Rect cls={0, 297, OSIZ_X, OSIZ_Y-297};
 	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
-	SDL_Rect playbutton={164, 298, 16, 20};
+	SDL_Rect playbutton={164, 298, 16, 18};
 	SDL_FillRect(screen, &playbutton, SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
-	SDL_Rect nextbutton={184, 298, 16, 20};
+	SDL_Rect nextbutton={184, 298, 16, 18};
 	SDL_FillRect(screen, &nextbutton, SDL_MapRGB(screen->format, 0x07, 0x07, 0x9f));
-	SDL_Rect rewindbutton={204, 298, 16, 20};
+	SDL_Rect rewindbutton={204, 298, 16, 18};
 	SDL_FillRect(screen, &rewindbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x6f));
+	SDL_Rect aw_up={56, 321, 6, 6}, aw_down={56, 327, 6, 6};
+	SDL_Rect sr_up={120, 321, 6, 6}, sr_down={120, 327, 6, 6};
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -362,7 +353,7 @@ int main(int argc, char * argv[])
 			debug=true;
 		Tstates++;
 		#ifdef AUDIO
-		if(!(Tstates%(69888*50/(SAMPLE_RATE*SINC_RATE))))
+		if(!(Tstates%(69888*50/(SAMPLE_RATE*sinc_rate))))
 		{
 			abuf.play=play;
 			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
@@ -474,7 +465,7 @@ int main(int argc, char * argv[])
 					sprintf(text, "Speed: %0.3g%%", spd);
 				else
 					sprintf(text, "Speed: <1%%");
-				dtext(screen, 8, 296, text, font, 255, 255, 0);
+				dtext(screen, 8, 298, text, font, 255, 255, 0);
 			}
 			if(play)
 				tapeblocklen=max(tapeblocklen, 1)-1;
@@ -483,6 +474,16 @@ int main(int argc, char * argv[])
 				char text[32];
 				sprintf(text, "T%03u", (tapeblocklen+49)/50);
 				dtext(screen, 224, 298, text, font, 0xbf, 0xbf, 0xbf);
+				#ifdef AUDIO
+				sprintf(text, "AW:%03hhu", filterfactor);
+				dtext(screen, 8, 320, text, font, 0x9f, 0x9f, 0x9f);
+				uparrow(screen, aw_up, 0xffffff);
+				downarrow(screen, aw_down, 0xffffff);
+				sprintf(text, "SR:%03hhu", sinc_rate);
+				dtext(screen, 72, 320, text, font, 0x9f, 0x9f, 0x9f);
+				uparrow(screen, sr_up, 0xffffff);
+				downarrow(screen, sr_down, 0xffffff);
+				#endif /* AUDIO */
 			}
 			while(SDL_PollEvent(&event))
 			{
@@ -746,9 +747,53 @@ int main(int argc, char * argv[])
 								{
 									if(deck) libspectrum_tape_nth_block(deck, 0);
 								}
+								#ifdef AUDIO
+								else if(pos_rect(mouse, aw_up))
+								{
+									filterfactor=min(filterfactor+1,0x80);
+									update_sinc(filterfactor);
+								}
+								else if(pos_rect(mouse, aw_down))
+								{
+									filterfactor=max(filterfactor-1,1);
+									update_sinc(filterfactor);
+								}
+								else if(pos_rect(mouse, sr_up))
+								{
+									sinc_rate=min(sinc_rate+1,MAX_SINC_RATE);
+									update_sinc(filterfactor);
+								}
+								else if(pos_rect(mouse, sr_down))
+								{
+									sinc_rate=max(sinc_rate-1,1);
+									update_sinc(filterfactor);
+								}
+								#endif /* AUDIO */
 								SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 							break;
 							case SDL_BUTTON_RIGHT:
+								#ifdef AUDIO
+								if(pos_rect(mouse, aw_up))
+								{
+									filterfactor=min(filterfactor<<1,0x80);
+									update_sinc(filterfactor);
+								}
+								else if(pos_rect(mouse, aw_down))
+								{
+									filterfactor=max(filterfactor>>1,1);
+									update_sinc(filterfactor);
+								}
+								else if(pos_rect(mouse, sr_up))
+								{
+									sinc_rate=min(sinc_rate<<1,MAX_SINC_RATE);
+									update_sinc(filterfactor);
+								}
+								else if(pos_rect(mouse, sr_down))
+								{
+									sinc_rate=max(sinc_rate>>1,1);
+									update_sinc(filterfactor);
+								}
+								#endif /* AUDIO */
 							break;
 							case SDL_BUTTON_WHEELUP:
 							break;
@@ -887,13 +932,31 @@ int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, 
 	return(0);
 }
 
+void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col)
+{
+	pset(screen, where.x+1, where.y+3, col>>16, col>>8, col);
+	pset(screen, where.x+2, where.y+2, col>>16, col>>8, col);
+	pset(screen, where.x+3, where.y+1, col>>16, col>>8, col);
+	pset(screen, where.x+4, where.y+2, col>>16, col>>8, col);
+	pset(screen, where.x+5, where.y+3, col>>16, col>>8, col);
+}
+
+void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col)
+{
+	pset(screen, where.x+1, where.y+3, col>>16, col>>8, col);
+	pset(screen, where.x+2, where.y+4, col>>16, col>>8, col);
+	pset(screen, where.x+3, where.y+5, col>>16, col>>8, col);
+	pset(screen, where.x+4, where.y+4, col>>16, col>>8, col);
+	pset(screen, where.x+5, where.y+3, col>>16, col>>8, col);
+}
+
 #ifdef AUDIO
 void mixaudio(void *abuf, Uint8 *stream, int len)
 {
 	audiobuf *a=abuf;
 	for(int i=0;i<len;i++)
 	{
-		for(unsigned int g=0;g<SINC_RATE;g++)
+		for(unsigned int g=0;g<sinc_rate;g++)
 		{
 			while(!a->play&&(a->rp==a->wp)) usleep(5e3);
 			a->cbuf[a->rp]=a->bits[a->rp];
@@ -904,10 +967,31 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		for(unsigned int j=0;j<l;j++)
 		{
 			int d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
-			v+=d*sincgroups[SINC_RATE-(j%SINC_RATE)-1][j/SINC_RATE];
+			v+=d*sincgroups[sinc_rate-(j%sinc_rate)-1][j/sinc_rate];
 		}
 		if(a->play) v*=0.2;
 		stream[i]=floor(v*4.0+127.5);
+	}
+}
+
+void update_sinc(unsigned char filterfactor)
+{
+	double sinc[SINCBUFLEN];
+	for(unsigned int i=0;i<SINCBUFLEN;i++)
+	{
+		double v=filterfactor*(i/(double)SINCBUFLEN-0.5);
+		sinc[i]=v?sin(v)/v:1;
+	}
+	for(unsigned int g=0;g<sinc_rate;g++)
+	{
+		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
+			sincgroups[g][j]=0;
+		for(unsigned int i=0;i<SINCBUFLEN;i++)
+		{
+			unsigned int j=(i+g)/sinc_rate;
+			if(j<AUDIOBUFLEN)
+				sincgroups[g][j]+=sinc[i];
+		}
 	}
 }
 #endif
