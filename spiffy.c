@@ -36,8 +36,10 @@
 #define AUDIO		// Activates audio
 
 #ifdef AUDIO
+#define SINC_RATE	8
 #define SAMPLE_RATE	8000 // Audio sample rate, Hz
 #define AUDIOBUFLEN	(SAMPLE_RATE/100)
+#define SINCBUFLEN	(AUDIOBUFLEN*SINC_RATE)
 #endif
 
 #define ROM_FILE "48.rom" // Location of Spectrum ROM file (TODO: make configable)
@@ -70,12 +72,14 @@ int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, 
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
 {
-	bool bits[AUDIOBUFLEN];
-	bool cbuf[AUDIOBUFLEN];
-	unsigned int rp, wp;
-	bool play;
+	bool bits[SINCBUFLEN];
+	bool cbuf[SINCBUFLEN];
+	unsigned int rp, wp; // read & write pointers for 'bits' circular buffer
+	bool play; // true if tape is playing (we mute and allow skipping)
 }
 audiobuf;
+
+double sincgroups[SINC_RATE][AUDIOBUFLEN];
 #endif
 
 typedef struct
@@ -114,6 +118,26 @@ int main(int argc, char * argv[])
 	#endif
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
+	{
+		unsigned int sinclen=AUDIOBUFLEN*SINC_RATE;
+		double sinc[sinclen];
+		for(unsigned int i=0;i<sinclen;i++)
+		{
+			double v=16.0*(i/(double)sinclen-0.5);
+			sinc[i]=v?sin(v)/v:1;
+		}
+		for(unsigned int g=0;g<SINC_RATE;g++)
+		{
+			for(unsigned int j=0;j<AUDIOBUFLEN;j++)
+				sincgroups[g][j]=0;
+			for(unsigned int i=0;i<sinclen;i++)
+			{
+				unsigned int j=(i+g)/SINC_RATE;
+				if(j<AUDIOBUFLEN)
+					sincgroups[g][j]+=sinc[i];
+			}
+		}
+	}
 	#endif
 	const char *fn=NULL;
 	unsigned int breakpoint=-1;
@@ -199,7 +223,9 @@ int main(int argc, char * argv[])
 	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
 	SDL_Rect playbutton={164, 298, 16, 20};
 	SDL_FillRect(screen, &playbutton, SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
-	SDL_Rect rewindbutton={184, 298, 16, 20};
+	SDL_Rect nextbutton={184, 298, 16, 20};
+	SDL_FillRect(screen, &nextbutton, SDL_MapRGB(screen->format, 0x07, 0x07, 0x9f));
+	SDL_Rect rewindbutton={204, 298, 16, 20};
 	SDL_FillRect(screen, &rewindbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x6f));
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
@@ -337,10 +363,10 @@ int main(int argc, char * argv[])
 			debug=true;
 		Tstates++;
 		#ifdef AUDIO
-		if(unlikely(!(Tstates%(69888*50/SAMPLE_RATE))))
+		if(!(Tstates%(69888*50/(SAMPLE_RATE*SINC_RATE))))
 		{
 			abuf.play=play;
-			unsigned int newwp=(abuf.wp+1)%AUDIOBUFLEN;
+			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
 			if(delay&&!play)
 				while(newwp==abuf.rp) usleep(5e3);
 			abuf.bits[abuf.wp]=(bus->portfe&0x10);
@@ -457,7 +483,7 @@ int main(int argc, char * argv[])
 			{
 				char text[32];
 				sprintf(text, "T%03u", (tapeblocklen+49)/50);
-				dtext(screen, 204, 298, text, font, 0xbf, 0xbf, 0xbf);
+				dtext(screen, 224, 298, text, font, 0xbf, 0xbf, 0xbf);
 			}
 			while(SDL_PollEvent(&event))
 			{
@@ -713,6 +739,10 @@ int main(int argc, char * argv[])
 								{
 									play=!play;
 								}
+								else if(pos_rect(mouse, nextbutton))
+								{
+									if(deck) libspectrum_tape_select_next_block(deck);
+								}
 								else if(pos_rect(mouse, rewindbutton))
 								{
 									if(deck) libspectrum_tape_nth_block(deck, 0);
@@ -864,18 +894,21 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 	audiobuf *a=abuf;
 	for(int i=0;i<len;i++)
 	{
-		while(!a->play&&(a->rp==a->wp)) usleep(5e3);
-		a->cbuf[a->rp]=a->bits[a->rp];
-		unsigned int l=a->play?AUDIOBUFLEN>>2:AUDIOBUFLEN;
+		for(unsigned int g=0;g<SINC_RATE;g++)
+		{
+			while(!a->play&&(a->rp==a->wp)) usleep(5e3);
+			a->cbuf[a->rp]=a->bits[a->rp];
+			a->rp=(a->rp+1)%SINCBUFLEN;
+		}
+		unsigned int l=a->play?SINCBUFLEN>>2:SINCBUFLEN;
 		double v=0;
 		for(unsigned int j=0;j<l;j++)
 		{
-			int d=a->cbuf[(a->rp+AUDIOBUFLEN-j)%AUDIOBUFLEN];
-			if(j==l/2) v+=d*0.6;
-			else v+=d*sin((j-l/2)*0.6)/(double)(j-l/2);
+			int d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
+			v+=d*sincgroups[SINC_RATE-(j%SINC_RATE)-1][j/SINC_RATE];
 		}
-		stream[i]=floor(v*3.0+63.75);
-		a->rp=(a->rp+1)%AUDIOBUFLEN;
+		if(a->play) v*=0.2;
+		stream[i]=floor(v*4.0+127.5);
 	}
 }
 #endif
