@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010-11
+	Copyright Edward Cree, 2010-12
 	z80.c - Z80 core
 */
 

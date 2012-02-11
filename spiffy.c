@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010-11
+	Copyright Edward Cree, 2010-12
 	License: GNU GPL v3+
 	
 	Acknowledgements (Heavily used references)
@@ -49,15 +49,15 @@ void update_sinc(unsigned char filterfactor);
 
 #define VERSION_MAJ	0
 #define VERSION_MIN	4
-#define VERSION_REV	0
+#define VERSION_REV	1
 
 #define VERSION_MSG "spiffy %hhu.%hhu.%hhu\n\
- Copyright (C) 2010-11 Edward Cree.\n\
+ Copyright (C) 2010-12 Edward Cree.\n\
  License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n\
  This is free software: you are free to change and redistribute it.\n\
  There is NO WARRANTY, to the extent permitted by law.\n",VERSION_MAJ, VERSION_MIN, VERSION_REV
 
-#define GPL_MSG "spiffy Copyright (C) 2010-11 Edward Cree.\n\
+#define GPL_MSG "spiffy Copyright (C) 2010-12 Edward Cree.\n\
  This program comes with ABSOLUTELY NO WARRANTY; for details see the GPL v3.\n\
  This is free software, and you are welcome to redistribute it\n\
  under certain conditions: GPL v3+\n"
