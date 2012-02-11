@@ -40,7 +40,7 @@
 #define SAMPLE_RATE		8000 // Audio sample rate, Hz
 #define AUDIOBUFLEN		(SAMPLE_RATE/100)
 #define MAX_SINCBUFLEN	(AUDIOBUFLEN*MAX_SINC_RATE)
-unsigned char sinc_rate=8;
+unsigned char sinc_rate=12;
 #define SINCBUFLEN		(AUDIOBUFLEN*sinc_rate)
 void update_sinc(unsigned char filterfactor);
 #endif /* AUDIO */
@@ -125,7 +125,7 @@ int main(int argc, char * argv[])
 	bool pause=false;
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
-	unsigned char filterfactor=32;
+	unsigned char filterfactor=51; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
 	const char *fn=NULL;
