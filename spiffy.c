@@ -226,43 +226,43 @@ int main(int argc, char * argv[])
 	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
 	FILE *fimg=fopen("buttons/flash.pbm", "rb");
 	string img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button edgebutton={.img=pbm_string(img), .posn={144, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
 	drawbutton(screen, edgebutton);
 	free_string(&img);
 	fimg=fopen("buttons/play.pbm", "rb");
 	img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button playbutton={.img=pbm_string(img), .posn={164, 298, 17, 17}, .col=0x3fbf5f};
 	drawbutton(screen, playbutton);
 	free_string(&img);
 	fimg=fopen("buttons/next.pbm", "rb");
 	img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button nextbutton={.img=pbm_string(img), .posn={184, 298, 17, 17}, .col=0x07079f};
 	drawbutton(screen, nextbutton);
 	free_string(&img);
 	fimg=fopen("buttons/stop.pbm", "rb");
 	img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button stopbutton={.img=pbm_string(img), .posn={204, 298, 17, 17}, .col=0x3f0707};
 	drawbutton(screen, stopbutton);
 	free_string(&img);
 	fimg=fopen("buttons/rewind.pbm", "rb");
 	img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button rewindbutton={.img=pbm_string(img), .posn={224, 298, 17, 17}, .col=0x7f076f};
 	drawbutton(screen, rewindbutton);
 	free_string(&img);
 	fimg=fopen("buttons/pause.pbm", "rb");
 	img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button pausebutton={.img=pbm_string(img), .posn={8, 340, 17, 17}, .col=pause?0xbf6f07:0x7f6f07};
 	drawbutton(screen, pausebutton);
 	free_string(&img);
 	fimg=fopen("buttons/reset.pbm", "rb");
 	img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button resetbutton={.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0xffaf07};
 	drawbutton(screen, resetbutton);
 	free_string(&img);
@@ -271,7 +271,7 @@ int main(int argc, char * argv[])
 	SDL_Rect sr_up={140, 321, 7, 6}, sr_down={140, 328, 7, 6};
 	fimg=fopen("buttons/record.pbm", "rb");
 	img=sslurp(fimg);
-	fclose(fimg);
+	if(fimg) fclose(fimg);
 	button recordbutton={.img=pbm_string(img), .posn={8, 320, 17, 17}, .col=0x7f0707};
 	drawbutton(screen, recordbutton);
 	free_string(&img);
@@ -1554,5 +1554,5 @@ void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32
 void drawbutton(SDL_Surface *screen, button b)
 {
 	SDL_FillRect(screen, &b.posn, SDL_MapRGB(screen->format, b.col>>16, b.col>>8, b.col));
-	SDL_BlitSurface(b.img, NULL, screen, &b.posn);
+	if(b.img) SDL_BlitSurface(b.img, NULL, screen, &b.posn);
 }

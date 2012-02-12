@@ -34,6 +34,7 @@ char *slurp(FILE *fp)
 
 string sslurp(FILE *fp)
 {
+	if(!fp) return(null_string());
 	string s=init_string();
 	signed int c;
 	while(!feof(fp))
