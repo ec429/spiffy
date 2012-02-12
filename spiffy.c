@@ -123,6 +123,7 @@ int main(int argc, char * argv[])
 	bool coretest=false; // run the core tests?
 	#endif /* CORETEST */
 	bool pause=false;
+	bool stopper=false; // stop tape at end of this block?
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
 	unsigned char filterfactor=51; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
@@ -215,7 +216,9 @@ int main(int argc, char * argv[])
 	SDL_FillRect(screen, &playbutton, SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 	SDL_Rect nextbutton={184, 298, 16, 18};
 	SDL_FillRect(screen, &nextbutton, SDL_MapRGB(screen->format, 0x07, 0x07, 0x9f));
-	SDL_Rect rewindbutton={204, 298, 16, 18};
+	SDL_Rect stopbutton={204, 298, 16, 18};
+	SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, 0x07));
+	SDL_Rect rewindbutton={224, 298, 16, 18};
 	SDL_FillRect(screen, &rewindbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x6f));
 #ifdef AUDIO
 	SDL_Rect aw_up={56, 321, 7, 6}, aw_down={56, 328, 7, 6};
@@ -387,6 +390,12 @@ int main(int argc, char * argv[])
 					{
 						tapeblocklen=(libspectrum_tape_block_length(libspectrum_tape_current_block(deck))+69887)/69888;
 						oldtapeblock=block;
+						if(stopper)
+						{
+							play=false;
+							stopper=false;
+							SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, 0x07));
+						}
 					}
 				}
 				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP)
@@ -486,7 +495,7 @@ int main(int argc, char * argv[])
 					libspectrum_tape_position(&tapen, deck);
 				}
 				snprintf(text, 32, "T%03u [%u]", (tapeblocklen+49)/50, tapen);
-				dtext(screen, 224, 298, text, font, 0xbf, 0xbf, 0xbf);
+				dtext(screen, 244, 298, text, font, 0xbf, 0xbf, 0xbf);
 				#ifdef AUDIO
 				snprintf(text, 32, "BW:%03hhu", filterfactor);
 				dtext(screen, 8, 320, text, font, 0x9f, 0x9f, 0x9f);
@@ -755,6 +764,11 @@ int main(int argc, char * argv[])
 								else if(pos_rect(mouse, nextbutton))
 								{
 									if(deck) libspectrum_tape_select_next_block(deck);
+								}
+								else if(pos_rect(mouse, stopbutton))
+								{
+									stopper=!stopper;
+									SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, stopper?0xf7:0x07));
 								}
 								else if(pos_rect(mouse, rewindbutton))
 								{
@@ -1183,7 +1197,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 int dtext(SDL_Surface * scrn, int x, int y, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
 {
 	SDL_Color clrFg = {r, g, b,0};
-	SDL_Rect rcDest = {x, y, 100, 12};
+	SDL_Rect rcDest = {x, y, 100, 16};
 	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
 	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
 	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
