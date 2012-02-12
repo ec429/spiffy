@@ -17,6 +17,27 @@ char *fgetl(FILE *fp)
 	return(s.buf);
 }
 
+char *finpl(FILE *fp)
+{
+	string s=init_string();
+	signed int c;
+	while(!feof(fp))
+	{
+		c=fgetc(fp);
+		if((c==EOF)||(c=='\n'))
+			break;
+		if(c==8)
+		{
+			if(s.i) s.i--;
+		}
+		else if(c!=0)
+		{
+			append_char(&s, c);
+		}
+	}
+	return(s.buf);
+}
+
 char *slurp(FILE *fp)
 {
 	string s=init_string();

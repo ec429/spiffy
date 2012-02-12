@@ -16,6 +16,7 @@ string;
 #define max(a,b)	((a)>(b)?(a):(b))
 
 char *fgetl(FILE *); // gets a line of string data; returns a malloc-like pointer
+char *finpl(FILE *); // gets a line of string data; returns a malloc-like pointer
 char *slurp(FILE *); // gets a file of string data; returns a malloc-like pointer
 string sslurp(FILE *fp); // gets a file of string data possibly containing NULs; return contains a malloc-like pointer
 string init_string(void); // initialises a string buffer in heap

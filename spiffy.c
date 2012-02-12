@@ -121,6 +121,7 @@ int main(int argc, char * argv[])
 	bool debug=false; // Generate debugging info?
 	bool bugstep=false; // Single-step?
 	bool debugcycle=false; // Single-Tstate stepping?
+	bool trace=false; // execution tracing in debugger?
 	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
 	#endif /* CORETEST */
@@ -133,7 +134,8 @@ int main(int argc, char * argv[])
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
 	const char *fn=NULL;
-	unsigned int breakpoint=-1;
+	unsigned int nbreaks=0;
+	unsigned int *breakpoints=NULL;
 	int arg;
 	for (arg=1; arg<argc; arg++)
 	{
@@ -143,7 +145,22 @@ int main(int argc, char * argv[])
 		}
 		else if(strncmp(argv[arg], "-b=", 3) == 0)
 		{ // activate debugging mode at a breakpoint
-			sscanf(argv[arg]+3, "%04x", &breakpoint);
+			unsigned int breakpoint;
+			if(sscanf(argv[arg]+3, "%04x", &breakpoint)==1)
+			{
+				unsigned int n=nbreaks++;
+				unsigned int *nbp=realloc(breakpoints, nbreaks*sizeof(unsigned int));
+				if(!nbp)
+				{
+					perror("malloc");
+					return(1);
+				}
+				(breakpoints=nbp)[n]=breakpoint;
+			}
+			else
+			{
+				fprintf(stderr, "Ignoring bad argument '%s'\n", argv[arg]);
+			}
 		}
 		else if((strcmp(argv[arg], "--step") == 0) || (strcmp(argv[arg], "-s") == 0))
 		{ // activate single-step mode under debugger
@@ -260,6 +277,12 @@ int main(int argc, char * argv[])
 	button resetbutton={.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0xffaf07};
 	drawbutton(screen, resetbutton);
 	free_string(&img);
+	fimg=fopen(PREFIX"/share/spiffy/buttons/bug.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	button bugbutton={.img=pbm_string(img), .posn={48, 340, 17, 17}, .col=0xbfff3f};
+	drawbutton(screen, bugbutton);
+	free_string(&img);
 #ifdef AUDIO
 	SDL_Rect aw_up={76, 321, 7, 6}, aw_down={76, 328, 7, 6};
 	SDL_Rect sr_up={140, 321, 7, 6}, sr_down={140, 328, 7, 6};
@@ -359,8 +382,16 @@ int main(int argc, char * argv[])
 	// Main program loop
 	while(likely(!errupt))
 	{
-		if(unlikely((!debug)&&(*PC==breakpoint)&&bus->m1))
-			debug=true;
+		if(unlikely(nbreaks))
+		{
+			for(unsigned int bp=0;bp<nbreaks;bp++)
+			{
+				if((!debug)&&(*PC==breakpoints[bp])&&(cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))
+				{
+					debug=true;
+				}
+			}
+		}
 		Tstates++;
 		#ifdef AUDIO
 		if(!(Tstates%(69888*50/(SAMPLE_RATE*sinc_rate))))
@@ -410,11 +441,101 @@ int main(int argc, char * argv[])
 		
 		if(unlikely(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle)))
 		{
-			show_state(RAM, cpu, Tstates, bus);
 			if(bugstep)
 			{
-				if(getchar()=='c')
-					debug=false;
+				if(trace)
+					show_state(RAM, cpu, Tstates, bus);
+				int derrupt=0;
+				while(!derrupt)
+				{
+					fprintf(stderr, ">");
+					fflush(stderr);
+					char *line=finpl(stdin);
+					if(line)
+					{
+						char *cmd=strtok(line, " ");
+						char *rest=strtok(NULL, "");
+						if(!cmd)
+						{
+							debug=false;
+							derrupt++;
+						}
+						else if((strcmp(cmd, "c")==0)||(strcmp(cmd, "cont")==0))
+						{
+							debug=false;
+							derrupt++;
+						}
+						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
+							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\nq(uit)\t\tquit Spiffy\n");
+						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
+							show_state(RAM, cpu, Tstates, bus);
+						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
+							trace=true;
+						else if((strcmp(cmd, "!t")==0)||(strcmp(cmd, "!trace")==0))
+							trace=false;
+						else if((strcmp(cmd, "n")==0)||(strcmp(cmd, "next")==0))
+							derrupt++;
+						else if((strcmp(cmd, "b")==0)||(strcmp(cmd, "break")==0))
+						{
+							unsigned int bp=0;
+							if(rest&&(sscanf(rest, "%x", &bp)==1))
+							{
+								unsigned int n=nbreaks++;
+								unsigned int *nbp=realloc(breakpoints, nbreaks*sizeof(unsigned int));
+								if(!nbp)
+								{
+									perror("malloc");
+									return(1);
+								}
+								(breakpoints=nbp)[n]=bp;
+								fprintf(stderr, "breakpoint at %04x\n", bp);
+							}
+							else
+							{
+								fprintf(stderr, "break: missing argument\n");
+							}
+						}
+						else if((strcmp(cmd, "!b")==0)||(strcmp(cmd, "!break")==0))
+						{
+							unsigned int bp=0;
+							if(rest&&(sscanf(rest, "%x", &bp)==1))
+							{
+								for(unsigned int i=0;i<nbreaks;i++)
+								{
+									while(breakpoints[i]==bp)
+									{
+										fprintf(stderr, "deleted breakpoint at %04x\n", breakpoints[i]);
+										if(i<--nbreaks)
+											breakpoints[i]=breakpoints[i+1];
+										else break;
+									}
+								}
+							}
+							else
+							{
+								fprintf(stderr, "!break: missing argument\n");
+							}
+						}
+						else if((strcmp(cmd, "l")==0)||(strcmp(cmd, "list")==0))
+						{
+							for(unsigned int i=0;i<nbreaks;i++)
+							{
+								fprintf(stderr, "breakpoint at %04x\n", breakpoints[i]);
+							}
+						}
+						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
+						{
+							errupt++;
+							derrupt++;
+						}
+					}
+					free(line);
+				}
+			}
+			else
+			{
+				show_state(RAM, cpu, Tstates, bus);
+				debug=false;
 			}
 		}
 		
@@ -742,12 +863,7 @@ int main(int argc, char * argv[])
 						if(event.key.type==SDL_KEYUP)
 						{
 							SDL_keysym key=event.key.keysym;
-							if(key.sym==SDLK_ESCAPE)
-							{
-								debug=true;
-								bugstep=true;
-							}
-							else if(key.sym==SDLK_RETURN)
+							if(key.sym==SDLK_RETURN)
 							{
 								kstate[6][0]=false;
 							}
@@ -890,6 +1006,11 @@ int main(int argc, char * argv[])
 									pause=!pause;
 								else if(pos_rect(mouse, resetbutton.posn))
 									*PC=0;
+								else if(pos_rect(mouse, bugbutton.posn))
+								{
+									debug=true;
+									bugstep=true;
+								}
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -1317,7 +1438,7 @@ int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font *
 {
 	SDL_Color clrFg = {r, g, b,0};
 	SDL_Rect rcDest = {x, y, w, 16};
-	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 15, 0));
+	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
 	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
 	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
 	SDL_FreeSurface(sText);
