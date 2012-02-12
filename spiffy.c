@@ -438,45 +438,36 @@ int main(int argc, char * argv[])
 			if(play&&!pause)
 			{
 				unsigned int wait=358;
-				if(play)
+				while((T_to_tape_edge<wait)&&play)
 				{
-					while(T_to_tape_edge<wait)
+					Tstates+=T_to_tape_edge;
+					wait-=T_to_tape_edge;
+					getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+				}
+				if(play) T_to_tape_edge-=wait;
+				while(1)
+				{
+					cpu->regs[5]++;
+					wait=4;
+					while((T_to_tape_edge<wait)&&play)
 					{
 						Tstates+=T_to_tape_edge;
 						wait-=T_to_tape_edge;
 						getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 					}
-					T_to_tape_edge-=wait;
-				}
-				while(1)
-				{
-					cpu->regs[5]++;
-					wait=4;
-					if(play)
-					{
-						while(T_to_tape_edge<wait)
-						{
-							Tstates+=T_to_tape_edge;
-							wait-=T_to_tape_edge;
-							getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
-						}
-						T_to_tape_edge-=wait;
-					}
+					if(play) T_to_tape_edge-=wait;
 					cpu->regs[2]&=~FC;
 					if(!cpu->regs[5])
 					{
 						cpu->regs[2]|=FZ;
 						wait=11;
-						if(play)
+						while((T_to_tape_edge<wait)&&play)
 						{
-							while(T_to_tape_edge<wait)
-							{
-								Tstates+=T_to_tape_edge;
-								wait-=T_to_tape_edge;
-								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
-							}
-							T_to_tape_edge-=wait;
+							Tstates+=T_to_tape_edge;
+							wait-=T_to_tape_edge;
+							getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 						}
+						if(play) T_to_tape_edge-=wait;
 						*PC=RAM[(*SP)++];
 						*PC|=RAM[(*SP)++]<<8;
 						break;
@@ -485,16 +476,13 @@ int main(int argc, char * argv[])
 					{
 						cpu->regs[2]&=~FZ;
 						wait=22; // 5 + 7 + 10
-						if(play)
+						while((T_to_tape_edge<wait)&&play)
 						{
-							while(T_to_tape_edge<wait)
-							{
-								Tstates+=T_to_tape_edge;
-								wait-=T_to_tape_edge;
-								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
-							}
-							T_to_tape_edge-=wait;
+							Tstates+=T_to_tape_edge;
+							wait-=T_to_tape_edge;
+							getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 						}
+						if(play) T_to_tape_edge-=wait;
 						unsigned char hi=0x7f;
 						unsigned char data=(ear?0x40:0)|0x1f;
 						for(int i=0;i<8;i++)
@@ -504,29 +492,23 @@ int main(int argc, char * argv[])
 						cpu->regs[2]&=~FC;
 						if(data&1) cpu->regs[2]|=FC;
 						wait=10; // 1 + 4 + 5
-						if(play)
+						while((T_to_tape_edge<wait)&&play)
 						{
-							while(T_to_tape_edge<wait)
+							Tstates+=T_to_tape_edge;
+							wait-=T_to_tape_edge;
+							getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+						}
+						if(play) T_to_tape_edge-=wait;
+						if(!(cpu->regs[2]&FC))
+						{
+							wait=6;
+							while((T_to_tape_edge<wait)&&play)
 							{
 								Tstates+=T_to_tape_edge;
 								wait-=T_to_tape_edge;
 								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 							}
-							T_to_tape_edge-=wait;
-						}
-						if(!(cpu->regs[2]&FC))
-						{
-							wait=6;
-							if(play)
-							{
-								while(T_to_tape_edge<wait)
-								{
-									Tstates+=T_to_tape_edge;
-									wait-=T_to_tape_edge;
-									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
-								}
-								T_to_tape_edge-=wait;
-							}
+							if(play) T_to_tape_edge-=wait;
 							*PC=RAM[(*SP)++];
 							*PC|=RAM[(*SP)++]<<8;
 							break;
@@ -537,29 +519,22 @@ int main(int argc, char * argv[])
 							cpu->regs[3]&=0x20;
 							cpu->regs[2]&=~FZ;
 							wait=18; // 4 + 7 + 7
-							if(play)
+							while((T_to_tape_edge<wait)&&play)
 							{
-								while(T_to_tape_edge<wait)
+								Tstates+=T_to_tape_edge;
+								wait-=T_to_tape_edge;
+								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+							}
+							if(play) T_to_tape_edge-=wait;if(!cpu->regs[3])
+							{
+								wait=5;
+								while((T_to_tape_edge<wait)&&play)
 								{
 									Tstates+=T_to_tape_edge;
 									wait-=T_to_tape_edge;
 									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 								}
-								T_to_tape_edge-=wait;
-							}
-							if(!cpu->regs[3])
-							{
-								wait=5;
-								if(play)
-								{
-									while(T_to_tape_edge<wait)
-									{
-										Tstates+=T_to_tape_edge;
-										wait-=T_to_tape_edge;
-										getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
-									}
-									T_to_tape_edge-=wait;
-								}
+								if(play) T_to_tape_edge-=wait;
 								continue;
 							}
 							cpu->regs[3]=cpu->regs[4];
@@ -568,31 +543,25 @@ int main(int argc, char * argv[])
 							cpu->regs[3]&=7;
 							cpu->regs[3]|=8;
 							wait=36; // 4+4+4+7+7+10
-							if(play)
+							while((T_to_tape_edge<wait)&&play)
 							{
-								while(T_to_tape_edge<wait)
-								{
-									Tstates+=T_to_tape_edge;
-									wait-=T_to_tape_edge;
-									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
-								}
-								T_to_tape_edge-=wait;
+								Tstates+=T_to_tape_edge;
+								wait-=T_to_tape_edge;
+								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 							}
+							if(play) T_to_tape_edge-=wait;
 							bus->portfe=cpu->regs[3];
 							cpu->regs[2]|=FC;
 							*PC=RAM[(*SP)++];
 							*PC|=RAM[(*SP)++]<<8;
 							wait=15; // 1+4+10
-							if(play)
+							while((T_to_tape_edge<wait)&&play)
 							{
-								while(T_to_tape_edge<wait)
-								{
-									Tstates+=T_to_tape_edge;
-									wait-=T_to_tape_edge;
-									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
-								}
-								T_to_tape_edge-=wait;
+								Tstates+=T_to_tape_edge;
+								wait-=T_to_tape_edge;
+								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 							}
+							if(play) T_to_tape_edge-=wait;
 							break;
 						}
 					}
