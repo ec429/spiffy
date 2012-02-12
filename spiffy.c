@@ -99,8 +99,9 @@ ula_t;
 // helper fns
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
-int dtext(SDL_Surface * scrn, int x, int y, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
+int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
 bool pos_rect(pos p, SDL_Rect r);
+void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -124,6 +125,7 @@ int main(int argc, char * argv[])
 	#endif /* CORETEST */
 	bool pause=false;
 	bool stopper=false; // stop tape at end of this block?
+	bool edgeload=true; // edge loader enabled
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
 	unsigned char filterfactor=51; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
@@ -212,6 +214,8 @@ int main(int argc, char * argv[])
 	line(screen, 0, 296, OSIZ_X-1, 296, 255, 255, 255);
 	SDL_Rect cls={0, 297, OSIZ_X, OSIZ_Y-297};
 	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
+	SDL_Rect edgebutton={144, 298, 16, 18};
+	SDL_FillRect(screen, &edgebutton, edgeload?SDL_MapRGB(screen->format, 0xff, 0xff, 0xff):SDL_MapRGB(screen->format, 0x1f, 0x1f, 0x1f));
 	SDL_Rect playbutton={164, 298, 16, 18};
 	SDL_FillRect(screen, &playbutton, SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 	SDL_Rect nextbutton={184, 298, 16, 18};
@@ -383,40 +387,7 @@ int main(int argc, char * argv[])
 				T_to_tape_edge--;
 			else
 			{
-				int block;
-				if(likely(!libspectrum_tape_position(&block, deck)))
-				{
-					if(unlikely(block!=oldtapeblock))
-					{
-						tapeblocklen=(libspectrum_tape_block_length(libspectrum_tape_current_block(deck))+69887)/69888;
-						oldtapeblock=block;
-						if(stopper)
-						{
-							play=false;
-							stopper=false;
-							SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, 0x07));
-						}
-					}
-				}
-				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP)
-					play=false;
-				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP48)
-					play=false;
-				if(!(edgeflags&LIBSPECTRUM_TAPE_FLAGS_NO_EDGE))
-					ear=!ear;
-				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_LEVEL_LOW)
-					ear=false;
-				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_LEVEL_HIGH)
-					ear=true;
-				if(edgeflags&LIBSPECTRUM_TAPE_FLAGS_TAPE)
-				{
-					play=false;
-					T_to_tape_edge=0;
-					edgeflags=0;
-				}
-				if(play)
-					libspectrum_tape_get_next_edge(&T_to_tape_edge, &edgeflags, deck);
-				SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+				getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 			}
 		}
 		if(bus->mreq)
@@ -461,7 +432,173 @@ int main(int argc, char * argv[])
 		}
 		else if(!pause)
 			errupt=z80_tstep(cpu, bus, errupt);
-
+		
+		if(unlikely((*PC==0x05e7)&&(edgeload))) // Magic edge-loader (hard-coded implementation of LD-EDGE-1)
+		{
+			if(play&&!pause)
+			{
+				unsigned int wait=358;
+				if(play)
+				{
+					while(T_to_tape_edge<wait)
+					{
+						Tstates+=T_to_tape_edge;
+						wait-=T_to_tape_edge;
+						getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+					}
+					T_to_tape_edge-=wait;
+				}
+				while(1)
+				{
+					cpu->regs[5]++;
+					wait=4;
+					if(play)
+					{
+						while(T_to_tape_edge<wait)
+						{
+							Tstates+=T_to_tape_edge;
+							wait-=T_to_tape_edge;
+							getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+						}
+						T_to_tape_edge-=wait;
+					}
+					cpu->regs[2]&=~FC;
+					if(!cpu->regs[5])
+					{
+						cpu->regs[2]|=FZ;
+						wait=11;
+						if(play)
+						{
+							while(T_to_tape_edge<wait)
+							{
+								Tstates+=T_to_tape_edge;
+								wait-=T_to_tape_edge;
+								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+							}
+							T_to_tape_edge-=wait;
+						}
+						*PC=RAM[(*SP)++];
+						*PC|=RAM[(*SP)++]<<8;
+						break;
+					}
+					else
+					{
+						cpu->regs[2]&=~FZ;
+						wait=22; // 5 + 7 + 10
+						if(play)
+						{
+							while(T_to_tape_edge<wait)
+							{
+								Tstates+=T_to_tape_edge;
+								wait-=T_to_tape_edge;
+								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+							}
+							T_to_tape_edge-=wait;
+						}
+						unsigned char hi=0x7f;
+						unsigned char data=(ear?0x40:0)|0x1f;
+						for(int i=0;i<8;i++)
+							if(!(hi&(1<<i)))
+								data&=~kenc[i];
+						cpu->regs[3]=(data>>1)|((cpu->regs[2]&FC)?0x80:0);
+						cpu->regs[2]&=~FC;
+						if(data&1) cpu->regs[2]|=FC;
+						wait=10; // 1 + 4 + 5
+						if(play)
+						{
+							while(T_to_tape_edge<wait)
+							{
+								Tstates+=T_to_tape_edge;
+								wait-=T_to_tape_edge;
+								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+							}
+							T_to_tape_edge-=wait;
+						}
+						if(!(cpu->regs[2]&FC))
+						{
+							wait=6;
+							if(play)
+							{
+								while(T_to_tape_edge<wait)
+								{
+									Tstates+=T_to_tape_edge;
+									wait-=T_to_tape_edge;
+									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+								}
+								T_to_tape_edge-=wait;
+							}
+							*PC=RAM[(*SP)++];
+							*PC|=RAM[(*SP)++]<<8;
+							break;
+						}
+						else
+						{
+							cpu->regs[3]^=cpu->regs[4];
+							cpu->regs[3]&=0x20;
+							cpu->regs[2]&=~FZ;
+							wait=18; // 4 + 7 + 7
+							if(play)
+							{
+								while(T_to_tape_edge<wait)
+								{
+									Tstates+=T_to_tape_edge;
+									wait-=T_to_tape_edge;
+									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+								}
+								T_to_tape_edge-=wait;
+							}
+							if(!cpu->regs[3])
+							{
+								wait=5;
+								if(play)
+								{
+									while(T_to_tape_edge<wait)
+									{
+										Tstates+=T_to_tape_edge;
+										wait-=T_to_tape_edge;
+										getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+									}
+									T_to_tape_edge-=wait;
+								}
+								continue;
+							}
+							cpu->regs[3]=cpu->regs[4];
+							cpu->regs[3]^=0xFF;
+							cpu->regs[4]=cpu->regs[3];
+							cpu->regs[3]&=7;
+							cpu->regs[3]|=8;
+							wait=36; // 4+4+4+7+7+10
+							if(play)
+							{
+								while(T_to_tape_edge<wait)
+								{
+									Tstates+=T_to_tape_edge;
+									wait-=T_to_tape_edge;
+									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+								}
+								T_to_tape_edge-=wait;
+							}
+							bus->portfe=cpu->regs[3];
+							cpu->regs[2]|=FC;
+							*PC=RAM[(*SP)++];
+							*PC|=RAM[(*SP)++]<<8;
+							wait=15; // 1+4+10
+							if(play)
+							{
+								while(T_to_tape_edge<wait)
+								{
+									Tstates+=T_to_tape_edge;
+									wait-=T_to_tape_edge;
+									getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
+								}
+								T_to_tape_edge-=wait;
+							}
+							break;
+						}
+					}
+				}
+			}
+		}
 		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
 		if(unlikely(Tstates==32))
 			bus->irq=false;
@@ -482,7 +619,8 @@ int main(int argc, char * argv[])
 					sprintf(text, "Speed: %0.3g%%", spd);
 				else
 					sprintf(text, "Speed: <1%%");
-				dtext(screen, 8, 298, text, font, 255, 255, 0);
+				dtext(screen, 8, 298, 120, text, font, 255, 255, 0);
+				SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
 			}
 			if(play&&!pause)
 				tapeblocklen=max(tapeblocklen, 1)-1;
@@ -495,14 +633,14 @@ int main(int argc, char * argv[])
 					libspectrum_tape_position(&tapen, deck);
 				}
 				snprintf(text, 32, "T%03u [%u]", (tapeblocklen+49)/50, tapen);
-				dtext(screen, 244, 298, text, font, 0xbf, 0xbf, 0xbf);
+				dtext(screen, 244, 298, 76, text, font, 0xbf, 0xbf, 0xbf);
 				#ifdef AUDIO
 				snprintf(text, 32, "BW:%03hhu", filterfactor);
-				dtext(screen, 8, 320, text, font, 0x9f, 0x9f, 0x9f);
+				dtext(screen, 8, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
 				snprintf(text, 32, "SR:%03hhu", sinc_rate);
-				dtext(screen, 72, 320, text, font, 0x9f, 0x9f, 0x9f);
+				dtext(screen, 72, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
 				#endif /* AUDIO */
@@ -757,27 +895,22 @@ int main(int argc, char * argv[])
 						switch(button)
 						{
 							case SDL_BUTTON_LEFT:
-								if(pos_rect(mouse, playbutton))
-								{
+								if(pos_rect(mouse, edgebutton))
+									edgeload=!edgeload;
+								else if(pos_rect(mouse, playbutton))
 									play=!play;
-								}
 								else if(pos_rect(mouse, nextbutton))
 								{
 									if(deck) libspectrum_tape_select_next_block(deck);
 								}
 								else if(pos_rect(mouse, stopbutton))
-								{
 									stopper=!stopper;
-									SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, stopper?0xf7:0x07));
-								}
 								else if(pos_rect(mouse, rewindbutton))
 								{
 									if(deck) libspectrum_tape_nth_block(deck, 0);
 								}
 								else if(pos_rect(mouse, pausebutton))
-								{
 									pause=!pause;
-								}
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -842,7 +975,9 @@ int main(int argc, char * argv[])
 									}
 								}
 								#endif /* AUDIO */
+								SDL_FillRect(screen, &edgebutton, edgeload?SDL_MapRGB(screen->format, 0xff, 0xff, 0xff):SDL_MapRGB(screen->format, 0x1f, 0x1f, 0x1f));
 								SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+								SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, stopper?0xf7:0x07));
 								SDL_FillRect(screen, &pausebutton, pause?SDL_MapRGB(screen->format, 0xbf, 0x6f, 0x07):SDL_MapRGB(screen->format, 0x7f, 0x6f, 0x07));
 								SDL_FillRect(screen, &recordbutton, abuf.record?SDL_MapRGB(screen->format, 0xff, 0x07, 0x07):SDL_MapRGB(screen->format, 0x7f, 0x07, 0x07));
 							break;
@@ -1194,10 +1329,10 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 	}
 }
 
-int dtext(SDL_Surface * scrn, int x, int y, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
+int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
 {
 	SDL_Color clrFg = {r, g, b,0};
-	SDL_Rect rcDest = {x, y, 100, 16};
+	SDL_Rect rcDest = {x, y, w, 16};
 	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
 	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
 	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
@@ -1363,3 +1498,36 @@ run_test(FILE *f)
 	return 1;
 }
 #endif /* CORETEST */
+
+void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen)
+{
+	int block;
+	if(likely(!libspectrum_tape_position(&block, deck)))
+	{
+		if(unlikely(block!=*oldtapeblock))
+		{
+			*tapeblocklen=(libspectrum_tape_block_length(libspectrum_tape_current_block(deck))+69887)/69888;
+			*oldtapeblock=block;
+			if(stopper)
+				*play=false;
+		}
+	}
+	if(*edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP)
+		*play=false;
+	if(*edgeflags&LIBSPECTRUM_TAPE_FLAGS_STOP48)
+		*play=false;
+	if(!(*edgeflags&LIBSPECTRUM_TAPE_FLAGS_NO_EDGE))
+		*ear=!*ear;
+	if(*edgeflags&LIBSPECTRUM_TAPE_FLAGS_LEVEL_LOW)
+		*ear=false;
+	if(*edgeflags&LIBSPECTRUM_TAPE_FLAGS_LEVEL_HIGH)
+		*ear=true;
+	if(*edgeflags&LIBSPECTRUM_TAPE_FLAGS_TAPE)
+	{
+		*play=false;
+		*T_to_tape_edge=0;
+		*edgeflags=0;
+	}
+	if(*play)
+		libspectrum_tape_get_next_edge(T_to_tape_edge, edgeflags, deck);
+}

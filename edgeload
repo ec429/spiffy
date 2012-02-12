@@ -1,0 +1,23 @@
+edge loading:
+based on "The Complete SPECTRUM ROM DISASSEMBLY" by Logan & O'Hara
+
+0x05e7	LD-EDGE-1
+	7+21*(4+12)+(4+7)+4=358T
+0x05ed	LD-SAMPLE
+	INC B	4T
+	RET Z	11/5T
+	LD A,7F	7T
+	IN A,FE	11T
+	RRA		4T
+	RET NC	11/5T
+	XOR C	4T
+	AND 20	7T
+	JR Z,LD-SAMPLE	12/7T
+	LD A,C	4T
+	CPL		4T
+	LD C,A	4T
+	AND 7	7T
+	OR 8	7T
+	OUT FE,A	11T
+	SCF		4T
+	RET		10T
