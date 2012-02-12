@@ -27,6 +27,7 @@
 #include "ops.h"
 #include "z80.h"
 #include "vchips.h"
+#include "pbm.h"
 
 // SDL surface params
 #define OSIZ_X	320
@@ -96,12 +97,21 @@ typedef struct
 }
 ula_t;
 
+typedef struct
+{
+	SDL_Rect posn;
+	SDL_Surface *img;
+	uint32_t col;
+}
+button;
+
 // helper fns
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
 int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
 bool pos_rect(pos p, SDL_Rect r);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
+void drawbutton(SDL_Surface *screen, button b);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -214,24 +224,52 @@ int main(int argc, char * argv[])
 	line(screen, 0, 296, OSIZ_X-1, 296, 255, 255, 255);
 	SDL_Rect cls={0, 297, OSIZ_X, OSIZ_Y-297};
 	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
-	SDL_Rect edgebutton={144, 298, 16, 18};
-	SDL_FillRect(screen, &edgebutton, edgeload?SDL_MapRGB(screen->format, 0xff, 0xff, 0xff):SDL_MapRGB(screen->format, 0x1f, 0x1f, 0x1f));
-	SDL_Rect playbutton={164, 298, 16, 18};
-	SDL_FillRect(screen, &playbutton, SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
-	SDL_Rect nextbutton={184, 298, 16, 18};
-	SDL_FillRect(screen, &nextbutton, SDL_MapRGB(screen->format, 0x07, 0x07, 0x9f));
-	SDL_Rect stopbutton={204, 298, 16, 18};
-	SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, 0x07));
-	SDL_Rect rewindbutton={224, 298, 16, 18};
-	SDL_FillRect(screen, &rewindbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x6f));
+	FILE *fimg=fopen("buttons/flash.pbm", "rb");
+	string img=sslurp(fimg);
+	fclose(fimg);
+	button edgebutton={.img=pbm_string(img), .posn={144, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
+	drawbutton(screen, edgebutton);
+	free_string(&img);
+	fimg=fopen("buttons/play.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button playbutton={.img=pbm_string(img), .posn={164, 298, 17, 17}, .col=0x3fbf5f};
+	drawbutton(screen, playbutton);
+	free_string(&img);
+	fimg=fopen("buttons/next.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button nextbutton={.img=pbm_string(img), .posn={184, 298, 17, 17}, .col=0x07079f};
+	drawbutton(screen, nextbutton);
+	free_string(&img);
+	fimg=fopen("buttons/stop.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button stopbutton={.img=pbm_string(img), .posn={204, 298, 17, 17}, .col=0x3f0707};
+	drawbutton(screen, stopbutton);
+	free_string(&img);
+	fimg=fopen("buttons/rewind.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button rewindbutton={.img=pbm_string(img), .posn={224, 298, 17, 17}, .col=0x7f076f};
+	drawbutton(screen, rewindbutton);
+	free_string(&img);
 #ifdef AUDIO
 	SDL_Rect aw_up={56, 321, 7, 6}, aw_down={56, 328, 7, 6};
 	SDL_Rect sr_up={120, 321, 7, 6}, sr_down={120, 328, 7, 6};
-	SDL_Rect recordbutton={28, 340, 16, 18};
-	SDL_FillRect(screen, &recordbutton, SDL_MapRGB(screen->format, 0x7f, 0x07, 0x07));
+	fimg=fopen("buttons/record.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button recordbutton={.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0x7f0707};
+	drawbutton(screen, recordbutton);
+	free_string(&img);
 #endif /* AUDIO */
-	SDL_Rect pausebutton={8, 340, 16, 18};
-	SDL_FillRect(screen, &pausebutton, SDL_MapRGB(screen->format, 0x7f, 0x6f, 0x07));
+	fimg=fopen("buttons/pause.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button pausebutton={.img=pbm_string(img), .posn={8, 340, 17, 17}, .col=pause?0xbf6f07:0x7f6f07};
+	drawbutton(screen, pausebutton);
+	free_string(&img);
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -587,7 +625,8 @@ int main(int argc, char * argv[])
 				else
 					sprintf(text, "Speed: <1%%");
 				dtext(screen, 8, 298, 120, text, font, 255, 255, 0);
-				SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
+				playbutton.col=play?0xbf1f3f:0x3fbf5f;
+				drawbutton(screen, playbutton);
 			}
 			if(play&&!pause)
 				tapeblocklen=max(tapeblocklen, 1)-1;
@@ -862,21 +901,21 @@ int main(int argc, char * argv[])
 						switch(button)
 						{
 							case SDL_BUTTON_LEFT:
-								if(pos_rect(mouse, edgebutton))
+								if(pos_rect(mouse, edgebutton.posn))
 									edgeload=!edgeload;
-								else if(pos_rect(mouse, playbutton))
+								else if(pos_rect(mouse, playbutton.posn))
 									play=!play;
-								else if(pos_rect(mouse, nextbutton))
+								else if(pos_rect(mouse, nextbutton.posn))
 								{
 									if(deck) libspectrum_tape_select_next_block(deck);
 								}
-								else if(pos_rect(mouse, stopbutton))
+								else if(pos_rect(mouse, stopbutton.posn))
 									stopper=!stopper;
-								else if(pos_rect(mouse, rewindbutton))
+								else if(pos_rect(mouse, rewindbutton.posn))
 								{
 									if(deck) libspectrum_tape_nth_block(deck, 0);
 								}
-								else if(pos_rect(mouse, pausebutton))
+								else if(pos_rect(mouse, pausebutton.posn))
 									pause=!pause;
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
@@ -899,7 +938,7 @@ int main(int argc, char * argv[])
 									sinc_rate=max(sinc_rate-1,1);
 									update_sinc(filterfactor);
 								}
-								else if(pos_rect(mouse, recordbutton))
+								else if(pos_rect(mouse, recordbutton.posn))
 								{
 									if(abuf.record)
 									{
@@ -941,12 +980,17 @@ int main(int argc, char * argv[])
 										abuf.record=a;
 									}
 								}
+								recordbutton.col=abuf.record?0xff0707:0x7f0707;
+								drawbutton(screen, recordbutton);
 								#endif /* AUDIO */
-								SDL_FillRect(screen, &edgebutton, edgeload?SDL_MapRGB(screen->format, 0xff, 0xff, 0xff):SDL_MapRGB(screen->format, 0x1f, 0x1f, 0x1f));
-								SDL_FillRect(screen, &playbutton, play?SDL_MapRGB(screen->format, 0xbf, 0x1f, 0x3f):SDL_MapRGB(screen->format, 0x3f, 0xbf, 0x5f));
-								SDL_FillRect(screen, &stopbutton, SDL_MapRGB(screen->format, 0x3f, 0x07, stopper?0xf7:0x07));
-								SDL_FillRect(screen, &pausebutton, pause?SDL_MapRGB(screen->format, 0xbf, 0x6f, 0x07):SDL_MapRGB(screen->format, 0x7f, 0x6f, 0x07));
-								SDL_FillRect(screen, &recordbutton, abuf.record?SDL_MapRGB(screen->format, 0xff, 0x07, 0x07):SDL_MapRGB(screen->format, 0x7f, 0x07, 0x07));
+								edgebutton.col=edgeload?0xffffff:0x1f1f1f;
+								playbutton.col=play?0xbf1f3f:0x3fbf5f;
+								stopbutton.col=stopper?0x3f07f7:0x3f0707;
+								pausebutton.col=pause?0xbf6f07:0x7f6f07;
+								drawbutton(screen, edgebutton);
+								drawbutton(screen, playbutton);
+								drawbutton(screen, stopbutton);
+								drawbutton(screen, pausebutton);
 							break;
 							case SDL_BUTTON_RIGHT:
 								#ifdef AUDIO
@@ -1497,4 +1541,10 @@ void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32
 	}
 	if(*play)
 		libspectrum_tape_get_next_edge(T_to_tape_edge, edgeflags, deck);
+}
+
+void drawbutton(SDL_Surface *screen, button b)
+{
+	SDL_FillRect(screen, &b.posn, SDL_MapRGB(screen->format, b.col>>16, b.col>>8, b.col));
+	SDL_BlitSurface(b.img, NULL, screen, &b.posn);
 }
