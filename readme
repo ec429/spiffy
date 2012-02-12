@@ -1,9 +1,25 @@
 Spiffy: Yet another ZX Spectrum emulator
 Readme.
 
-Spiffy is currently in a fairly early stage of development; the Z80 core works (though may contain errors), and of peripherals only video, audio, the keyboard and tape input been added.
+Spiffy is currently in a fairly early stage of development; the Z80 core works (and passes the Fuse coretests), but of peripherals only video, audio, the keyboard and tape input been added.
 Also, timings and contention are probably inaccurate.  In particular, the 'split bus' is not properly emulated, chiefly because I don't understand it.  (I need to read csmith's book!)
-Moreover, IM2 seems to be broken - some games hang or crash on loading.  I can't work out why (I did fix one bug with IM2, and some software started working, but some others still don't).
+
+UI controls:
+The UI is a bit spartan right now.  There are three rows of controls: Tape, Audio and Misc.
+Tape:
+	Speed readout.  Should hover around 100%.
+	Tape traps (toggle).  White=on, dark gray=off.  Enables trapping of LD-EDGE-1 in the ROM tape loader, for fast tape loading.
+	Play (green).  When tape is playing, turns pink.
+	Skip (dark blue).  Skips to next tape block.
+	Stop at end of block (toggle).  Lilac=on, dark red=off.  When enabled, the tape will be stopped at the end of each block.  Handy for multiload tapes.
+	Rewind (magenta).  Rewinds the tape to the beginning.
+	Tape counter.  Only really useful when tape traps are disabled, in which case it displays the number of seconds remaining in the current block.
+Audio:
+	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 51 or 76 for most beeper engines.
+	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  12 should be plenty.
+Misc:
+	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.
+	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to "record.wav".  (Note: you can't use this to save tapes.  Right now there is no way to save tapes in Spiffy)
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
