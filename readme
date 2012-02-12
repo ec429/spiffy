@@ -23,6 +23,7 @@ Audio:
 Misc:
 	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.
 	Reset (orange).  Resets the Spectrum (at the moment, simply sets the PC to 0).
+	Debug (sickly green).  Activates the debugger.  (Only works if Spiffy was run from a terminal)
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
