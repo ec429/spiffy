@@ -254,22 +254,28 @@ int main(int argc, char * argv[])
 	button rewindbutton={.img=pbm_string(img), .posn={224, 298, 17, 17}, .col=0x7f076f};
 	drawbutton(screen, rewindbutton);
 	free_string(&img);
-#ifdef AUDIO
-	SDL_Rect aw_up={56, 321, 7, 6}, aw_down={56, 328, 7, 6};
-	SDL_Rect sr_up={120, 321, 7, 6}, sr_down={120, 328, 7, 6};
-	fimg=fopen("buttons/record.pbm", "rb");
-	img=sslurp(fimg);
-	fclose(fimg);
-	button recordbutton={.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0x7f0707};
-	drawbutton(screen, recordbutton);
-	free_string(&img);
-#endif /* AUDIO */
 	fimg=fopen("buttons/pause.pbm", "rb");
 	img=sslurp(fimg);
 	fclose(fimg);
 	button pausebutton={.img=pbm_string(img), .posn={8, 340, 17, 17}, .col=pause?0xbf6f07:0x7f6f07};
 	drawbutton(screen, pausebutton);
 	free_string(&img);
+	fimg=fopen("buttons/reset.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button resetbutton={.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0xffaf07};
+	drawbutton(screen, resetbutton);
+	free_string(&img);
+#ifdef AUDIO
+	SDL_Rect aw_up={76, 321, 7, 6}, aw_down={76, 328, 7, 6};
+	SDL_Rect sr_up={140, 321, 7, 6}, sr_down={140, 328, 7, 6};
+	fimg=fopen("buttons/record.pbm", "rb");
+	img=sslurp(fimg);
+	fclose(fimg);
+	button recordbutton={.img=pbm_string(img), .posn={8, 320, 17, 17}, .col=0x7f0707};
+	drawbutton(screen, recordbutton);
+	free_string(&img);
+#endif /* AUDIO */
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -642,11 +648,11 @@ int main(int argc, char * argv[])
 				dtext(screen, 244, 298, 76, text, font, 0xbf, 0xbf, 0xbf);
 				#ifdef AUDIO
 				snprintf(text, 32, "BW:%03hhu", filterfactor);
-				dtext(screen, 8, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
+				dtext(screen, 28, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
 				snprintf(text, 32, "SR:%03hhu", sinc_rate);
-				dtext(screen, 72, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
+				dtext(screen, 92, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
 				#endif /* AUDIO */
@@ -917,6 +923,8 @@ int main(int argc, char * argv[])
 								}
 								else if(pos_rect(mouse, pausebutton.posn))
 									pause=!pause;
+								else if(pos_rect(mouse, resetbutton.posn))
+									*PC=0;
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{

@@ -15,11 +15,12 @@ Tape:
 	Rewind (magenta).  Rewinds the tape to the beginning.
 	Tape counter.  Only really useful when tape traps are disabled, in which case it displays the number of seconds remaining in the current block.
 Audio:
+	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to "record.wav".  (Note: you can't use this to save tapes.  Right now there is no way to save tapes in Spiffy)
 	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 51 or 76 for most beeper engines.
 	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  12 should be plenty.
 Misc:
 	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.
-	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to "record.wav".  (Note: you can't use this to save tapes.  Right now there is no way to save tapes in Spiffy)
+	Reset (orange).  Resets the Spectrum (at the moment, simply sets the PC to 0).
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
