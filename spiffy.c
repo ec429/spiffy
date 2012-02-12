@@ -48,16 +48,6 @@ void update_sinc(unsigned char filterfactor);
 
 #define ROM_FILE PREFIX"/share/spiffy/48.rom" // Location of Spectrum ROM file (TODO: make configable)
 
-#define VERSION_MAJ	0
-#define VERSION_MIN	4
-#define VERSION_REV	1
-
-#define VERSION_MSG "spiffy %hhu.%hhu.%hhu\n\
- Copyright (C) 2010-12 Edward Cree.\n\
- License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n\
- This is free software: you are free to change and redistribute it.\n\
- There is NO WARRANTY, to the extent permitted by law.\n",VERSION_MAJ, VERSION_MIN, VERSION_REV
-
 #define GPL_MSG "spiffy Copyright (C) 2010-12 Edward Cree.\n\
  This program comes with ABSOLUTELY NO WARRANTY; for details see the GPL v3.\n\
  This is free software, and you are welcome to redistribute it\n\
@@ -112,6 +102,7 @@ int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font *
 bool pos_rect(pos p, SDL_Rect r);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
 void drawbutton(SDL_Surface *screen, button b);
+void loadfile(const char *fn, libspectrum_tape **deck);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -146,12 +137,7 @@ int main(int argc, char * argv[])
 	int arg;
 	for (arg=1; arg<argc; arg++)
 	{
-		if((strcmp(argv[arg], "--version") == 0) || (strcmp(argv[arg], "-V") == 0))
-		{ // print version info and exit
-			printf(VERSION_MSG);
-			return(0);
-		}
-		else if((strcmp(argv[arg], "--debug") == 0) || (strcmp(argv[arg], "-d") == 0))
+		if((strcmp(argv[arg], "--debug") == 0) || (strcmp(argv[arg], "-d") == 0))
 		{ // activate debugging mode
 			debug=true;
 		}
@@ -224,8 +210,16 @@ int main(int argc, char * argv[])
 	line(screen, 0, 296, OSIZ_X-1, 296, 255, 255, 255);
 	SDL_Rect cls={0, 297, OSIZ_X, OSIZ_Y-297};
 	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
-	FILE *fimg=fopen(PREFIX"/share/spiffy/buttons/flash.pbm", "rb");
-	string img=sslurp(fimg);
+	FILE *fimg;
+	string img;
+	fimg=fopen(PREFIX"/share/spiffy/buttons/load.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	button loadbutton={.img=pbm_string(img), .posn={124, 298, 17, 17}, .col=0x8f8f1f};
+	drawbutton(screen, loadbutton);
+	free_string(&img);
+	fimg=fopen(PREFIX"/share/spiffy/buttons/flash.pbm", "rb");
+	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button edgebutton={.img=pbm_string(img), .posn={144, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
 	drawbutton(screen, edgebutton);
@@ -348,50 +342,7 @@ int main(int argc, char * argv[])
 	
 	if(ls&&fn)
 	{
-		FILE *fp=fopen(fn, "rb");
-		string data=sslurp(fp);
-		fclose(fp);
-		libspectrum_id_t type;
-		if(libspectrum_identify_file_raw(&type, fn, (unsigned char *)data.buf, data.i))
-		{
-			free_string(&data);
-			fn=NULL;
-		}
-		else
-		{
-			libspectrum_class_t class;
-			if(libspectrum_identify_class(&class, type))
-			{
-				free_string(&data);
-				fn=NULL;
-			}
-			else
-			{
-				switch(class)
-				{
-					case LIBSPECTRUM_CLASS_TAPE:
-						if((deck=libspectrum_tape_alloc()))
-						{
-							if(libspectrum_tape_read(deck, (unsigned char *)data.buf, data.i, type, fn))
-							{
-								libspectrum_tape_free(deck);
-								free_string(&data);
-								fn=NULL;
-							}
-							else
-							{
-								fprintf(stderr, "Mounted tape '%s'\n", fn);
-							}
-						}
-					break;
-					default:
-						fprintf(stderr, "This class of file is not supported!\n");
-						free_string(&data);
-						fn=NULL;
-					break;
-				}
-			}
-		}
+		loadfile(fn, &deck);
 	}
 	
 	SDL_Flip(screen);
@@ -630,7 +581,7 @@ int main(int argc, char * argv[])
 					sprintf(text, "Speed: %0.3g%%", spd);
 				else
 					sprintf(text, "Speed: <1%%");
-				dtext(screen, 8, 298, 120, text, font, 255, 255, 0);
+				dtext(screen, 8, 298, 92, text, font, 255, 255, 0);
 				playbutton.col=play?0xbf1f3f:0x3fbf5f;
 				drawbutton(screen, playbutton);
 			}
@@ -643,8 +594,12 @@ int main(int argc, char * argv[])
 				if(deck)
 				{
 					libspectrum_tape_position(&tapen, deck);
+					snprintf(text, 32, "T%03u [%u]", (tapeblocklen+49)/50, tapen);
 				}
-				snprintf(text, 32, "T%03u [%u]", (tapeblocklen+49)/50, tapen);
+				else
+				{
+					snprintf(text, 32, "T--- [-]");
+				}
 				dtext(screen, 244, 298, 76, text, font, 0xbf, 0xbf, 0xbf);
 				#ifdef AUDIO
 				snprintf(text, 32, "BW:%03hhu", filterfactor);
@@ -907,7 +862,17 @@ int main(int argc, char * argv[])
 						switch(button)
 						{
 							case SDL_BUTTON_LEFT:
-								if(pos_rect(mouse, edgebutton.posn))
+								if(pos_rect(mouse, loadbutton.posn))
+								{
+									FILE *p=popen("spiffy-filechooser", "r");
+									if(p)
+									{
+										char *fn=fgetl(p);
+										fclose(p);
+										loadfile(fn, &deck);
+									}
+								}
+								else if(pos_rect(mouse, edgebutton.posn))
 									edgeload=!edgeload;
 								else if(pos_rect(mouse, playbutton.posn))
 									play=!play;
@@ -1352,7 +1317,7 @@ int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font *
 {
 	SDL_Color clrFg = {r, g, b,0};
 	SDL_Rect rcDest = {x, y, w, 16};
-	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
+	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 15, 0));
 	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
 	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
 	SDL_FreeSurface(sText);
@@ -1555,4 +1520,57 @@ void drawbutton(SDL_Surface *screen, button b)
 {
 	SDL_FillRect(screen, &b.posn, SDL_MapRGB(screen->format, b.col>>16, b.col>>8, b.col));
 	if(b.img) SDL_BlitSurface(b.img, NULL, screen, &b.posn);
+}
+
+void loadfile(const char *fn, libspectrum_tape **deck)
+{
+	FILE *fp=fopen(fn, "rb");
+	if(!fp)
+	{
+		fprintf(stderr, "Failed to open '%s': %s\n", fn, strerror(errno));
+	}
+	else
+	{
+		string data=sslurp(fp);
+		libspectrum_id_t type;
+		if(libspectrum_identify_file_raw(&type, fn, (unsigned char *)data.buf, data.i))
+		{
+			free_string(&data);
+			fn=NULL;
+		}
+		else
+		{
+			libspectrum_class_t class;
+			if(libspectrum_identify_class(&class, type))
+			{
+				free_string(&data);
+				fn=NULL;
+			}
+			else
+			{
+				switch(class)
+				{
+					case LIBSPECTRUM_CLASS_TAPE:
+						if(*deck) libspectrum_tape_free(*deck);
+						if((*deck=libspectrum_tape_alloc()))
+						{
+							if(libspectrum_tape_read(*deck, (unsigned char *)data.buf, data.i, type, fn))
+							{
+								libspectrum_tape_free(*deck);
+								free_string(&data);
+							}
+							else
+							{
+								fprintf(stderr, "Mounted tape '%s'\n", fn);
+							}
+						}
+					break;
+					default:
+						fprintf(stderr, "This class of file is not supported!\n");
+						free_string(&data);
+					break;
+				}
+			}
+		}
+	}
 }
