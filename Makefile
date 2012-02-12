@@ -1,6 +1,7 @@
 # Makefile for spiffy
+PREFIX := /usr/local
 CC := gcc
-CFLAGS := -Wall -Wextra -Werror -pedantic --std=gnu99 -g -DCORETEST
+CFLAGS := -Wall -Wextra -Werror -pedantic --std=gnu99 -g -DCORETEST -DPREFIX=\"$(PREFIX)\"
 SDL := `sdl-config --cflags --libs` -lSDL_ttf
 
 all: spiffy
@@ -20,3 +21,10 @@ pbm.o: pbm.c pbm.h bits.h
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
 
+install: spiffy
+	install -D -m0755 spiffy $(PREFIX)/bin/spiffy
+	install -D -m0644 keymap $(PREFIX)/share/spiffy/keymap
+	install -D -m0644 Vera.ttf $(PREFIX)/share/fonts/
+	install -D -m0644 *.rom -t $(PREFIX)/share/spiffy/
+	install -d -m0755 buttons $(PREFIX)/share/spiffy/buttons
+	install -D -m0644 buttons/* -t $(PREFIX)/share/spiffy/buttons

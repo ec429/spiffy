@@ -46,7 +46,7 @@ unsigned char sinc_rate=12;
 void update_sinc(unsigned char filterfactor);
 #endif /* AUDIO */
 
-#define ROM_FILE "48.rom" // Location of Spectrum ROM file (TODO: make configable)
+#define ROM_FILE PREFIX"/share/spiffy/48.rom" // Location of Spectrum ROM file (TODO: make configable)
 
 #define VERSION_MAJ	0
 #define VERSION_MIN	4
@@ -125,7 +125,7 @@ int main(int argc, char * argv[])
 	TTF_Font *font=NULL;
 	if(!TTF_Init())
 	{
-		font=TTF_OpenFont("Vera.ttf", 12);
+		font=TTF_OpenFont(PREFIX"/share/fonts/Vera.ttf", 12);
 	}
 	bool debug=false; // Generate debugging info?
 	bool bugstep=false; // Single-step?
@@ -224,43 +224,43 @@ int main(int argc, char * argv[])
 	line(screen, 0, 296, OSIZ_X-1, 296, 255, 255, 255);
 	SDL_Rect cls={0, 297, OSIZ_X, OSIZ_Y-297};
 	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
-	FILE *fimg=fopen("buttons/flash.pbm", "rb");
+	FILE *fimg=fopen(PREFIX"/share/spiffy/buttons/flash.pbm", "rb");
 	string img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button edgebutton={.img=pbm_string(img), .posn={144, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
 	drawbutton(screen, edgebutton);
 	free_string(&img);
-	fimg=fopen("buttons/play.pbm", "rb");
+	fimg=fopen(PREFIX"/share/spiffy/buttons/play.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button playbutton={.img=pbm_string(img), .posn={164, 298, 17, 17}, .col=0x3fbf5f};
 	drawbutton(screen, playbutton);
 	free_string(&img);
-	fimg=fopen("buttons/next.pbm", "rb");
+	fimg=fopen(PREFIX"/share/spiffy/buttons/next.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button nextbutton={.img=pbm_string(img), .posn={184, 298, 17, 17}, .col=0x07079f};
 	drawbutton(screen, nextbutton);
 	free_string(&img);
-	fimg=fopen("buttons/stop.pbm", "rb");
+	fimg=fopen(PREFIX"/share/spiffy/buttons/stop.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button stopbutton={.img=pbm_string(img), .posn={204, 298, 17, 17}, .col=0x3f0707};
 	drawbutton(screen, stopbutton);
 	free_string(&img);
-	fimg=fopen("buttons/rewind.pbm", "rb");
+	fimg=fopen(PREFIX"/share/spiffy/buttons/rewind.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button rewindbutton={.img=pbm_string(img), .posn={224, 298, 17, 17}, .col=0x7f076f};
 	drawbutton(screen, rewindbutton);
 	free_string(&img);
-	fimg=fopen("buttons/pause.pbm", "rb");
+	fimg=fopen(PREFIX"/share/spiffy/buttons/pause.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button pausebutton={.img=pbm_string(img), .posn={8, 340, 17, 17}, .col=pause?0xbf6f07:0x7f6f07};
 	drawbutton(screen, pausebutton);
 	free_string(&img);
-	fimg=fopen("buttons/reset.pbm", "rb");
+	fimg=fopen(PREFIX"/share/spiffy/buttons/reset.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button resetbutton={.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0xffaf07};
@@ -269,7 +269,7 @@ int main(int argc, char * argv[])
 #ifdef AUDIO
 	SDL_Rect aw_up={76, 321, 7, 6}, aw_down={76, 328, 7, 6};
 	SDL_Rect sr_up={140, 321, 7, 6}, sr_down={140, 328, 7, 6};
-	fimg=fopen("buttons/record.pbm", "rb");
+	fimg=fopen(PREFIX"/share/spiffy/buttons/record.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
 	button recordbutton={.img=pbm_string(img), .posn={8, 320, 17, 17}, .col=0x7f0707};
