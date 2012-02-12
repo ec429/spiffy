@@ -431,11 +431,9 @@ int main(int argc, char * argv[])
 			cpu->dT++;
 		}
 		else if(!pause)
-			errupt=z80_tstep(cpu, bus, errupt);
-		
-		if(unlikely((*PC==0x05e7)&&(edgeload))) // Magic edge-loader (hard-coded implementation of LD-EDGE-1)
 		{
-			if(play&&!pause)
+			errupt=z80_tstep(cpu, bus, errupt);
+			if(unlikely(play&&(*PC==0x05e7)&&(edgeload))) // Magic edge-loader (hard-coded implementation of LD-EDGE-1)
 			{
 				unsigned int wait=358;
 				while((T_to_tape_edge<wait)&&play)
