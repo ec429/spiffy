@@ -357,6 +357,7 @@ int main(int argc, char * argv[])
 	z80_init(); // initialise decoding tables
 	int Fstate=0; // FLASH state
 	z80_reset(cpu, bus);
+	bus_reset(bus);
 	
 	libspectrum_tape *deck=NULL;
 	bool play=false;
@@ -465,7 +466,7 @@ int main(int argc, char * argv[])
 							derrupt++;
 						}
 						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
-							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm r xxxx\tread memory\nm w xxxx xx\twrite memory\nq(uit)\t\tquit Spiffy\n");
+							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm r xxxx\tread memory\nm w xxxx xx\twrite memory\nei\t\tEnable interrupts\ndi\t\tDisable interrupts\nr(eset)\t\tReset the Z80\n[!]i(nt)\tset/clear INT line\n[!]nmi\t\tset/clear NMI line\nq(uit)\t\tquit Spiffy\n");
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
 							show_state(RAM, cpu, Tstates, bus);
 						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
@@ -655,7 +656,11 @@ int main(int argc, char * argv[])
 							}
 							else
 							{
-								fprintf(stderr, "!break: missing argument\n");
+								for(unsigned int i=0;i<nbreaks;i++)
+									fprintf(stderr, "deleted breakpoint at %04x\n", breakpoints[i]);
+								free(breakpoints);
+								breakpoints=NULL;
+								nbreaks=0;
 							}
 						}
 						else if((strcmp(cmd, "l")==0)||(strcmp(cmd, "list")==0))
@@ -665,10 +670,28 @@ int main(int argc, char * argv[])
 								fprintf(stderr, "breakpoint at %04x\n", breakpoints[i]);
 							}
 						}
+						else if(strcmp(cmd, "ei")==0)
+							cpu->IFF[0]=cpu->IFF[1]=1;
+						else if(strcmp(cmd, "di")==0)
+							cpu->IFF[0]=cpu->IFF[1]=0;
+						else if((strcmp(cmd, "r")==0)||(strcmp(cmd, "reset")==0))
+							bus_reset(bus);
+						else if((strcmp(cmd, "i")==0)||(strcmp(cmd, "int")==0))
+							bus->irq=true;
+						else if((strcmp(cmd, "!i")==0)||(strcmp(cmd, "!int")==0))
+							bus->irq=false;
+						else if(strcmp(cmd, "nmi")==0)
+							bus->nmi=true;
+						else if(strcmp(cmd, "!nmi")==0)
+							bus->nmi=false;
 						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
 						{
 							errupt++;
 							derrupt++;
+						}
+						else
+						{
+							fprintf(stderr, "Unrecognised command '%s'.  Type 'h' for help\n", cmd);
 						}
 					}
 					free(line);
@@ -830,6 +853,7 @@ int main(int argc, char * argv[])
 		if(unlikely(Tstates>=69888))
 		{
 			bus->irq=true;
+			bus->reset=false;
 			SDL_Flip(screen);
 			Tstates-=69888;
 			Fstate=(Fstate+1)&0x1f; // flash alternates every 16 frames
@@ -1147,7 +1171,7 @@ int main(int argc, char * argv[])
 								else if(pos_rect(mouse, pausebutton.posn))
 									pause=!pause;
 								else if(pos_rect(mouse, resetbutton.posn))
-									*PC=0;
+									bus_reset(bus);
 								else if(pos_rect(mouse, bugbutton.posn))
 								{
 									debug=true;
@@ -1504,7 +1528,7 @@ void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bu
 	if(cpu->nmiacc) printf(" NMI!");
 	else if(cpu->intacc) printf(" INT!");
 	printf("\n");
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->halt?"HALT":"halt");
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->reset?"RESET":"reset", bus->halt?"HALT":"halt");
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!

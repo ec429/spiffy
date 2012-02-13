@@ -65,6 +65,7 @@ typedef struct
 	bool rfsh; // ¬RFSH line
 	bool waitline; // ¬WAIT line
 	bool clk_inhibit; // when true, hold the CLK line low (used by ULA)
+	bool reset; // ¬RESET line
 	bool irq; // ¬INT line
 	bool nmi; // ¬NMI line
 	bool halt; // ¬HALT line
@@ -75,4 +76,5 @@ bus_t;
 
 void z80_init(void);
 void z80_reset(z80 *cpu, bus_t *bus);
+void bus_reset(bus_t *bus);
 int z80_tstep(z80 *cpu, bus_t *bus, int errupt);

@@ -74,11 +74,17 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	bus->rfsh=false;
 	bus->addr=0;
 	bus->data=0;
-	bus->waitline=false;
-	bus->irq=false;
-	bus->nmi=false;
 	bus->reti=false;
 	bus->halt=false;
+}
+
+void bus_reset(bus_t *bus)
+{
+	bus->irq=false;
+	bus->nmi=false;
+	bus->waitline=false;
+	bus->clk_inhibit=false;
+	bus->reset=true;
 }
 
 int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
@@ -111,6 +117,10 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 			break;
 		}
 		return(errupt);
+	}
+	if(unlikely(bus->reset))
+	{
+		z80_reset(cpu, bus);
 	}
 	if((cpu->dT==0)&&bus->rfsh)
 	{
