@@ -465,7 +465,7 @@ int main(int argc, char * argv[])
 							derrupt++;
 						}
 						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
-							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm {r|w} xxxx\tread/write memory\nq(uit)\t\tquit Spiffy\n");
+							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm r xxxx\tread memory\nm w xxxx xx\twrite memory\nq(uit)\t\tquit Spiffy\n");
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
 							show_state(RAM, cpu, Tstates, bus);
 						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
