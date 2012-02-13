@@ -454,7 +454,6 @@ int main(int argc, char * argv[])
 					if(line)
 					{
 						char *cmd=strtok(line, " ");
-						char *rest=strtok(NULL, "");
 						if(!cmd)
 						{
 							debug=false;
@@ -466,7 +465,7 @@ int main(int argc, char * argv[])
 							derrupt++;
 						}
 						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
-							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\nq(uit)\t\tquit Spiffy\n");
+							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm {r|w} xxxx\tread/write memory\nq(uit)\t\tquit Spiffy\n");
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
 							show_state(RAM, cpu, Tstates, bus);
 						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
@@ -475,8 +474,150 @@ int main(int argc, char * argv[])
 							trace=false;
 						else if((strcmp(cmd, "n")==0)||(strcmp(cmd, "next")==0))
 							derrupt++;
+						else if((strcmp(cmd, "=")==0)||(strcmp(cmd, "assign")==0))
+						{
+							char *what=strtok(NULL, " ");
+							if(what)
+							{
+								char *rest=strtok(NULL, "");
+								int reg=-1;
+								bool is16=false;
+								if(strcasecmp(what, "PC")==0)
+								{
+									reg=0;
+									is16=true;
+								}
+								else if(strlen(what)==1)
+								{
+									const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
+									const char *p=strchr(reglist, *what);
+									if(p)
+										reg=(p+2-reglist)^1;
+									is16=false;
+								}
+								else if(strcasecmp(what, "AF")==0)
+								{
+									reg=2;
+									is16=true;
+								}
+								else if(strcasecmp(what, "BC")==0)
+								{
+									reg=4;
+									is16=true;
+								}
+								else if(strcasecmp(what, "DE")==0)
+								{
+									reg=6;
+									is16=true;
+								}
+								else if(strcasecmp(what, "HL")==0)
+								{
+									reg=8;
+									is16=true;
+								}
+								else if(strcasecmp(what, "IX")==0)
+								{
+									reg=10;
+									is16=true;
+								}
+								else if(strcasecmp(what, "IY")==0)
+								{
+									reg=12;
+									is16=true;
+								}
+								else if(strcasecmp(what, "SP")==0)
+								{
+									reg=16;
+									is16=true;
+								}
+								else if(strcasecmp(what, "AF'")==0)
+								{
+									reg=18;
+									is16=true;
+								}
+								else if(strcasecmp(what, "BC'")==0)
+								{
+									reg=20;
+									is16=true;
+								}
+								else if(strcasecmp(what, "DE'")==0)
+								{
+									reg=22;
+									is16=true;
+								}
+								else if(strcasecmp(what, "HL'")==0)
+								{
+									reg=24;
+									is16=true;
+								}
+								if(reg>=0)
+								{
+									unsigned int val;
+									if(sscanf(rest, "%x", &val)==1)
+									{
+										cpu->regs[reg]=val;
+										if(is16)
+											cpu->regs[reg+1]=val>>8;
+									}
+									else
+									{
+										fprintf(stderr, "set: missing value\n");
+									}
+								}
+								else
+								{
+									fprintf(stderr, "No such register %s\n", what);
+								}
+							}
+						}
+						else if((strcmp(cmd, "m")==0)||(strcmp(cmd, "memory")==0))
+						{
+							char *what=strtok(NULL, " ");
+							if(what)
+							{
+								if(*what=='r')
+								{
+									char *rest=strtok(NULL, "");
+									if(rest)
+									{
+										unsigned int addr;
+										if(sscanf(rest, "%x", &addr)==1)
+										{
+											fprintf(stderr, "[%04x]=%02x\n", addr, RAM[addr]);
+										}
+										else
+											fprintf(stderr, "memory: missing address\n");
+									}
+									else
+										fprintf(stderr, "memory: missing address\n");
+								}
+								else if(*what=='w')
+								{
+									char *a=strtok(NULL, " ");
+									if(a)
+									{
+										char *rest=strtok(NULL, "");
+										unsigned int addr;
+										if(sscanf(a, "%x", &addr)==1)
+										{
+											unsigned int val;
+											if(!(rest&&(sscanf(rest, "%x", &val)==1)))
+												val=0;
+											RAM[addr]=val;
+										}
+										else
+											fprintf(stderr, "memory: missing address\n");
+									}
+								}
+								else
+									fprintf(stderr, "memory: bad mode (should be r or w)\n");
+							}
+							else
+								fprintf(stderr, "memory: missing mode (should be r or w)\n");
+						}
 						else if((strcmp(cmd, "b")==0)||(strcmp(cmd, "break")==0))
 						{
+							char *rest=strtok(NULL, "");
 							unsigned int bp=0;
 							if(rest&&(sscanf(rest, "%x", &bp)==1))
 							{
@@ -497,6 +638,7 @@ int main(int argc, char * argv[])
 						}
 						else if((strcmp(cmd, "!b")==0)||(strcmp(cmd, "!break")==0))
 						{
+							char *rest=strtok(NULL, "");
 							unsigned int bp=0;
 							if(rest&&(sscanf(rest, "%x", &bp)==1))
 							{
