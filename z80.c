@@ -14,12 +14,12 @@
 #define min(a,b)	((a)>(b)?(b):(a))
 
 // z80 core error messages
-#define ZERR0	"spiffy: encountered bad shift state %u (x%hhu z%hhu y%hhu M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->M
-#define ZERR1	"spiffy: encountered bad opcode s%u x%hhu (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->M
-#define ZERR2	"spiffy: encountered bad opcode s%u x%hhu z%hhu (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->M
-#define ZERR2Y	"spiffy: encountered bad opcode s%u x%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
-#define ZERR3	"spiffy: encountered bad opcode s%u x%hhu z%hhu y%hhu (p%hhu q%hhu) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
-#define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core (s%hhu x%hhu z%hhu y%hhu)\n", cpu->M, cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y
+#define ZERR0	"spiffy: encountered bad shift state %u (x%u z%u y%u M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->M
+#define ZERR1	"spiffy: encountered bad opcode s%u x%u (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->M
+#define ZERR2	"spiffy: encountered bad opcode s%u x%u z%u (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->M
+#define ZERR2Y	"spiffy: encountered bad opcode s%u x%u y%u (p%u q%u) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
+#define ZERR3	"spiffy: encountered bad opcode s%u x%u z%u y%u (p%u q%u) (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->ods.p, cpu->ods.q, cpu->M
+#define ZERRM	"spiffy: encountered bad M-cycle %u in z80 core (s%u x%u z%u y%u)\n", cpu->M, cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y
 
 void z80_init(void)
 {
