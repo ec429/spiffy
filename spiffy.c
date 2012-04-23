@@ -716,36 +716,55 @@ int main(int argc, char * argv[])
 									case 2: // String
 										// 010aaaaa Length[2] Text[]
 										if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
-										if(match) fprintf(stderr, "%04x $ %c$ = \"", addr, name);
 										i++;
 										l=peek16(i);
 										i+=2;
 										if(match)
 										{
-											unsigned int k=0;
-											bool overlong=false;
-											for(unsigned int j=0;j<l;j++)
+											if(rest)
 											{
-												if(k>=64)
-												{
-													overlong=true;
-													break;
-												}
-												unsigned char c=RAM[i+j];
-												if((c>=32)&&(c<127))
-												{
-													fputc(c, stderr);
-													k++;
-												}
+												unsigned int j;
+												if(sscanf(rest, "(%u)", &j)!=1)
+													fprintf(stderr, "3 Subscript wrong, 0:1\n");
+												else if((j<1)||(j>l))
+													fprintf(stderr, "3 Subscript wrong, 0:1\n");
 												else
 												{
-													int len;
-													fprintf(stderr, "\\%03o%n", c, &len);
-													k+=len;
+													unsigned char c=RAM[i+j-1];
+													fprintf(stderr, "%04x $ %c$(%u) = ", i+j-1, name, j);
+													if((c>=32)&&(c<127))
+														fprintf(stderr, "'%c' = ", c);
+													fprintf(stderr, "%u = 0x%02x = '\\%03o'\n", c, c, c);
 												}
 											}
-											fprintf(stderr, overlong?"\"...\n":"\"\n");
+											else
+											{
+												fprintf(stderr, "%04x $ %c$ = \"", addr, name);
+												unsigned int k=0;
+												bool overlong=false;
+												for(unsigned int j=0;j<l;j++)
+												{
+													if(k>=64)
+													{
+														overlong=true;
+														break;
+													}
+													unsigned char c=RAM[i+j];
+													if((c>=32)&&(c<127))
+													{
+														fputc(c, stderr);
+														k++;
+													}
+													else
+													{
+														int len;
+														fprintf(stderr, "\\%03o%n", c, &len);
+														k+=len;
+													}
+												}
+												fprintf(stderr, overlong?"\"...\n":"\"\n");
 											}
+										}
 										i+=l;
 									break;
 									case 3: // Number whose name is one letter
