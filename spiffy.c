@@ -690,78 +690,180 @@ int main(int argc, char * argv[])
 						else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
 						{
 							unsigned short int sv_vars=peek16(23627), i=sv_vars, l;
+							char *what=strtok(NULL, ""), *rest=NULL;
+							unsigned int wlen=0;
+							if(what)
+							{
+								rest=strchr(what, '(');
+								if(rest)
+								{
+									char *nrest=strdup(rest);
+									*rest=0;
+									rest=nrest;
+								}
+								wlen=strlen(what);
+								while(wlen&&isspace(what[wlen-1]))
+									what[--wlen]=0;
+							}
 							double num;
+							bool match=!what;
 							while(i&&(RAM[i]!=0x80))
 							{
+								unsigned char name=(RAM[i]&0x1f)|0x60;
+								unsigned short int addr=i;
 								switch(RAM[i]>>5)
 								{
 									case 2: // String
 										// 010aaaaa Length[2] Text[]
-										fprintf(stderr, "$ ");
-										fputc(RAM[i++]|0x20, stderr);
-										fprintf(stderr, "$ = \"");
+										if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
+										if(match) fprintf(stderr, "%04x $ %c$ = \"", addr, name);
+										i++;
 										l=peek16(i);
 										i+=2;
-										unsigned int k=0;
-										bool overlong=false;
-										for(unsigned int j=0;j<l;j++)
+										if(match)
 										{
-											if(k>=64)
+											unsigned int k=0;
+											bool overlong=false;
+											for(unsigned int j=0;j<l;j++)
 											{
-												overlong=true;
-												break;
+												if(k>=64)
+												{
+													overlong=true;
+													break;
+												}
+												unsigned char c=RAM[i+j];
+												if((c>=32)&&(c<127))
+												{
+													fputc(c, stderr);
+													k++;
+												}
+												else
+												{
+													int len;
+													fprintf(stderr, "\\%03o%n", c, &len);
+													k+=len;
+												}
 											}
-											unsigned char c=RAM[i+j];
-											if((c>=32)&&(c<127))
-											{
-												fputc(c, stderr);
-												k++;
+											fprintf(stderr, overlong?"\"...\n":"\"\n");
 											}
-											else
-											{
-												int len;
-												fprintf(stderr, "\\%03o%n", c, &len);
-												k+=len;
-											}
-										}
 										i+=l;
-										fprintf(stderr, overlong?"\"...\n":"\"\n");
 									break;
 									case 3: // Number whose name is one letter
 										// 011aaaaa Value[5]
-										fprintf(stderr, "# ");
-										fputc(RAM[i++], stderr);
-										num=float_decode(RAM, i);
-										fprintf(stderr, " = %g\n", num);
+										if(what) match=((wlen==1)&&(*what==name));
+										if(rest) match=false;
+										if(match)
+										{
+											fprintf(stderr, "%04x # ", addr);
+											fputc(name, stderr);
+										}
+										num=float_decode(RAM, ++i);
+										if(match) fprintf(stderr, " = %g\n", num);
 										i+=5;
 									break;
 									case 4: // Array of numbers
 										// 100aaaaa TotalLength[2] DimensionsAndValues[]
-										fprintf(stderr, "# %c (array)\n", (RAM[i++]&0x1f)|0x60);
+										if(what) match=((wlen==1)&&(*what==name)&&rest);
+										if(!what) fprintf(stderr, "%04x # %c (array)\n", addr, name);
+										i++;
 										l=peek16(i);
-										i+=l+2;
+										i+=2;
+										if(what&&match)
+										{
+											unsigned char ndim=RAM[i], sub=0;
+											unsigned short int dims[ndim];
+											for(unsigned char dim=0;dim<ndim;dim++)
+												dims[dim]=peek16(i+1+dim*2);
+											unsigned int subs[ndim];
+											const char *p=rest;
+											while(p&&*p&&(sub<ndim))
+											{
+												if(strchr("(,) \t", *p)) { p++; continue; }
+												int l;
+												if(sscanf(p, "%u%n", subs+sub, &l)!=1)
+													break;
+												p+=l;
+												if(subs[sub]<1)
+												{
+													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+													break;
+												}
+												if(subs[sub]>dims[sub])
+												{
+													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+													break;
+												}
+												sub++;
+											}
+											addr=i+1+ndim*2;
+											if(sub<ndim)
+											{
+												for(unsigned char dim=0;dim<sub;dim++)
+												{
+													unsigned short int offset=(subs[dim]-1)*5;
+													for(unsigned char d2=dim+1;d2<ndim;d2++)
+														offset*=dims[d2];
+													addr+=offset;
+												}
+												fprintf(stderr, "%04x # %c", addr, name);
+												for(unsigned char dim=0;dim<sub;dim++)
+												{
+													fprintf(stderr, "(%u)", subs[dim]);
+												}
+												fprintf(stderr, " (array");
+												for(unsigned char dim=sub;dim<ndim;dim++)
+													fprintf(stderr, "[%u]", dims[dim]);
+												fprintf(stderr, ")\n");
+											}
+											else
+											{
+												for(unsigned char dim=0;dim<ndim;dim++)
+												{
+													unsigned short int offset=(subs[dim]-1)*5;
+													for(unsigned char d2=dim+1;d2<ndim;d2++)
+														offset*=dims[d2];
+													addr+=offset;
+												}
+												fprintf(stderr, "%04x # %c", addr, name);
+												for(unsigned char dim=0;dim<sub;dim++)
+												{
+													fprintf(stderr, "(%u)", subs[dim]);
+												}
+												fprintf(stderr, " = %g\n", float_decode(RAM, addr));
+											}
+										}
+										i+=l;
 									break;
-									case 5: // Number whose name is longer than one letter
+									case 5:; // Number whose name is longer than one letter
 										// 101aaaaa 0bbbbbbb ... 1zzzzzzz Value[5]
-										fprintf(stderr, "# ");
-										fputc(RAM[i++]^0xC0, stderr);
-										do fputc(RAM[i]&0x7F, stderr);
+										string fullname=init_string();
+										append_char(&fullname, name);
+										i++;
+										do append_char(&fullname, RAM[i]&0x7F);
 										while(!(RAM[i++]&0x80));
+										if(what) match=strcmp(fullname.buf, what);
 										num=float_decode(RAM, i);
-										fprintf(stderr, " = %g\n", num);
+										if(match) fprintf(stderr, "%04x # %s = %g\n", addr, fullname.buf, num);
+										free_string(&fullname);
 										i+=5;
 									break;
 									case 6: // Array of characters
 										// 110aaaaa TotalLength[2] DimensionsAndValues[]
-										fprintf(stderr, "$ %c$ (array)\n", (RAM[i++]&0x1f)|0x60);
+										if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
+										if(!what) fprintf(stderr, "%04x $ %c$ (array)\n", addr, name);
+										i++;
 										l=peek16(i);
+										if(what&&match)
+										{
+											fprintf(stderr, "%04x $ %c$ (array read not done yet)\n", addr, name);
+											fprintf(stderr, "%s\n", rest);
+										}
 										i+=l+2;
 									break;
 									case 7: // Control variable of a FOR-NEXT loop
 										// 111aaaaa Value[5] Limit[5] Step[5] LoopingLine[2] StmtNumber[1]
-										fprintf(stderr, "# ");
-										fputc(RAM[i++]&0x7F, stderr);
-										num=float_decode(RAM, i);
+										if(what) match=((wlen==1)&&(*what==name));
+										num=float_decode(RAM, ++i);
 										i+=5;
 										double limit=float_decode(RAM, i);
 										i+=5;
@@ -770,14 +872,17 @@ int main(int argc, char * argv[])
 										unsigned short int loop=peek16(i);
 										i+=2;
 										unsigned char stmt=RAM[i++];
-										fprintf(stderr, " = %g (<%g %+g @%u:%u)\n", num, limit, step, loop, stmt);
+										if(match) fprintf(stderr, "%04x # %c = %g (<%g %+g @%u:%u)\n", addr, name, num, limit, step, loop, stmt);
 									break;
 									default:
 										fprintf(stderr, "Error - unrecognised var type %d\n", RAM[i]>>5);
 										i=0;
 									break;
 								}
+								if(what&&match) break;
 							}
+							free(rest);
+							if(what&&!match) fprintf(stderr, "No such variable '%s'\n", what);
 						}
 						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
 						{
