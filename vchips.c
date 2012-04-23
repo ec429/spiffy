@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "bits.h"
 
 void do_ram(unsigned char RAM[65536], bus_t *bus, bool wrom)
 {
@@ -25,7 +26,7 @@ void do_ram(unsigned char RAM[65536], bus_t *bus, bool wrom)
 
 int init_keyboard(void)
 {
-	FILE *f=fopen(PREFIX"/share/spiffy/keymap", "r");
+	FILE *f=configopen("keymap", "r");
 	if(!f) return(-1);
 	while(!feof(f))
 	{

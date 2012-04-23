@@ -153,3 +153,15 @@ void free_string(string *s)
 {
 	free(s->buf);
 }
+
+FILE *configopen(const char *name, const char *mode)
+{
+	char *fullname=malloc(strlen(PREFIX)+16+strlen(name));
+	if(fullname)
+	{
+		sprintf(fullname, PREFIX"/share/spiffy/%s", name);
+		FILE *fp=fopen(fullname, mode);
+		if(fp) return(fp);
+	}
+	return(fopen(name, mode));
+}

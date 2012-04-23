@@ -26,3 +26,5 @@ void append_char(string *s, char c); // adds a character to a string buffer in h
 void append_str(string *s, const char *str); // adds a cstring to a string buffer in heap (and realloc()s if needed)
 void append_string(string *s, const string t); // adds a string to a string buffer in heap (and realloc()s if needed)
 void free_string(string *s); // frees a string (is just free(s->buf); really)
+
+FILE *configopen(const char *name, const char *mode);
