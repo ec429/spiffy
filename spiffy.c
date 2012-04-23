@@ -225,6 +225,11 @@ int main(int argc, char * argv[])
 	ula_t _ula, *ula=&_ula;
 	
 	SDL_Surface * screen=gf_init();
+	if(!screen)
+	{
+		fprintf(stderr, "Failed to set up video\n");
+		return(2);
+	}
 	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
 	SDL_EnableUNICODE(1);
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
@@ -315,6 +320,11 @@ int main(int argc, char * argv[])
 		return(1);
 	}
 #ifdef AUDIO
+	if(SDL_InitSubSystem(SDL_INIT_AUDIO))
+	{
+		fprintf(stderr, "spiffy: failed to initialise audio subsystem:\tSDL_InitSubSystem:%s\n", SDL_GetError());
+		return(3);
+	}
 	SDL_AudioSpec fmt;
 	fmt.freq = SAMPLE_RATE;
 	fmt.format = AUDIO_S16;
@@ -1712,11 +1722,7 @@ q[uit]         quit Spiffy\n");
 		}
 	}
 	
-	show_state(RAM, cpu, Tstates, bus);
-	
-	// clean up
-	if(SDL_MUSTLOCK(screen))
-		SDL_UnlockSurface(screen);
+	//show_state(RAM, cpu, Tstates, bus);
 	return(0);
 }
 
@@ -1725,18 +1731,13 @@ SDL_Surface * gf_init()
 	SDL_Surface * screen;
 	if(SDL_Init(SDL_INIT_VIDEO)<0)
 	{
-		perror("SDL_Init");
+		fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
 		return(NULL);
 	}
+	//atexit(SDL_Quit);
 	if((screen = SDL_SetVideoMode(OSIZ_X, OSIZ_Y, OBPP, SDL_HWSURFACE))==0)
 	{
-		perror("SDL_SetVideoMode");
-		SDL_Quit();
-		return(NULL);
-	}
-	if(SDL_MUSTLOCK(screen) && SDL_LockSurface(screen) < 0)
-	{
-		perror("SDL_LockSurface");
+		fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
 		return(NULL);
 	}
 	return(screen);
