@@ -106,6 +106,7 @@ void loadfile(const char *fn, libspectrum_tape **deck);
 #define peek16(a)	(RAM[(a)]|(RAM[(a)+1]<<8))
 #define poke16(a,v)	(RAM[(a)]=(v),RAM[(a)+1]=((v)>>8))
 double float_decode(const unsigned char *RAM, unsigned int addr);
+void float_encode(unsigned char *RAM, unsigned int addr, double val);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -469,7 +470,70 @@ int main(int argc, char * argv[])
 							derrupt++;
 						}
 						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
-							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm r xxxx\tread memory\nm w xxxx xx\twrite memory\nei\t\tEnable interrupts\ndi\t\tDisable interrupts\nr(eset)\t\tReset the Z80\n[!]i(nt)\tset/clear INT line\n[!]nmi\t\tset/clear NMI line\nv(ars)\t\tlist BASIC variables\nq(uit)\t\tquit Spiffy\n");
+						{
+							const char *what=strtok(NULL, " ");
+							if(!what) what="";
+							if(strcmp(what, "m")==0)
+								fprintf(stderr, "spiffy debugger: memory commands\n\
+m r xxxx       read memory at address xxxx (hex)\n\
+m w xxxx [yy]  write value yy (hex) or 0 to address xxxx (hex)\n\
+m fr xxxx      read 5-byte float from address xxxx (hex)\n\
+m fw xxxx d    write 5-byte float d (decimal) to address xxxx (hex)\n\
+");
+							else if(strcmp(what, "v")==0)
+								fprintf(stderr, "spiffy debugger: BASIC variables\n\
+v              list all variables\n\
+v foo          examine (numeric) foo\n\
+v a$           examine (string) a$\n\
+v a(1,2,3)     examine numeric array a\n\
+v a$(4)        examine character array a$\n\
+    If the variable is numeric, the listed address is that of the 5-byte float\n\
+    value; if string, the listed address is the start of the variable's\n\
+    metadata (the string data starts 3 bytes later).  If it's an array, the\n\
+    address of the first element of the array is given (that is, the address\n\
+    when all the remaining subscripts are filled out with 1s); this is the\n\
+    case regardless of whether the array is numeric or character.\n\
+");
+							else if(strcmp(what, "=")==0)
+								fprintf(stderr, "spiffy debugger: register assignments\n\
+= reg val      assigns val (hex) to register reg\n\
+\n\
+The registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
+8-bit assignments can be made as follows:\n\
+ MSB LSB register\n\
+  A   F     AF\n\
+  B   C     BC\n\
+  D   E     DE\n\
+  H   L     HL\n\
+  X   x     IX\n\
+  Y   y     IY\n\
+  I   R     IR (can't assign as 16-bit)\n\
+  S   P     SP\n\
+  a   f     AF'\n\
+  b   c     BC'\n\
+  d   e     DE'\n\
+  h   l     HL'\n\
+");
+							else
+								fprintf(stderr, "spiffy debugger:\n\
+n[ext]         single-step the Z80\n\
+c[ont]         continue emulation\n\
+h[elp]         this help here\n\
+s[tate]        show Z80 state\n\
+t[race]        trace Z80 state\n\
+b[reak] xxxx   set a breakpoint\n\
+!b[reak] xxxx  delete a breakpoint\n\
+l[ist]         list breakpoints\n\
+= reg val      assign a value to a register (see 'h =')\n\
+m[emory]       read/write memory (see 'h m')\n\
+ei             enable interrupts\n\
+di             disable interrupts\n\
+r[eset]        reset the Z80\n\
+[!]i[nt]       set/clear INT line\n\
+[!]nmi         set/clear NMI line\n\
+v[ars]         examine BASIC variables (see 'h v')\n\
+q[uit]         quit Spiffy\n");
+						}
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
 							show_state(RAM, cpu, Tstates, bus);
 						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
@@ -613,11 +677,46 @@ int main(int argc, char * argv[])
 											fprintf(stderr, "memory: missing address\n");
 									}
 								}
+								else if(strcmp(what, "fr")==0)
+								{
+									char *rest=strtok(NULL, "");
+									if(rest)
+									{
+										unsigned int addr;
+										if(sscanf(rest, "%x", &addr)==1)
+										{
+											fprintf(stderr, "[%04x.f]=%g\n", addr, float_decode(RAM, addr));
+										}
+										else
+											fprintf(stderr, "memory: missing address\n");
+									}
+									else
+										fprintf(stderr, "memory: missing address\n");
+								}
+								else if(strcmp(what, "fw")==0)
+								{
+									char *a=strtok(NULL, " ");
+									if(a)
+									{
+										char *rest=strtok(NULL, "");
+										unsigned int addr;
+										if(sscanf(a, "%x", &addr)==1)
+										{
+											double val;
+											if(!(rest&&(sscanf(rest, "%lg", &val)==1)))
+												fprintf(stderr, "memory: missing value\n");
+											else
+												float_encode(RAM, addr, val);
+										}
+										else
+											fprintf(stderr, "memory: missing address\n");
+									}
+								}
 								else
-									fprintf(stderr, "memory: bad mode (should be r or w)\n");
+									fprintf(stderr, "memory: bad mode (see 'h m')\n");
 							}
 							else
-								fprintf(stderr, "memory: missing mode (should be r or w)\n");
+								fprintf(stderr, "memory: missing mode (see 'h m')\n");
 						}
 						else if((strcmp(cmd, "b")==0)||(strcmp(cmd, "break")==0))
 						{
@@ -2189,4 +2288,41 @@ double float_decode(const unsigned char *RAM, unsigned int addr)
 	unsigned long mantissa=((RAM[addr+1]|0x80)<<24)|(RAM[addr+2]<<16)|(RAM[addr+3]<<8)|RAM[addr+4];
 	bool minus=RAM[addr+1]&0x80;
 	return((minus?-1.0:1.0)*mantissa*exp2(exponent-32));
+}
+
+void float_encode(unsigned char *RAM, unsigned int addr, double val)
+{
+	if((fabs(val)<65536)&&(ceil(val)==val))
+	{
+		RAM[addr]=RAM[addr+4]=0;
+		signed int ival=ceil(val);
+		if(signbit(val))
+		{
+			RAM[addr+1]=0xFF;
+			ival+=131072;
+		}
+		else
+			RAM[addr+1]=0;
+		poke16(addr+2, (unsigned int)ival);
+	}
+	else if(isfinite(val))
+	{
+		signed char exponent=1+floor(log2(fabs(val)));
+		double mantissa=rint(fabs(val)*exp2(32-exponent));
+		if(mantissa>0xffffffff)
+		{
+			fprintf(stderr, "float_encode: 6 Number too big, %g\n", val);
+			return;
+		}
+		unsigned long mi=mantissa;
+		RAM[addr]=exponent+128;
+		RAM[addr+1]=((mi>>24)&0x7F)|(signbit(val)?0x80:0);
+		RAM[addr+2]=mi>>16;
+		RAM[addr+3]=mi>>8;
+		RAM[addr+4]=mi;
+	}
+	else
+	{
+		fprintf(stderr, "float_encode: cannot encode non-finite number %g\n", val);
+	}
 }
