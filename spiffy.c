@@ -754,7 +754,7 @@ int main(int argc, char * argv[])
 										if(rest) match=false;
 										if(match)
 										{
-											fprintf(stderr, "%04x # ", addr);
+											fprintf(stderr, "%04x # ", addr+1);
 											fputc(name, stderr);
 										}
 										num=float_decode(RAM, ++i);
@@ -843,7 +843,7 @@ int main(int argc, char * argv[])
 										while(!(RAM[i++]&0x80));
 										if(what) match=strcmp(fullname.buf, what);
 										num=float_decode(RAM, i);
-										if(match) fprintf(stderr, "%04x # %s = %g\n", addr, fullname.buf, num);
+										if(match) fprintf(stderr, "%04x # %s = %g\n", i, fullname.buf, num);
 										free_string(&fullname);
 										i+=5;
 									break;
@@ -872,7 +872,7 @@ int main(int argc, char * argv[])
 										unsigned short int loop=peek16(i);
 										i+=2;
 										unsigned char stmt=RAM[i++];
-										if(match) fprintf(stderr, "%04x # %c = %g (<%g %+g @%u:%u)\n", addr, name, num, limit, step, loop, stmt);
+										if(match) fprintf(stderr, "%04x # %c = %g (<%g %+g @%u:%u)\n", addr+1, name, num, limit, step, loop, stmt);
 									break;
 									default:
 										fprintf(stderr, "Error - unrecognised var type %d\n", RAM[i]>>5);
