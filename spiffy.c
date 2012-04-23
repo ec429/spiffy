@@ -1297,11 +1297,11 @@ q[uit]         quit Spiffy\n");
 				}
 				dtext(screen, 244, 298, 76, text, font, 0xbf, 0xbf, 0xbf);
 				#ifdef AUDIO
-				snprintf(text, 32, "BW:%03hhu", filterfactor);
+				snprintf(text, 32, "BW:%03u", filterfactor);
 				dtext(screen, 28, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
-				snprintf(text, 32, "SR:%03hhu", sinc_rate);
+				snprintf(text, 32, "SR:%03u", sinc_rate);
 				dtext(screen, 92, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
