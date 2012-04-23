@@ -1725,7 +1725,9 @@ q[uit]         quit Spiffy\n");
 	}
 	
 	//show_state(RAM, cpu, Tstates, bus);
-	SDL_PauseAudio(1);
+#ifdef AUDIO
+	abuf.play=true; // let the audio thread run free and finish
+#endif
 	return(0);
 }
 
@@ -1737,6 +1739,7 @@ SDL_Surface * gf_init()
 		fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
 		return(NULL);
 	}
+	atexit(SDL_Quit);
 	if((screen = SDL_SetVideoMode(OSIZ_X, OSIZ_Y, OBPP, SDL_HWSURFACE))==0)
 	{
 		fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
