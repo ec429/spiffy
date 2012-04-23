@@ -6,6 +6,7 @@ SDL := `sdl-config --libs` -lSDL_ttf
 SDLFLAGS := `sdl-config --cflags`
 GTK := `pkg-config --libs gtk+-2.0`
 GTKFLAGS := `pkg-config --cflags gtk+-2.0`
+VERSION := `git describe --tags`
 
 all: spiffy filechooser
 
@@ -35,3 +36,12 @@ install: spiffy filechooser
 	install -D -m0644 *.rom -t $(PREFIX)/share/spiffy/
 	install -d -m0755 buttons $(PREFIX)/share/spiffy/buttons
 	install -D -m0644 buttons/* -t $(PREFIX)/share/spiffy/buttons
+
+dist: all
+	mkdir spiffy_$(VERSION)
+	for p in $$(ls); do cp $$p spiffy_$(VERSION)/$$p; done;
+	cp -r buttons spiffy_$(VERSION)/
+	-rm spiffy_$(VERSION)/*.tgz
+	tar -czf spiffy_$(VERSION).tgz spiffy_$(VERSION)/
+	rm -r spiffy_$(VERSION)/
+
