@@ -103,6 +103,9 @@ bool pos_rect(pos p, SDL_Rect r);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
 void drawbutton(SDL_Surface *screen, button b);
 void loadfile(const char *fn, libspectrum_tape **deck);
+#define peek16(a)	(RAM[(a)]|(RAM[(a)+1]<<8))
+#define poke16(a,v)	(RAM[(a)]=(v),RAM[(a)+1]=((v)>>8))
+double float_decode(const unsigned char *RAM, unsigned int addr);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -466,7 +469,7 @@ int main(int argc, char * argv[])
 							derrupt++;
 						}
 						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
-							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm r xxxx\tread memory\nm w xxxx xx\twrite memory\nei\t\tEnable interrupts\ndi\t\tDisable interrupts\nr(eset)\t\tReset the Z80\n[!]i(nt)\tset/clear INT line\n[!]nmi\t\tset/clear NMI line\nq(uit)\t\tquit Spiffy\n");
+							fprintf(stderr, "spiffy debugger:\nn(ext)\t\tsingle-step the Z80\nc(ont)\t\tcontinue emulation\nh(elp)\t\tthis help here\ns(tate)\t\tshow Z80 state\nt(race)\t\ttrace Z80 state\nb(reak) xxxx\tset a breakpoint\n!b(reak) xxxx\tdelete a breakpoint\nl(ist)\t\tlist breakpoints\n= reg val\tassign a value to a register\nm r xxxx\tread memory\nm w xxxx xx\twrite memory\nei\t\tEnable interrupts\ndi\t\tDisable interrupts\nr(eset)\t\tReset the Z80\n[!]i(nt)\tset/clear INT line\n[!]nmi\t\tset/clear NMI line\nv(ars)\t\tlist BASIC variables\nq(uit)\t\tquit Spiffy\n");
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
 							show_state(RAM, cpu, Tstates, bus);
 						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
@@ -684,6 +687,98 @@ int main(int argc, char * argv[])
 							bus->nmi=true;
 						else if(strcmp(cmd, "!nmi")==0)
 							bus->nmi=false;
+						else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
+						{
+							unsigned short int sv_vars=peek16(23627), i=sv_vars, l;
+							double num;
+							while(i&&(RAM[i]!=0x80))
+							{
+								switch(RAM[i]>>5)
+								{
+									case 2: // String
+										// 010aaaaa Length[2] Text[]
+										fprintf(stderr, "$ ");
+										fputc(RAM[i++]|0x20, stderr);
+										fprintf(stderr, "$ = \"");
+										l=peek16(i);
+										i+=2;
+										unsigned int k=0;
+										bool overlong=false;
+										for(unsigned int j=0;j<l;j++)
+										{
+											if(k>=64)
+											{
+												overlong=true;
+												break;
+											}
+											unsigned char c=RAM[i+j];
+											if((c>=32)&&(c<127))
+											{
+												fputc(c, stderr);
+												k++;
+											}
+											else
+											{
+												int len;
+												fprintf(stderr, "\\%03o%n", c, &len);
+												k+=len;
+											}
+										}
+										i+=l;
+										fprintf(stderr, overlong?"\"...\n":"\"\n");
+									break;
+									case 3: // Number whose name is one letter
+										// 011aaaaa Value[5]
+										fprintf(stderr, "# ");
+										fputc(RAM[i++], stderr);
+										num=float_decode(RAM, i);
+										fprintf(stderr, " = %g\n", num);
+										i+=5;
+									break;
+									case 4: // Array of numbers
+										// 100aaaaa TotalLength[2] DimensionsAndValues[]
+										fprintf(stderr, "# %c (array)\n", (RAM[i++]&0x1f)|0x60);
+										l=peek16(i);
+										i+=l+2;
+									break;
+									case 5: // Number whose name is longer than one letter
+										// 101aaaaa 0bbbbbbb ... 1zzzzzzz Value[5]
+										fprintf(stderr, "# ");
+										fputc(RAM[i++]^0xC0, stderr);
+										do fputc(RAM[i]&0x7F, stderr);
+										while(!(RAM[i++]&0x80));
+										num=float_decode(RAM, i);
+										fprintf(stderr, " = %g\n", num);
+										i+=5;
+									break;
+									case 6: // Array of characters
+										// 110aaaaa TotalLength[2] DimensionsAndValues[]
+										fprintf(stderr, "$ %c$ (array)\n", (RAM[i++]&0x1f)|0x60);
+										l=peek16(i);
+										i+=l+2;
+									break;
+									case 7: // Control variable of a FOR-NEXT loop
+										// 111aaaaa Value[5] Limit[5] Step[5] LoopingLine[2] StmtNumber[1]
+										fprintf(stderr, "# ");
+										fputc(RAM[i++]&0x7F, stderr);
+										num=float_decode(RAM, i);
+										i+=5;
+										double limit=float_decode(RAM, i);
+										i+=5;
+										double step=float_decode(RAM, i);
+										i+=5;
+										unsigned short int loop=peek16(i);
+										i+=2;
+										unsigned char stmt=RAM[i++];
+										fprintf(stderr, " = %g (<%g %+g @%u:%u)\n", num, limit, step, loop, stmt);
+									break;
+									default:
+										fprintf(stderr, "Error - unrecognised var type %d\n", RAM[i]>>5);
+										i=0;
+									break;
+								}
+							}
+						}
 						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
 						{
 							errupt++;
@@ -1860,4 +1955,24 @@ void loadfile(const char *fn, libspectrum_tape **deck)
 			}
 		}
 	}
+}
+
+double float_decode(const unsigned char *RAM, unsigned int addr)
+{
+	if(!RAM[addr])
+	{
+		if((!RAM[addr+1])||(RAM[addr+1]==0xFF))
+		{
+			if(!RAM[addr+4])
+			{
+				unsigned short int val=peek16(addr+2);
+				if(RAM[addr+1]) return(val-131072);
+				return(val);
+			}
+		}
+	}
+	signed char exponent=RAM[addr]-128;
+	unsigned long mantissa=((RAM[addr+1]|0x80)<<24)|(RAM[addr+2]<<16)|(RAM[addr+3]<<8)|RAM[addr+4];
+	bool minus=RAM[addr+1]&0x80;
+	return((minus?-1.0:1.0)*mantissa*exp2(exponent-32));
 }
