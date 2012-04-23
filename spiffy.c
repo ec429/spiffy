@@ -1713,15 +1713,9 @@ q[uit]         quit Spiffy\n");
 	
 	show_state(RAM, cpu, Tstates, bus);
 	
-	#ifdef AUDIO
-	// Stop sound
-	SDL_PauseAudio(1);
-	#endif /* AUDIO */
-	
 	// clean up
 	if(SDL_MUSTLOCK(screen))
 		SDL_UnlockSurface(screen);
-	raise(SIGKILL);
 	return(0);
 }
 
@@ -1733,7 +1727,6 @@ SDL_Surface * gf_init()
 		perror("SDL_Init");
 		return(NULL);
 	}
-	atexit(SDL_Quit);
 	if((screen = SDL_SetVideoMode(OSIZ_X, OSIZ_Y, OBPP, SDL_HWSURFACE))==0)
 	{
 		perror("SDL_SetVideoMode");
