@@ -57,12 +57,12 @@ void step_od(z80 *cpu, int ernal, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0:
-			bus->tris=OFF;
+			bus->tris=TRIS_OFF;
 			bus->addr=(*PC);
 			bus->mreq=false;
 		break;
 		case 1:
-			bus->tris=IN;
+			bus->tris=TRIS_IN;
 			bus->addr=(*PC);
 			bus->mreq=true;
 		break;
@@ -73,7 +73,7 @@ void step_od(z80 *cpu, int ernal, bus_t *bus)
 			{
 				(*PC)++;
 				cpu->internal[ernal]=bus->data;
-				bus->tris=OFF;
+				bus->tris=TRIS_OFF;
 				bus->addr=0;
 				bus->mreq=false;
 				cpu->M++;
@@ -88,12 +88,12 @@ void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0:
-			bus->tris=OFF;
+			bus->tris=TRIS_OFF;
 			bus->addr=addr;
 			bus->mreq=false;
 		break;
 		case 1:
-			bus->tris=IN;
+			bus->tris=TRIS_IN;
 			bus->addr=addr;
 			bus->mreq=true;
 		break;
@@ -103,7 +103,7 @@ void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 			else
 			{
 				*val=bus->data;
-				bus->tris=OFF;
+				bus->tris=TRIS_OFF;
 				bus->mreq=false;
 				cpu->dT=-1;
 				cpu->M++;
@@ -117,7 +117,7 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0:
-			bus->tris=OFF;
+			bus->tris=TRIS_OFF;
 			bus->addr=addr;
 			bus->mreq=false;
 			bus->data=val;
@@ -127,7 +127,7 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 			cpu->stv=val;
 		break;
 		case 1:
-			bus->tris=OUT;
+			bus->tris=TRIS_OUT;
 			bus->addr=addr;
 			bus->mreq=true;
 			bus->data=val;
@@ -137,7 +137,7 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 				cpu->dT--;
 			else
 			{
-				bus->tris=OFF;
+				bus->tris=TRIS_OFF;
 				bus->mreq=false;
 				bus->data=val;
 				cpu->M++;
@@ -152,7 +152,7 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0:
-			bus->tris=OFF;
+			bus->tris=TRIS_OFF;
 			bus->addr=addr;
 			bus->iorq=false;
 			cpu->steps=max(cpu->steps,2);
@@ -163,7 +163,7 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 		case 1: /* fallthrough */
 			cpu->nothing=1;
 		case 2:
-			bus->tris=IN;
+			bus->tris=TRIS_IN;
 			bus->addr=addr;
 			bus->iorq=true;
 		break;
@@ -173,7 +173,7 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 			else
 			{
 				*val=bus->data;
-				bus->tris=OFF;
+				bus->tris=TRIS_OFF;
 				bus->iorq=false;
 				cpu->M++;
 				cpu->dT=-1;
@@ -187,7 +187,7 @@ void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0:
-			bus->tris=OFF;
+			bus->tris=TRIS_OFF;
 			bus->addr=addr;
 			bus->iorq=false;
 			bus->data=val;
@@ -199,7 +199,7 @@ void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 		case 1: /* fallthrough */
 			cpu->nothing=1;
 		case 2:
-			bus->tris=OUT;
+			bus->tris=TRIS_OUT;
 			bus->addr=addr;
 			bus->iorq=true;
 			bus->data=val;
@@ -209,7 +209,7 @@ void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 				cpu->dT--;
 			else
 			{
-				bus->tris=OFF;
+				bus->tris=TRIS_OFF;
 				bus->iorq=false;
 				cpu->M++;
 				cpu->dT=-1;
@@ -223,12 +223,12 @@ void step_sr(z80 *cpu, int ernal, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0:
-			bus->tris=IN;
+			bus->tris=TRIS_IN;
 			bus->addr=(*SP);
 			bus->mreq=false;
 		break;
 		case 1:
-			bus->tris=IN;
+			bus->tris=TRIS_IN;
 			bus->addr=(*SP);
 			bus->mreq=true;
 		break;
@@ -239,7 +239,7 @@ void step_sr(z80 *cpu, int ernal, bus_t *bus)
 			{
 				(*SP)++;
 				cpu->internal[ernal]=bus->data;
-				bus->tris=OFF;
+				bus->tris=TRIS_OFF;
 				bus->mreq=false;
 				cpu->M++;
 				cpu->dT=-1;
@@ -253,7 +253,7 @@ void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 	switch(cpu->dT)
 	{
 		case 0:
-			bus->tris=OFF;
+			bus->tris=TRIS_OFF;
 			bus->mreq=false;
 			bus->addr=--(*SP);
 			bus->data=val;
@@ -262,7 +262,7 @@ void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 			cpu->stv=val;
 		break;
 		case 1:
-			bus->tris=OUT;
+			bus->tris=TRIS_OUT;
 			bus->addr=(*SP);
 			bus->mreq=true;
 			bus->data=val;
@@ -272,7 +272,7 @@ void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 				cpu->dT--;
 			else
 			{
-				bus->tris=OFF;
+				bus->tris=TRIS_OFF;
 				bus->mreq=false;
 				cpu->M++;
 				cpu->dT=-1;
@@ -382,12 +382,12 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 void op_bli(z80 *cpu, bus_t *bus)
 {
 	/*
-	y: 4=I 5=D 6=IR 7=DR	== b0: DEC (else INC); b1: REPEAT
-	z: 0=LD 1=CP 2=IN 3=OUT
+	y: 4=I 5=D 6=IR 7=DR	== b0: DEC (else TRIS_INC); b1: REPEAT
+	z: 0=LD 1=CP 2=TRIS_IN 3=TRIS_OUT
 		LDxx: LD (DE),(HL); DE+-; HL+-; BC--; R? BC? PC-=2.
 		CPxx: CP A,(HL); HL+-; BC--; R? BC&&(A!=HL)? PC-=2.
-		INxx: IN (HL), port(BC); HL+-; B--; R? B? PC-=2.
-		OTxx: BC--; OUT port(BC),(HL); HL+-; R? B? PC-=2.
+		TRIS_INxx: TRIS_IN (HL), port(BC); HL+-; B--; R? B? PC-=2.
+		OTxx: BC--; TRIS_OUT port(BC),(HL); HL+-; R? B? PC-=2.
 	*/
 	switch(cpu->M)
 	{
@@ -399,7 +399,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 				case 3: // OTxx M1: MR(3)
 					STEP_MR(*HL, &cpu->internal[1]);
 				break;
-				case 2: // INxx M1: PR(4)
+				case 2: // TRIS_INxx M1: PR(4)
 					STEP_PR(*BC, &cpu->internal[1]);
 				break;
 			}
@@ -470,7 +470,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 						}
 					}
 				break;
-				case 2: // INxx M2: MW(3)
+				case 2: // TRIS_INxx M2: MW(3)
 					STEP_MW(*HL, cpu->internal[1]);
 					if(cpu->M>2)
 					{
@@ -592,7 +592,7 @@ void op_sbc16(z80 *cpu)
 
 unsigned char op_inc8(z80 *cpu, unsigned char operand)
 {
-	// INC r: Increment r, F=( XVX0X)=[SZ5H3V0 ]
+	// TRIS_INC r: Increment r, F=( XVX0X)=[SZ5H3V0 ]
 	unsigned char src=operand+1;
 	cpu->regs[2]&=FC; // retain C (Carry) flag unchanged
 	cpu->regs[2]|=(src&FS); // S = Sign bit
@@ -630,7 +630,7 @@ void op_ra(z80 *cpu)
 	{
 		if(c) cpu->regs[3]|=r?0x80:0x01; // old carry (RLA/RRA)
 	}
-	else // INTO Carry (8-bit)
+	else // TRIS_INTO Carry (8-bit)
 	{
 		if(hi) cpu->regs[3]|=r?0x80:0x01; // new carry (RLCA/RRCA)
 	}
@@ -649,7 +649,7 @@ unsigned char op_r(z80 *cpu, unsigned char operand)
 	{
 		if(c) operand|=r?0x80:0x01; // old carry (RL/RR)
 	}
-	else // INTO Carry (8-bit)
+	else // TRIS_INTO Carry (8-bit)
 	{
 		if(hi) operand|=r?0x80:0x01; // new carry (RLC/RRC)
 	}

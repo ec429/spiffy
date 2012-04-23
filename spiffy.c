@@ -37,12 +37,12 @@
 #define AUDIO		// Activates audio
 
 #ifdef AUDIO
-#define MAX_SINC_RATE	32
+#define MAX_STRIS_INC_RATE	32
 #define SAMPLE_RATE		8000 // Audio sample rate, Hz
 #define AUDIOBUFLEN		(SAMPLE_RATE/100)
-#define MAX_SINCBUFLEN	(AUDIOBUFLEN*MAX_SINC_RATE)
+#define MAX_STRIS_INCBUFLEN	(AUDIOBUFLEN*MAX_STRIS_INC_RATE)
 unsigned char sinc_rate=12;
-#define SINCBUFLEN		(AUDIOBUFLEN*sinc_rate)
+#define STRIS_INCBUFLEN		(AUDIOBUFLEN*sinc_rate)
 void update_sinc(unsigned char filterfactor);
 #endif /* AUDIO */
 
@@ -68,15 +68,15 @@ void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
 {
-	bool bits[MAX_SINCBUFLEN];
-	bool cbuf[MAX_SINCBUFLEN];
+	bool bits[MAX_STRIS_INCBUFLEN];
+	bool cbuf[MAX_STRIS_INCBUFLEN];
 	unsigned int rp, wp; // read & write pointers for 'bits' circular buffer
 	bool play; // true if tape is playing (we mute and allow skipping)
 	FILE *record;
 }
 audiobuf;
 
-double sincgroups[MAX_SINC_RATE][AUDIOBUFLEN];
+double sincgroups[MAX_STRIS_INC_RATE][AUDIOBUFLEN];
 #endif /* AUDIO */
 
 typedef struct
@@ -402,7 +402,7 @@ int main(int argc, char * argv[])
 		if(!(Tstates%(69888*50/(SAMPLE_RATE*sinc_rate))))
 		{
 			abuf.play=play;
-			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
+			unsigned int newwp=(abuf.wp+1)%STRIS_INCBUFLEN;
 			if(delay&&!play)
 				while(newwp==abuf.rp) usleep(5e3);
 			abuf.bits[abuf.wp]=(bus->portfe&0x10);
@@ -424,13 +424,13 @@ int main(int argc, char * argv[])
 		if(bus->mreq)
 			do_ram(RAM, bus, false);
 		
-		if(unlikely(bus->iorq&&(bus->tris==OUT)))
+		if(unlikely(bus->iorq&&(bus->tris==TRIS_OUT)))
 		{
 			if(!(bus->addr&0x01))
 				bus->portfe=bus->data;
 		}
 		
-		if(unlikely(bus->iorq&&(bus->tris==IN)))
+		if(unlikely(bus->iorq&&(bus->tris==TRIS_IN)))
 		{
 			if(!(bus->addr&0x01))
 			{
@@ -529,7 +529,7 @@ m[emory]       read/write memory (see 'h m')\n\
 ei             enable interrupts\n\
 di             disable interrupts\n\
 r[eset]        reset the Z80\n\
-[!]i[nt]       set/clear INT line\n\
+[!]i[nt]       set/clear TRIS_INT line\n\
 [!]nmi         set/clear NMI line\n\
 v[ars]         examine BASIC variables (see 'h v')\n\
 q[uit]         quit Spiffy\n");
@@ -1598,7 +1598,7 @@ q[uit]         quit Spiffy\n");
 								}
 								else if(pos_rect(mouse, sr_up))
 								{
-									sinc_rate=min(sinc_rate+1,MAX_SINC_RATE);
+									sinc_rate=min(sinc_rate+1,MAX_STRIS_INC_RATE);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, sr_down))
@@ -1674,7 +1674,7 @@ q[uit]         quit Spiffy\n");
 								}
 								else if(pos_rect(mouse, sr_up))
 								{
-									sinc_rate=min(sinc_rate<<1,MAX_SINC_RATE);
+									sinc_rate=min(sinc_rate<<1,MAX_STRIS_INC_RATE);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, sr_down))
@@ -1851,13 +1851,13 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		{
 			while(!a->play&&(a->rp==a->wp)) usleep(5e3);
 			a->cbuf[a->rp]=a->bits[a->rp];
-			a->rp=(a->rp+1)%SINCBUFLEN;
+			a->rp=(a->rp+1)%STRIS_INCBUFLEN;
 		}
-		unsigned int l=a->play?SINCBUFLEN>>2:SINCBUFLEN;
+		unsigned int l=a->play?STRIS_INCBUFLEN>>2:STRIS_INCBUFLEN;
 		double v=0;
 		for(unsigned int j=0;j<l;j++)
 		{
-			signed char d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
+			signed char d=a->cbuf[(a->rp+STRIS_INCBUFLEN-j)%STRIS_INCBUFLEN]-a->cbuf[(a->rp+STRIS_INCBUFLEN-j-1)%STRIS_INCBUFLEN];
 			if(d)
 				v+=d*sincgroups[sinc_rate-(j%sinc_rate)-1][j/sinc_rate];
 		}
@@ -1875,17 +1875,17 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 
 void update_sinc(unsigned char filterfactor)
 {
-	double sinc[SINCBUFLEN];
-	for(unsigned int i=0;i<SINCBUFLEN;i++)
+	double sinc[STRIS_INCBUFLEN];
+	for(unsigned int i=0;i<STRIS_INCBUFLEN;i++)
 	{
-		double v=filterfactor*(i/(double)SINCBUFLEN-0.5);
+		double v=filterfactor*(i/(double)STRIS_INCBUFLEN-0.5);
 		sinc[i]=(v?sin(v)/v:1)*16.0/(double)sinc_rate;
 	}
 	for(unsigned int g=0;g<sinc_rate;g++)
 	{
 		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
 			sincgroups[g][j]=0;
-		for(unsigned int i=0;i<SINCBUFLEN;i++)
+		for(unsigned int i=0;i<STRIS_INCBUFLEN;i++)
 		{
 			unsigned int j=(i+g)/sinc_rate;
 			if(j<AUDIOBUFLEN)
@@ -1934,9 +1934,9 @@ void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bu
 	printf("\n");
 	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u", Tstates, cpu->M, cpu->dT, cpu->internal[0], cpu->internal[1], cpu->internal[2], cpu->shiftstate);
 	if(cpu->nmiacc) printf(" NMI!");
-	else if(cpu->intacc) printf(" INT!");
+	else if(cpu->intacc) printf(" TRIS_INT!");
 	printf("\n");
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==OUT?"WR":"wr", bus->tris==IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->reset?"RESET":"reset", bus->halt?"HALT":"halt");
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==TRIS_OUT?"WR":"wr", bus->tris==TRIS_IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"TRIS_INT":"int", bus->nmi?"NMI":"nmi", bus->reset?"RESET":"reset", bus->halt?"HALT":"halt");
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!

@@ -5,7 +5,7 @@
 
 void do_ram(unsigned char RAM[65536], bus_t *bus, bool wrom)
 {
-	if(bus->mreq&&(bus->tris==IN))
+	if(bus->mreq&&(bus->tris==TRIS_IN))
 	{
 		if(likely(bus->addr<ramtop))
 		{
@@ -16,7 +16,7 @@ void do_ram(unsigned char RAM[65536], bus_t *bus, bool wrom)
 			bus->data=floor(rand()*256.0/RAND_MAX);
 		}
 	}
-	else if(bus->mreq&&(bus->tris==OUT))
+	else if(bus->mreq&&(bus->tris==TRIS_OUT))
 	{
 		if((wrom||(bus->addr&0xC000))&&likely(bus->addr<ramtop))
 			RAM[bus->addr]=bus->data;
