@@ -740,10 +740,12 @@ q[uit]         quit Spiffy\n");
 								if(!nbp)
 								{
 									perror("malloc");
-									return(1);
 								}
-								(breakpoints=nbp)[n]=bp;
-								fprintf(stderr, "breakpoint at %04x\n", bp);
+								else
+								{
+									(breakpoints=nbp)[n]=bp;
+									fprintf(stderr, "breakpoint at %04x\n", bp);
+								}
 							}
 							else
 							{
@@ -1723,6 +1725,7 @@ q[uit]         quit Spiffy\n");
 	}
 	
 	//show_state(RAM, cpu, Tstates, bus);
+	SDL_PauseAudio(1);
 	return(0);
 }
 
@@ -1734,7 +1737,6 @@ SDL_Surface * gf_init()
 		fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
 		return(NULL);
 	}
-	//atexit(SDL_Quit);
 	if((screen = SDL_SetVideoMode(OSIZ_X, OSIZ_Y, OBPP, SDL_HWSURFACE))==0)
 	{
 		fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
