@@ -872,12 +872,102 @@ int main(int argc, char * argv[])
 										if(!what) fprintf(stderr, "%04x $ %c$ (array)\n", addr, name);
 										i++;
 										l=peek16(i);
+										i+=2;
 										if(what&&match)
 										{
-											fprintf(stderr, "%04x $ %c$ (array read not done yet)\n", addr, name);
-											fprintf(stderr, "%s\n", rest);
+											unsigned char ndim=RAM[i], sub=0;
+											unsigned short int dims[ndim];
+											for(unsigned char dim=0;dim<ndim;dim++)
+												dims[dim]=peek16(i+1+dim*2);
+											unsigned int subs[ndim];
+											const char *p=rest;
+											while(p&&*p&&(sub<ndim))
+											{
+												if(strchr("(,) \t", *p)) { p++; continue; }
+												int l;
+												if(sscanf(p, "%u%n", subs+sub, &l)!=1)
+													break;
+												p+=l;
+												if(subs[sub]<1)
+												{
+													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+													break;
+												}
+												if(subs[sub]>dims[sub])
+												{
+													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+													break;
+												}
+												sub++;
+											}
+											addr=i+1+ndim*2;
+											if(sub<ndim)
+											{
+												for(unsigned char dim=0;dim<sub;dim++)
+												{
+													unsigned short int offset=subs[dim]-1;
+													for(unsigned char d2=dim+1;d2<ndim;d2++)
+														offset*=dims[d2];
+													addr+=offset;
+												}
+												fprintf(stderr, "%04x $ %c$", addr, name);
+												for(unsigned char dim=0;dim<sub;dim++)
+												{
+													fprintf(stderr, "(%u)", subs[dim]);
+												}
+												fprintf(stderr, " (array");
+												for(unsigned char dim=sub;dim<ndim;dim++)
+													fprintf(stderr, "[%u]", dims[dim]);
+												fputc(')', stderr);
+												if(sub+1==ndim)
+												{
+													fprintf(stderr, " = \"");
+													unsigned int k=0;
+													bool overlong=false;
+													for(unsigned int j=0;j<dims[ndim-1];j++)
+													{
+														if(k>=64)
+														{
+															overlong=true;
+															break;
+														}
+														unsigned char c=RAM[addr+j];
+														if((c>=32)&&(c<127))
+														{
+															fputc(c, stderr);
+															k++;
+														}
+														else
+														{
+															int len;
+															fprintf(stderr, "\\%03o%n", c, &len);
+															k+=len;
+														}
+													}
+													fputc('"', stderr);
+													if(overlong) fprintf(stderr, "...");
+												}
+												fputc('\n', stderr);
+											}
+											else
+											{
+												for(unsigned char dim=0;dim<ndim;dim++)
+												{
+													unsigned short int offset=(subs[dim]-1);
+													for(unsigned char d2=dim+1;d2<ndim;d2++)
+														offset*=dims[d2];
+													addr+=offset;
+												}
+												fprintf(stderr, "%04x $ %c$", addr, name);
+												for(unsigned char dim=0;dim<sub;dim++)
+													fprintf(stderr, "(%u)", subs[dim]);
+												unsigned char c=RAM[addr];
+												if((c>=32)&&(c<127))
+													fprintf(stderr, " = '%c'", c);
+												fprintf(stderr, " = %u = 0x%02x = '\\%03o'\n", c, c, c);
+											}
 										}
-										i+=l+2;
+										i+=l;
 									break;
 									case 7: // Control variable of a FOR-NEXT loop
 										// 111aaaaa Value[5] Limit[5] Step[5] LoopingLine[2] StmtNumber[1]
