@@ -480,30 +480,52 @@ int main(int argc, char * argv[])
 					char *line=finpl(stdin);
 					if(line)
 					{
+						static char *oldline=NULL;
+						char *thisline=strdup(line);
 						char *cmd=strtok(line, " ");
 						if(!cmd)
 						{
-							debug=false;
-							derrupt++;
+							if(oldline) cmd=strtok(oldline, " ");
+							free(thisline);
 						}
-						else if((strcmp(cmd, "c")==0)||(strcmp(cmd, "cont")==0))
+						else
 						{
-							debug=false;
-							derrupt++;
+							free(oldline);
+							oldline=thisline;
 						}
-						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
+						if(!cmd)
 						{
-							const char *what=strtok(NULL, " ");
-							if(!what) what="";
-							if(strcmp(what, "m")==0)
-								fprintf(stderr, "spiffy debugger: memory commands\n\
+							fprintf(stderr, "This is the spiffy debugger.\nType `h' for a list of commands, or `help h' for a list of help sections\n");
+						}
+						else
+						{
+							if((strcmp(cmd, "c")==0)||(strcmp(cmd, "cont")==0))
+							{
+								debug=false;
+								derrupt++;
+							}
+							else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
+							{
+								const char *what=strtok(NULL, " ");
+								if(!what) what="";
+								if(strcmp(what, "h")==0)
+									fprintf(stderr, "spiffy debugger: help sections\n\
+h              commands list\n\
+h h            this section list\n\
+h m            memory commands\n\
+h v            BASIC variables\n\
+h k            BASIC listing\n\
+h =            register assignments\n\
+");
+								else if(strcmp(what, "m")==0)
+									fprintf(stderr, "spiffy debugger: memory commands\n\
 m r xxxx       read memory at address xxxx (hex)\n\
 m w xxxx [yy]  write value yy (hex) or 0 to address xxxx (hex)\n\
 m fr xxxx      read 5-byte float from address xxxx (hex)\n\
 m fw xxxx d    write 5-byte float d (decimal) to address xxxx (hex)\n\
 ");
-							else if(strcmp(what, "v")==0)
-								fprintf(stderr, "spiffy debugger: BASIC variables\n\
+								else if(strcmp(what, "v")==0)
+									fprintf(stderr, "spiffy debugger: BASIC variables\n\
 v              list all variables\n\
 v foo          examine (numeric) foo\n\
 v a$           examine (string) a$\n\
@@ -516,8 +538,14 @@ v a$(4)        examine character array a$\n\
     when all the remaining subscripts are filled out with 1s); this is the\n\
     case regardless of whether the array is numeric or character.\n\
 ");
-							else if(strcmp(what, "=")==0)
-								fprintf(stderr, "spiffy debugger: register assignments\n\
+								else if(strcmp(what, "k")==0)
+									fprintf(stderr, "spiffy debugger: BASIC listing\n\
+k              entire program listing\n\
+kn             listing with float numbers\n\
+k 10           display line 10 of the program\n\
+");
+								else if(strcmp(what, "=")==0)
+									fprintf(stderr, "spiffy debugger: register assignments\n\
 = reg val      assigns val (hex) to register reg\n\
 \n\
 The registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
@@ -536,8 +564,8 @@ The registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
   d   e     DE'\n\
   h   l     HL'\n\
 ");
-							else
-								fprintf(stderr, "spiffy debugger:\n\
+								else
+									fprintf(stderr, "spiffy debugger:\n\
 n[ext]         single-step the Z80\n\
 c[ont]         continue emulation\n\
 h[elp]         this help here\n\
@@ -554,508 +582,326 @@ r[eset]        reset the Z80\n\
 [!]i[nt]       set/clear INT line\n\
 [!]nmi         set/clear NMI line\n\
 v[ars]         examine BASIC variables (see 'h v')\n\
-k              examine BASIC listing\n\
+k              examine BASIC listing (see 'h k')\n\
 q[uit]         quit Spiffy\n");
-						}
-						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
-							show_state(RAM, cpu, Tstates, bus);
-						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
-							trace=true;
-						else if((strcmp(cmd, "!t")==0)||(strcmp(cmd, "!trace")==0))
-							trace=false;
-						else if((strcmp(cmd, "n")==0)||(strcmp(cmd, "next")==0))
-							derrupt++;
-						else if((strcmp(cmd, "=")==0)||(strcmp(cmd, "assign")==0))
-						{
-							char *what=strtok(NULL, " ");
-							if(what)
+							}
+							else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
+								show_state(RAM, cpu, Tstates, bus);
+							else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
+								trace=true;
+							else if((strcmp(cmd, "!t")==0)||(strcmp(cmd, "!trace")==0))
+								trace=false;
+							else if((strcmp(cmd, "n")==0)||(strcmp(cmd, "next")==0))
+								derrupt++;
+							else if((strcmp(cmd, "=")==0)||(strcmp(cmd, "assign")==0))
+							{
+								char *what=strtok(NULL, " ");
+								if(what)
+								{
+									char *rest=strtok(NULL, "");
+									int reg=-1;
+									bool is16=false;
+									if(strcasecmp(what, "PC")==0)
+									{
+										reg=0;
+										is16=true;
+									}
+									else if(strlen(what)==1)
+									{
+										const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
+										const char *p=strchr(reglist, *what);
+										if(p)
+											reg=(p+2-reglist)^1;
+										is16=false;
+									}
+									else if(strcasecmp(what, "AF")==0)
+									{
+										reg=2;
+										is16=true;
+									}
+									else if(strcasecmp(what, "BC")==0)
+									{
+										reg=4;
+										is16=true;
+									}
+									else if(strcasecmp(what, "DE")==0)
+									{
+										reg=6;
+										is16=true;
+									}
+									else if(strcasecmp(what, "HL")==0)
+									{
+										reg=8;
+										is16=true;
+									}
+									else if(strcasecmp(what, "IX")==0)
+									{
+										reg=10;
+										is16=true;
+									}
+									else if(strcasecmp(what, "IY")==0)
+									{
+										reg=12;
+										is16=true;
+									}
+									else if(strcasecmp(what, "SP")==0)
+									{
+										reg=16;
+										is16=true;
+									}
+									else if(strcasecmp(what, "AF'")==0)
+									{
+										reg=18;
+										is16=true;
+									}
+									else if(strcasecmp(what, "BC'")==0)
+									{
+										reg=20;
+										is16=true;
+									}
+									else if(strcasecmp(what, "DE'")==0)
+									{
+										reg=22;
+										is16=true;
+									}
+									else if(strcasecmp(what, "HL'")==0)
+									{
+										reg=24;
+										is16=true;
+									}
+									if(reg>=0)
+									{
+										unsigned int val;
+										if(sscanf(rest, "%x", &val)==1)
+										{
+											cpu->regs[reg]=val;
+											if(is16)
+												cpu->regs[reg+1]=val>>8;
+										}
+										else
+										{
+											fprintf(stderr, "set: missing value\n");
+										}
+									}
+									else
+									{
+										fprintf(stderr, "No such register %s\n", what);
+									}
+								}
+							}
+							else if((strcmp(cmd, "m")==0)||(strcmp(cmd, "memory")==0))
+							{
+								char *what=strtok(NULL, " ");
+								if(what)
+								{
+									if(*what=='r')
+									{
+										char *rest=strtok(NULL, "");
+										if(rest)
+										{
+											unsigned int addr;
+											if(sscanf(rest, "%x", &addr)==1)
+											{
+												fprintf(stderr, "[%04x]=%02x\n", addr, RAM[addr]);
+											}
+											else
+												fprintf(stderr, "memory: missing address\n");
+										}
+										else
+											fprintf(stderr, "memory: missing address\n");
+									}
+									else if(*what=='w')
+									{
+										char *a=strtok(NULL, " ");
+										if(a)
+										{
+											char *rest=strtok(NULL, "");
+											unsigned int addr;
+											if(sscanf(a, "%x", &addr)==1)
+											{
+												unsigned int val;
+												if(!(rest&&(sscanf(rest, "%x", &val)==1)))
+													val=0;
+												RAM[addr]=val;
+											}
+											else
+												fprintf(stderr, "memory: missing address\n");
+										}
+									}
+									else if(strcmp(what, "fr")==0)
+									{
+										char *rest=strtok(NULL, "");
+										if(rest)
+										{
+											unsigned int addr;
+											if(sscanf(rest, "%x", &addr)==1)
+											{
+												fprintf(stderr, "[%04x.f]=%g\n", addr, float_decode(RAM, addr));
+											}
+											else
+												fprintf(stderr, "memory: missing address\n");
+										}
+										else
+											fprintf(stderr, "memory: missing address\n");
+									}
+									else if(strcmp(what, "fw")==0)
+									{
+										char *a=strtok(NULL, " ");
+										if(a)
+										{
+											char *rest=strtok(NULL, "");
+											unsigned int addr;
+											if(sscanf(a, "%x", &addr)==1)
+											{
+												double val;
+												if(!(rest&&(sscanf(rest, "%lg", &val)==1)))
+													fprintf(stderr, "memory: missing value\n");
+												else
+													float_encode(RAM, addr, val);
+											}
+											else
+												fprintf(stderr, "memory: missing address\n");
+										}
+									}
+									else
+										fprintf(stderr, "memory: bad mode (see 'h m')\n");
+								}
+								else
+									fprintf(stderr, "memory: missing mode (see 'h m')\n");
+							}
+							else if((strcmp(cmd, "b")==0)||(strcmp(cmd, "break")==0))
 							{
 								char *rest=strtok(NULL, "");
-								int reg=-1;
-								bool is16=false;
-								if(strcasecmp(what, "PC")==0)
+								unsigned int bp=0;
+								if(rest&&(sscanf(rest, "%x", &bp)==1))
 								{
-									reg=0;
-									is16=true;
-								}
-								else if(strlen(what)==1)
-								{
-									const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
-									const char *p=strchr(reglist, *what);
-									if(p)
-										reg=(p+2-reglist)^1;
-									is16=false;
-								}
-								else if(strcasecmp(what, "AF")==0)
-								{
-									reg=2;
-									is16=true;
-								}
-								else if(strcasecmp(what, "BC")==0)
-								{
-									reg=4;
-									is16=true;
-								}
-								else if(strcasecmp(what, "DE")==0)
-								{
-									reg=6;
-									is16=true;
-								}
-								else if(strcasecmp(what, "HL")==0)
-								{
-									reg=8;
-									is16=true;
-								}
-								else if(strcasecmp(what, "IX")==0)
-								{
-									reg=10;
-									is16=true;
-								}
-								else if(strcasecmp(what, "IY")==0)
-								{
-									reg=12;
-									is16=true;
-								}
-								else if(strcasecmp(what, "SP")==0)
-								{
-									reg=16;
-									is16=true;
-								}
-								else if(strcasecmp(what, "AF'")==0)
-								{
-									reg=18;
-									is16=true;
-								}
-								else if(strcasecmp(what, "BC'")==0)
-								{
-									reg=20;
-									is16=true;
-								}
-								else if(strcasecmp(what, "DE'")==0)
-								{
-									reg=22;
-									is16=true;
-								}
-								else if(strcasecmp(what, "HL'")==0)
-								{
-									reg=24;
-									is16=true;
-								}
-								if(reg>=0)
-								{
-									unsigned int val;
-									if(sscanf(rest, "%x", &val)==1)
+									unsigned int n=nbreaks++;
+									unsigned int *nbp=realloc(breakpoints, nbreaks*sizeof(unsigned int));
+									if(!nbp)
 									{
-										cpu->regs[reg]=val;
-										if(is16)
-											cpu->regs[reg+1]=val>>8;
+										perror("malloc");
 									}
 									else
 									{
-										fprintf(stderr, "set: missing value\n");
+										(breakpoints=nbp)[n]=bp;
+										fprintf(stderr, "breakpoint at %04x\n", bp);
 									}
 								}
 								else
 								{
-									fprintf(stderr, "No such register %s\n", what);
+									fprintf(stderr, "break: missing argument\n");
 								}
 							}
-						}
-						else if((strcmp(cmd, "m")==0)||(strcmp(cmd, "memory")==0))
-						{
-							char *what=strtok(NULL, " ");
-							if(what)
+							else if((strcmp(cmd, "!b")==0)||(strcmp(cmd, "!break")==0))
 							{
-								if(*what=='r')
+								char *rest=strtok(NULL, "");
+								unsigned int bp=0;
+								if(rest&&(sscanf(rest, "%x", &bp)==1))
 								{
-									char *rest=strtok(NULL, "");
-									if(rest)
+									for(unsigned int i=0;i<nbreaks;i++)
 									{
-										unsigned int addr;
-										if(sscanf(rest, "%x", &addr)==1)
+										while(breakpoints[i]==bp)
 										{
-											fprintf(stderr, "[%04x]=%02x\n", addr, RAM[addr]);
+											fprintf(stderr, "deleted breakpoint at %04x\n", breakpoints[i]);
+											if(i<--nbreaks)
+												breakpoints[i]=breakpoints[i+1];
+											else break;
 										}
-										else
-											fprintf(stderr, "memory: missing address\n");
-									}
-									else
-										fprintf(stderr, "memory: missing address\n");
-								}
-								else if(*what=='w')
-								{
-									char *a=strtok(NULL, " ");
-									if(a)
-									{
-										char *rest=strtok(NULL, "");
-										unsigned int addr;
-										if(sscanf(a, "%x", &addr)==1)
-										{
-											unsigned int val;
-											if(!(rest&&(sscanf(rest, "%x", &val)==1)))
-												val=0;
-											RAM[addr]=val;
-										}
-										else
-											fprintf(stderr, "memory: missing address\n");
-									}
-								}
-								else if(strcmp(what, "fr")==0)
-								{
-									char *rest=strtok(NULL, "");
-									if(rest)
-									{
-										unsigned int addr;
-										if(sscanf(rest, "%x", &addr)==1)
-										{
-											fprintf(stderr, "[%04x.f]=%g\n", addr, float_decode(RAM, addr));
-										}
-										else
-											fprintf(stderr, "memory: missing address\n");
-									}
-									else
-										fprintf(stderr, "memory: missing address\n");
-								}
-								else if(strcmp(what, "fw")==0)
-								{
-									char *a=strtok(NULL, " ");
-									if(a)
-									{
-										char *rest=strtok(NULL, "");
-										unsigned int addr;
-										if(sscanf(a, "%x", &addr)==1)
-										{
-											double val;
-											if(!(rest&&(sscanf(rest, "%lg", &val)==1)))
-												fprintf(stderr, "memory: missing value\n");
-											else
-												float_encode(RAM, addr, val);
-										}
-										else
-											fprintf(stderr, "memory: missing address\n");
 									}
 								}
 								else
-									fprintf(stderr, "memory: bad mode (see 'h m')\n");
-							}
-							else
-								fprintf(stderr, "memory: missing mode (see 'h m')\n");
-						}
-						else if((strcmp(cmd, "b")==0)||(strcmp(cmd, "break")==0))
-						{
-							char *rest=strtok(NULL, "");
-							unsigned int bp=0;
-							if(rest&&(sscanf(rest, "%x", &bp)==1))
-							{
-								unsigned int n=nbreaks++;
-								unsigned int *nbp=realloc(breakpoints, nbreaks*sizeof(unsigned int));
-								if(!nbp)
 								{
-									perror("malloc");
-								}
-								else
-								{
-									(breakpoints=nbp)[n]=bp;
-									fprintf(stderr, "breakpoint at %04x\n", bp);
-								}
-							}
-							else
-							{
-								fprintf(stderr, "break: missing argument\n");
-							}
-						}
-						else if((strcmp(cmd, "!b")==0)||(strcmp(cmd, "!break")==0))
-						{
-							char *rest=strtok(NULL, "");
-							unsigned int bp=0;
-							if(rest&&(sscanf(rest, "%x", &bp)==1))
-							{
-								for(unsigned int i=0;i<nbreaks;i++)
-								{
-									while(breakpoints[i]==bp)
-									{
+									for(unsigned int i=0;i<nbreaks;i++)
 										fprintf(stderr, "deleted breakpoint at %04x\n", breakpoints[i]);
-										if(i<--nbreaks)
-											breakpoints[i]=breakpoints[i+1];
-										else break;
-									}
+									free(breakpoints);
+									breakpoints=NULL;
+									nbreaks=0;
 								}
 							}
-							else
+							else if((strcmp(cmd, "l")==0)||(strcmp(cmd, "list")==0))
 							{
 								for(unsigned int i=0;i<nbreaks;i++)
-									fprintf(stderr, "deleted breakpoint at %04x\n", breakpoints[i]);
-								free(breakpoints);
-								breakpoints=NULL;
-								nbreaks=0;
-							}
-						}
-						else if((strcmp(cmd, "l")==0)||(strcmp(cmd, "list")==0))
-						{
-							for(unsigned int i=0;i<nbreaks;i++)
-							{
-								fprintf(stderr, "breakpoint at %04x\n", breakpoints[i]);
-							}
-						}
-						else if(strcmp(cmd, "ei")==0)
-							cpu->IFF[0]=cpu->IFF[1]=1;
-						else if(strcmp(cmd, "di")==0)
-							cpu->IFF[0]=cpu->IFF[1]=0;
-						else if((strcmp(cmd, "r")==0)||(strcmp(cmd, "reset")==0))
-							bus_reset(bus);
-						else if((strcmp(cmd, "i")==0)||(strcmp(cmd, "int")==0))
-							bus->irq=true;
-						else if((strcmp(cmd, "!i")==0)||(strcmp(cmd, "!int")==0))
-							bus->irq=false;
-						else if(strcmp(cmd, "nmi")==0)
-							bus->nmi=true;
-						else if(strcmp(cmd, "!nmi")==0)
-							bus->nmi=false;
-						else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
-						{
-							unsigned short int sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_vars, l;
-							char *what=strtok(NULL, ""), *rest=NULL;
-							unsigned int wlen=0;
-							if(what)
-							{
-								rest=strchr(what, '(');
-								if(rest)
 								{
-									char *nrest=strdup(rest);
-									*rest=0;
-									rest=nrest;
+									fprintf(stderr, "breakpoint at %04x\n", breakpoints[i]);
 								}
-								wlen=strlen(what);
-								while(wlen&&isspace(what[wlen-1]))
-									what[--wlen]=0;
 							}
-							double num;
-							bool match=!what;
-							while(i&&(RAM[i]!=0x80))
+							else if(strcmp(cmd, "ei")==0)
+								cpu->IFF[0]=cpu->IFF[1]=1;
+							else if(strcmp(cmd, "di")==0)
+								cpu->IFF[0]=cpu->IFF[1]=0;
+							else if((strcmp(cmd, "r")==0)||(strcmp(cmd, "reset")==0))
+								bus_reset(bus);
+							else if((strcmp(cmd, "i")==0)||(strcmp(cmd, "int")==0))
+								bus->irq=true;
+							else if((strcmp(cmd, "!i")==0)||(strcmp(cmd, "!int")==0))
+								bus->irq=false;
+							else if(strcmp(cmd, "nmi")==0)
+								bus->nmi=true;
+							else if(strcmp(cmd, "!nmi")==0)
+								bus->nmi=false;
+							else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
 							{
-								unsigned char name=(RAM[i]&0x1f)|0x60;
-								unsigned short int addr=i;
-								switch(RAM[i]>>5)
+								unsigned short int sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_vars, l;
+								char *what=strtok(NULL, ""), *rest=NULL;
+								unsigned int wlen=0;
+								if(what)
 								{
-									case 2: // String
-										// 010aaaaa Length[2] Text[]
-										if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
-										i++;
-										l=peek16(i);
-										i+=2;
-										if(match)
-										{
-											if(rest)
+									rest=strchr(what, '(');
+									if(rest)
+									{
+										char *nrest=strdup(rest);
+										*rest=0;
+										rest=nrest;
+									}
+									wlen=strlen(what);
+									while(wlen&&isspace(what[wlen-1]))
+										what[--wlen]=0;
+								}
+								double num;
+								bool match=!what;
+								while(i&&(RAM[i]!=0x80))
+								{
+									unsigned char name=(RAM[i]&0x1f)|0x60;
+									unsigned short int addr=i;
+									switch(RAM[i]>>5)
+									{
+										case 2: // String
+											// 010aaaaa Length[2] Text[]
+											if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
+											i++;
+											l=peek16(i);
+											i+=2;
+											if(match)
 											{
-												unsigned int j;
-												if(sscanf(rest, "(%u)", &j)!=1)
-													fprintf(stderr, "3 Subscript wrong, 0:1\n");
-												else if((j<1)||(j>l))
-													fprintf(stderr, "3 Subscript wrong, 0:1\n");
-												else
+												if(rest)
 												{
-													unsigned char c=RAM[i+j-1];
-													fprintf(stderr, "%04x $ %c$(%u) = ", i+j-1, name, j);
-													if((c>=32)&&(c<127))
-														fprintf(stderr, "'%c' = ", c);
-													fprintf(stderr, "%u = 0x%02x = '\\%03o'\n", c, c, c);
-												}
-											}
-											else
-											{
-												fprintf(stderr, "%04x $ %c$ = \"", addr, name);
-												unsigned int k=0;
-												bool overlong=false;
-												for(unsigned int j=0;j<l;j++)
-												{
-													if(k>=64)
-													{
-														overlong=true;
-														break;
-													}
-													unsigned char c=RAM[i+j];
-													if((c>=32)&&(c<127))
-													{
-														fputc(c, stderr);
-														k++;
-													}
+													unsigned int j;
+													if(sscanf(rest, "(%u)", &j)!=1)
+														fprintf(stderr, "3 Subscript wrong, 0:1\n");
+													else if((j<1)||(j>l))
+														fprintf(stderr, "3 Subscript wrong, 0:1\n");
 													else
 													{
-														int len;
-														fprintf(stderr, "\\%03o%n", c, &len);
-														k+=len;
+														unsigned char c=RAM[i+j-1];
+														fprintf(stderr, "%04x $ %c$(%u) = ", i+j-1, name, j);
+														if((c>=32)&&(c<127))
+															fprintf(stderr, "'%c' = ", c);
+														fprintf(stderr, "%u = 0x%02x = '\\%03o'\n", c, c, c);
 													}
 												}
-												fprintf(stderr, overlong?"\"...\n":"\"\n");
-											}
-										}
-										i+=l;
-									break;
-									case 3: // Number whose name is one letter
-										// 011aaaaa Value[5]
-										if(what) match=((wlen==1)&&(*what==name));
-										if(rest) match=false;
-										if(match)
-										{
-											fprintf(stderr, "%04x # ", addr+1);
-											fputc(name, stderr);
-										}
-										num=float_decode(RAM, ++i);
-										if(match) fprintf(stderr, " = %g\n", num);
-										i+=5;
-									break;
-									case 4: // Array of numbers
-										// 100aaaaa TotalLength[2] DimensionsAndValues[]
-										if(what) match=((wlen==1)&&(*what==name)&&rest);
-										if(!what) fprintf(stderr, "%04x # %c (array)\n", addr, name);
-										i++;
-										l=peek16(i);
-										i+=2;
-										if(what&&match)
-										{
-											unsigned char ndim=RAM[i], sub=0;
-											unsigned short int dims[ndim];
-											for(unsigned char dim=0;dim<ndim;dim++)
-												dims[dim]=peek16(i+1+dim*2);
-											unsigned int subs[ndim];
-											const char *p=rest;
-											while(p&&*p&&(sub<ndim))
-											{
-												if(strchr("(,) \t", *p)) { p++; continue; }
-												int l;
-												if(sscanf(p, "%u%n", subs+sub, &l)!=1)
-													break;
-												p+=l;
-												if(subs[sub]<1)
+												else
 												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
-												}
-												if(subs[sub]>dims[sub])
-												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
-												}
-												sub++;
-											}
-											addr=i+1+ndim*2;
-											if(sub<ndim)
-											{
-												for(unsigned char dim=0;dim<sub;dim++)
-												{
-													unsigned short int offset=(subs[dim]-1)*5;
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
-														offset*=dims[d2];
-													addr+=offset;
-												}
-												fprintf(stderr, "%04x # %c", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
-												{
-													fprintf(stderr, "(%u)", subs[dim]);
-												}
-												fprintf(stderr, " (array");
-												for(unsigned char dim=sub;dim<ndim;dim++)
-													fprintf(stderr, "[%u]", dims[dim]);
-												fprintf(stderr, ")\n");
-											}
-											else
-											{
-												for(unsigned char dim=0;dim<ndim;dim++)
-												{
-													unsigned short int offset=(subs[dim]-1)*5;
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
-														offset*=dims[d2];
-													addr+=offset;
-												}
-												fprintf(stderr, "%04x # %c", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
-												{
-													fprintf(stderr, "(%u)", subs[dim]);
-												}
-												fprintf(stderr, " = %g\n", float_decode(RAM, addr));
-											}
-										}
-										i+=l;
-									break;
-									case 5:; // Number whose name is longer than one letter
-										// 101aaaaa 0bbbbbbb ... 1zzzzzzz Value[5]
-										string fullname=init_string();
-										append_char(&fullname, name);
-										i++;
-										do append_char(&fullname, RAM[i]&0x7F);
-										while(!(RAM[i++]&0x80));
-										if(what) match=!strcmp(fullname.buf, what);
-										num=float_decode(RAM, i);
-										if(match) fprintf(stderr, "%04x # %s = %g\n", i, fullname.buf, num);
-										free_string(&fullname);
-										i+=5;
-									break;
-									case 6: // Array of characters
-										// 110aaaaa TotalLength[2] DimensionsAndValues[]
-										if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
-										if(!what) fprintf(stderr, "%04x $ %c$ (array)\n", addr, name);
-										i++;
-										l=peek16(i);
-										i+=2;
-										if(what&&match)
-										{
-											unsigned char ndim=RAM[i], sub=0;
-											unsigned short int dims[ndim];
-											for(unsigned char dim=0;dim<ndim;dim++)
-												dims[dim]=peek16(i+1+dim*2);
-											unsigned int subs[ndim];
-											const char *p=rest;
-											while(p&&*p&&(sub<ndim))
-											{
-												if(strchr("(,) \t", *p)) { p++; continue; }
-												int l;
-												if(sscanf(p, "%u%n", subs+sub, &l)!=1)
-													break;
-												p+=l;
-												if(subs[sub]<1)
-												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
-												}
-												if(subs[sub]>dims[sub])
-												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
-												}
-												sub++;
-											}
-											addr=i+1+ndim*2;
-											if(sub<ndim)
-											{
-												for(unsigned char dim=0;dim<sub;dim++)
-												{
-													unsigned short int offset=subs[dim]-1;
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
-														offset*=dims[d2];
-													addr+=offset;
-												}
-												fprintf(stderr, "%04x $ %c$", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
-												{
-													fprintf(stderr, "(%u)", subs[dim]);
-												}
-												fprintf(stderr, " (array");
-												for(unsigned char dim=sub;dim<ndim;dim++)
-													fprintf(stderr, "[%u]", dims[dim]);
-												fputc(')', stderr);
-												if(sub+1==ndim)
-												{
-													fprintf(stderr, " = \"");
+													fprintf(stderr, "%04x $ %c$ = \"", addr, name);
 													unsigned int k=0;
 													bool overlong=false;
-													for(unsigned int j=0;j<dims[ndim-1];j++)
+													for(unsigned int j=0;j<l;j++)
 													{
 														if(k>=64)
 														{
 															overlong=true;
 															break;
 														}
-														unsigned char c=RAM[addr+j];
+														unsigned char c=RAM[i+j];
 														if((c>=32)&&(c<127))
 														{
 															fputc(c, stderr);
@@ -1068,113 +914,303 @@ q[uit]         quit Spiffy\n");
 															k+=len;
 														}
 													}
-													fputc('"', stderr);
-													if(overlong) fprintf(stderr, "...");
+													fprintf(stderr, overlong?"\"...\n":"\"\n");
 												}
-												fputc('\n', stderr);
 											}
-											else
+											i+=l;
+										break;
+										case 3: // Number whose name is one letter
+											// 011aaaaa Value[5]
+											if(what) match=((wlen==1)&&(*what==name));
+											if(rest) match=false;
+											if(match)
 											{
-												for(unsigned char dim=0;dim<ndim;dim++)
-												{
-													unsigned short int offset=(subs[dim]-1);
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
-														offset*=dims[d2];
-													addr+=offset;
-												}
-												fprintf(stderr, "%04x $ %c$", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
-													fprintf(stderr, "(%u)", subs[dim]);
-												unsigned char c=RAM[addr];
-												if((c>=32)&&(c<127))
-													fprintf(stderr, " = '%c'", c);
-												fprintf(stderr, " = %u = 0x%02x = '\\%03o'\n", c, c, c);
+												fprintf(stderr, "%04x # ", addr+1);
+												fputc(name, stderr);
 											}
-										}
-										i+=l;
-									break;
-									case 7: // Control variable of a FOR-NEXT loop
-										// 111aaaaa Value[5] Limit[5] Step[5] LoopingLine[2] StmtNumber[1]
-										if(what) match=((wlen==1)&&(*what==name));
-										num=float_decode(RAM, ++i);
-										i+=5;
-										double limit=float_decode(RAM, i);
-										i+=5;
-										double step=float_decode(RAM, i);
-										i+=5;
-										unsigned short int loop=peek16(i);
-										i+=2;
-										unsigned char stmt=RAM[i++];
-										if(match) fprintf(stderr, "%04x # %c = %g (<%g %+g @%u:%u)\n", addr+1, name, num, limit, step, loop, stmt);
-									break;
-									default:
-										fprintf(stderr, "Error - unrecognised var type %d\n", RAM[i]>>5);
-										i=0;
-									break;
+											num=float_decode(RAM, ++i);
+											if(match) fprintf(stderr, " = %g\n", num);
+											i+=5;
+										break;
+										case 4: // Array of numbers
+											// 100aaaaa TotalLength[2] DimensionsAndValues[]
+											if(what) match=((wlen==1)&&(*what==name)&&rest);
+											if(!what) fprintf(stderr, "%04x # %c (array)\n", addr, name);
+											i++;
+											l=peek16(i);
+											i+=2;
+											if(what&&match)
+											{
+												unsigned char ndim=RAM[i], sub=0;
+												unsigned short int dims[ndim];
+												for(unsigned char dim=0;dim<ndim;dim++)
+													dims[dim]=peek16(i+1+dim*2);
+												unsigned int subs[ndim];
+												const char *p=rest;
+												while(p&&*p&&(sub<ndim))
+												{
+													if(strchr("(,) \t", *p)) { p++; continue; }
+													int l;
+													if(sscanf(p, "%u%n", subs+sub, &l)!=1)
+														break;
+													p+=l;
+													if(subs[sub]<1)
+													{
+														fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+														break;
+													}
+													if(subs[sub]>dims[sub])
+													{
+														fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+														break;
+													}
+													sub++;
+												}
+												addr=i+1+ndim*2;
+												if(sub<ndim)
+												{
+													for(unsigned char dim=0;dim<sub;dim++)
+													{
+														unsigned short int offset=(subs[dim]-1)*5;
+														for(unsigned char d2=dim+1;d2<ndim;d2++)
+															offset*=dims[d2];
+														addr+=offset;
+													}
+													fprintf(stderr, "%04x # %c", addr, name);
+													for(unsigned char dim=0;dim<sub;dim++)
+													{
+														fprintf(stderr, "(%u)", subs[dim]);
+													}
+													fprintf(stderr, " (array");
+													for(unsigned char dim=sub;dim<ndim;dim++)
+														fprintf(stderr, "[%u]", dims[dim]);
+													fprintf(stderr, ")\n");
+												}
+												else
+												{
+													for(unsigned char dim=0;dim<ndim;dim++)
+													{
+														unsigned short int offset=(subs[dim]-1)*5;
+														for(unsigned char d2=dim+1;d2<ndim;d2++)
+															offset*=dims[d2];
+														addr+=offset;
+													}
+													fprintf(stderr, "%04x # %c", addr, name);
+													for(unsigned char dim=0;dim<sub;dim++)
+													{
+														fprintf(stderr, "(%u)", subs[dim]);
+													}
+													fprintf(stderr, " = %g\n", float_decode(RAM, addr));
+												}
+											}
+											i+=l;
+										break;
+										case 5:; // Number whose name is longer than one letter
+											// 101aaaaa 0bbbbbbb ... 1zzzzzzz Value[5]
+											string fullname=init_string();
+											append_char(&fullname, name);
+											i++;
+											do append_char(&fullname, RAM[i]&0x7F);
+											while(!(RAM[i++]&0x80));
+											if(what) match=!strcmp(fullname.buf, what);
+											num=float_decode(RAM, i);
+											if(match) fprintf(stderr, "%04x # %s = %g\n", i, fullname.buf, num);
+											free_string(&fullname);
+											i+=5;
+										break;
+										case 6: // Array of characters
+											// 110aaaaa TotalLength[2] DimensionsAndValues[]
+											if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
+											if(!what) fprintf(stderr, "%04x $ %c$ (array)\n", addr, name);
+											i++;
+											l=peek16(i);
+											i+=2;
+											if(what&&match)
+											{
+												unsigned char ndim=RAM[i], sub=0;
+												unsigned short int dims[ndim];
+												for(unsigned char dim=0;dim<ndim;dim++)
+													dims[dim]=peek16(i+1+dim*2);
+												unsigned int subs[ndim];
+												const char *p=rest;
+												while(p&&*p&&(sub<ndim))
+												{
+													if(strchr("(,) \t", *p)) { p++; continue; }
+													int l;
+													if(sscanf(p, "%u%n", subs+sub, &l)!=1)
+														break;
+													p+=l;
+													if(subs[sub]<1)
+													{
+														fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+														break;
+													}
+													if(subs[sub]>dims[sub])
+													{
+														fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
+														break;
+													}
+													sub++;
+												}
+												addr=i+1+ndim*2;
+												if(sub<ndim)
+												{
+													for(unsigned char dim=0;dim<sub;dim++)
+													{
+														unsigned short int offset=subs[dim]-1;
+														for(unsigned char d2=dim+1;d2<ndim;d2++)
+															offset*=dims[d2];
+														addr+=offset;
+													}
+													fprintf(stderr, "%04x $ %c$", addr, name);
+													for(unsigned char dim=0;dim<sub;dim++)
+													{
+														fprintf(stderr, "(%u)", subs[dim]);
+													}
+													fprintf(stderr, " (array");
+													for(unsigned char dim=sub;dim<ndim;dim++)
+														fprintf(stderr, "[%u]", dims[dim]);
+													fputc(')', stderr);
+													if(sub+1==ndim)
+													{
+														fprintf(stderr, " = \"");
+														unsigned int k=0;
+														bool overlong=false;
+														for(unsigned int j=0;j<dims[ndim-1];j++)
+														{
+															if(k>=64)
+															{
+																overlong=true;
+																break;
+															}
+															unsigned char c=RAM[addr+j];
+															if((c>=32)&&(c<127))
+															{
+																fputc(c, stderr);
+																k++;
+															}
+															else
+															{
+																int len;
+																fprintf(stderr, "\\%03o%n", c, &len);
+																k+=len;
+															}
+														}
+														fputc('"', stderr);
+														if(overlong) fprintf(stderr, "...");
+													}
+													fputc('\n', stderr);
+												}
+												else
+												{
+													for(unsigned char dim=0;dim<ndim;dim++)
+													{
+														unsigned short int offset=(subs[dim]-1);
+														for(unsigned char d2=dim+1;d2<ndim;d2++)
+															offset*=dims[d2];
+														addr+=offset;
+													}
+													fprintf(stderr, "%04x $ %c$", addr, name);
+													for(unsigned char dim=0;dim<sub;dim++)
+														fprintf(stderr, "(%u)", subs[dim]);
+													unsigned char c=RAM[addr];
+													if((c>=32)&&(c<127))
+														fprintf(stderr, " = '%c'", c);
+													fprintf(stderr, " = %u = 0x%02x = '\\%03o'\n", c, c, c);
+												}
+											}
+											i+=l;
+										break;
+										case 7: // Control variable of a FOR-NEXT loop
+											// 111aaaaa Value[5] Limit[5] Step[5] LoopingLine[2] StmtNumber[1]
+											if(what) match=((wlen==1)&&(*what==name));
+											num=float_decode(RAM, ++i);
+											i+=5;
+											double limit=float_decode(RAM, i);
+											i+=5;
+											double step=float_decode(RAM, i);
+											i+=5;
+											unsigned short int loop=peek16(i);
+											i+=2;
+											unsigned char stmt=RAM[i++];
+											if(match) fprintf(stderr, "%04x # %c = %g (<%g %+g @%u:%u)\n", addr+1, name, num, limit, step, loop, stmt);
+										break;
+										default:
+											fprintf(stderr, "Error - unrecognised var type %d\n", RAM[i]>>5);
+											i=0;
+										break;
+									}
+									if(what&&match) break;
 								}
-								if(what&&match) break;
+								free(rest);
+								if(what&&!match) fprintf(stderr, "No such variable '%s'\n", what);
 							}
-							free(rest);
-							if(what&&!match) fprintf(stderr, "No such variable '%s'\n", what);
-						}
-						else if(strcmp(cmd, "k")==0)
-						{
-							unsigned short int sv_prog=peek16(sysvarbyname("PROG")->addr), sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_prog;//, l;
-							//char *what=strtok(NULL, ""), *rest=NULL;
-							unsigned int nlines=0;
-							bas_line *lines=NULL;
-							while(i<sv_vars)
+							else if((strcmp(cmd, "k")==0)||(strcmp(cmd, "kn")==0))
 							{
-								bas_line new;
-								new.number=RAM[i+1]|(RAM[i]<<8); // Big-endian!  Crazy Sinclair ROM!
-								new.addr=i;
-								i+=2;
-								new.line.l=peek16(i);
-								i+=2;
-								new.line.i=0;
-								new.line.buf=malloc(new.line.l);
-								while(new.line.i+1<new.line.l)
+								unsigned short int sv_prog=peek16(sysvarbyname("PROG")->addr), sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_prog;
+								bool shownums=!strcmp(cmd, "kn");
+								char *what=strtok(NULL, "");
+								signed int lnum=-1;
+								if(what) sscanf(what, "%d", &lnum);
+								unsigned int nlines=0;
+								bas_line *lines=NULL;
+								while(i<sv_vars)
 								{
-									append_char(&new.line, RAM[i+new.line.i]);
-								}
-								i+=new.line.l;
-								unsigned int n=nlines++;
-								bas_line *nl=realloc(lines, nlines*sizeof(bas_line));
-								if(!nl)
-								{
-									nlines=n;
-									perror("realloc");
-								}
-								else
-								{
-									(lines=nl)[n]=new;
-								}
-							}
-							qsort(lines, nlines, sizeof(bas_line), compare_bas_line);
-							for(unsigned int l=0;l<nlines;l++)
-							{
-								fprintf(stderr, "%04x %u ", lines[l].addr, lines[l].number);
-								for(size_t p=0;p<lines[l].line.i;p++)
-								{
-									if((lines[l].line.buf[p]==0x0E)&&(p+5<lines[l].line.i))
+									bas_line new;
+									new.number=RAM[i+1]|(RAM[i]<<8); // Big-endian!  Crazy Sinclair ROM!
+									new.addr=i;
+									i+=2;
+									new.line.l=peek16(i);
+									i+=2;
+									new.line.i=0;
+									new.line.buf=malloc(new.line.l);
+									while(new.line.i+1<new.line.l)
 									{
-										fprintf(stderr, "[%g]", float_decode((const unsigned char *)lines[l].line.buf, p+1));
-										p+=5;
+										append_char(&new.line, RAM[i+new.line.i]);
+									}
+									i+=new.line.l;
+									unsigned int n=nlines++;
+									bas_line *nl=realloc(lines, nlines*sizeof(bas_line));
+									if(!nl)
+									{
+										nlines=n;
+										perror("realloc");
 									}
 									else
-										fputs(baschar(lines[l].line.buf[p]), stderr);
+									{
+										(lines=nl)[n]=new;
+									}
 								}
-								fputc('\n', stderr);
+								if(lnum<0)
+									qsort(lines, nlines, sizeof(bas_line), compare_bas_line);
+								for(unsigned int l=0;l<nlines;l++)
+								{
+									if((lnum<0)||(lnum==lines[l].number))
+									{
+										fprintf(stderr, "%04x %u ", lines[l].addr, lines[l].number);
+										for(size_t p=0;p<lines[l].line.i;p++)
+										{
+											if((lines[l].line.buf[p]==0x0E)&&(p+5<lines[l].line.i))
+											{
+												if(shownums) fprintf(stderr, "[%g]", float_decode((const unsigned char *)lines[l].line.buf, p+1));
+												p+=5;
+											}
+											else
+												fputs(baschar(lines[l].line.buf[p]), stderr);
+										}
+										fputc('\n', stderr);
+									}
+								}
 							}
-						}
-						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
-						{
-							errupt++;
-							derrupt++;
-						}
-						else
-						{
-							fprintf(stderr, "Unrecognised command '%s'.  Type 'h' for help\n", cmd);
+							else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
+							{
+								errupt++;
+								derrupt++;
+							}
+							else
+							{
+								fprintf(stderr, "Unrecognised command '%s'.  Type 'h' for help\n", cmd);
+							}
 						}
 					}
 					free(line);
