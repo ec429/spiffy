@@ -1,4 +1,15 @@
-struct sysvar {unsigned short int addr; unsigned short int len; const char *name;} sysvartbl[]={
+/*
+	spiffy - ZX spectrum emulator
+	
+	Copyright Edward Cree, 2010-12
+	sysvars.c - BASIC system variables
+*/
+
+#include "sysvars.h"
+#include <string.h>
+
+/* Note: this table is only valid for the 48k Spectrum; other machines may differ */
+struct sysvar sysvartbl[]={
 {23552, 8, "KSTATE"},
 {23560, 1, "LAST_K"},
 {23561, 1, "REPDEL"},
@@ -66,5 +77,17 @@ struct sysvar {unsigned short int addr; unsigned short int len; const char *name
 {23698, 30, "MEMBOT"},
 {23728, 2, "NMIADD"},
 {23730, 2, "RAMTOP"},
-{23732, 2, "P_RAMT"}
+{23732, 2, "P_RAMT"},
+{0, 0, NULL}
 };
+
+const struct sysvar *sysvarbyname(const char *name)
+{
+	unsigned int i=0;
+	while(sysvartbl[i].name)
+	{
+		if(strcmp(sysvartbl[i].name, name)==0) return(sysvartbl+i);
+		i++;
+	}
+	return(NULL);
+}

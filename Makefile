@@ -7,11 +7,13 @@ SDLFLAGS := `sdl-config --cflags`
 GTK := `pkg-config --libs gtk+-2.0`
 GTKFLAGS := `pkg-config --cflags gtk+-2.0`
 VERSION := `git describe --tags`
+LIBS := ops.o z80.o vchips.o bits.o pbm.o sysvars.o basic.o
+INCLUDES := ops.h z80.h vchips.h bits.h pbm.h sysvars.h basic.h
 
 all: spiffy spiffy-filechooser
 
-spiffy: spiffy.c ops.o ops.h z80.o z80.h vchips.o vchips.h bits.o bits.h pbm.o pbm.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) spiffy.c $(LDFLAGS) -o spiffy ops.o z80.o vchips.o bits.o pbm.o -lspectrum $(SDL)
+spiffy: spiffy.c $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) spiffy.c $(LDFLAGS) -o spiffy $(LIBS) -lspectrum $(SDL)
 
 spiffy-filechooser: filechooser.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(GTKFLAGS) filechooser.c $(LDFLAGS) -o spiffy-filechooser $(GTK)

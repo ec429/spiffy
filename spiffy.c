@@ -28,6 +28,8 @@
 #include "z80.h"
 #include "vchips.h"
 #include "pbm.h"
+#include "sysvars.h"
+#include "basic.h"
 
 // SDL surface params
 #define OSIZ_X	320
@@ -94,6 +96,15 @@ typedef struct
 	uint32_t col;
 }
 button;
+
+typedef struct
+{
+	unsigned short int number;
+	string line;
+	unsigned short int addr;
+}
+bas_line;
+int compare_bas_line(const void *, const void *);
 
 // helper fns
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
@@ -543,6 +554,7 @@ r[eset]        reset the Z80\n\
 [!]i[nt]       set/clear INT line\n\
 [!]nmi         set/clear NMI line\n\
 v[ars]         examine BASIC variables (see 'h v')\n\
+k              examine BASIC listing\n\
 q[uit]         quit Spiffy\n");
 						}
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
@@ -801,7 +813,7 @@ q[uit]         quit Spiffy\n");
 							bus->nmi=false;
 						else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
 						{
-							unsigned short int sv_vars=peek16(23627), i=sv_vars, l;
+							unsigned short int sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_vars, l;
 							char *what=strtok(NULL, ""), *rest=NULL;
 							unsigned int wlen=0;
 							if(what)
@@ -1104,6 +1116,56 @@ q[uit]         quit Spiffy\n");
 							}
 							free(rest);
 							if(what&&!match) fprintf(stderr, "No such variable '%s'\n", what);
+						}
+						else if(strcmp(cmd, "k")==0)
+						{
+							unsigned short int sv_prog=peek16(sysvarbyname("PROG")->addr), sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_prog;//, l;
+							//char *what=strtok(NULL, ""), *rest=NULL;
+							unsigned int nlines=0;
+							bas_line *lines=NULL;
+							while(i<sv_vars)
+							{
+								bas_line new;
+								new.number=RAM[i+1]|(RAM[i]<<8); // Big-endian!  Crazy Sinclair ROM!
+								new.addr=i;
+								i+=2;
+								new.line.l=peek16(i);
+								i+=2;
+								new.line.i=0;
+								new.line.buf=malloc(new.line.l);
+								while(new.line.i+1<new.line.l)
+								{
+									append_char(&new.line, RAM[i+new.line.i]);
+								}
+								i+=new.line.l;
+								unsigned int n=nlines++;
+								bas_line *nl=realloc(lines, nlines*sizeof(bas_line));
+								if(!nl)
+								{
+									nlines=n;
+									perror("realloc");
+								}
+								else
+								{
+									(lines=nl)[n]=new;
+								}
+							}
+							qsort(lines, nlines, sizeof(bas_line), compare_bas_line);
+							for(unsigned int l=0;l<nlines;l++)
+							{
+								fprintf(stderr, "%04x %u ", lines[l].addr, lines[l].number);
+								for(size_t p=0;p<lines[l].line.i;p++)
+								{
+									if((lines[l].line.buf[p]==0x0E)&&(p+5<lines[l].line.i))
+									{
+										fprintf(stderr, "[%g]", float_decode((const unsigned char *)lines[l].line.buf, p+1));
+										p+=5;
+									}
+									else
+										fputs(baschar(lines[l].line.buf[p]), stderr);
+								}
+								fputc('\n', stderr);
+							}
 						}
 						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
 						{
@@ -2325,4 +2387,12 @@ void float_encode(unsigned char *RAM, unsigned int addr, double val)
 	{
 		fprintf(stderr, "float_encode: cannot encode non-finite number %g\n", val);
 	}
+}
+
+int compare_bas_line(const void *a, const void *b)
+{
+	unsigned short int na=((bas_line *)a)->number, nb=((bas_line *)b)->number;
+	if(na<nb) return(-1);
+	if(na>nb) return(1);
+	return(0);
 }
