@@ -4,8 +4,6 @@ Readme.
 Spiffy is currently in a fairly early stage of development; the Z80 core works (and passes the Fuse coretests), but of peripherals only video, audio, the keyboard and tape input been added.
 Also, timings and contention are probably inaccurate.  In particular, the 'split bus' is not properly emulated, chiefly because I don't understand it.  (I need to read csmith's book!)
 
-It is necessary to 'make install' so that Spiffy can find its datafiles.
-
 UI controls:
 The UI is a bit spartan right now.  There are three rows of controls: Tape, Audio and Misc.
 Tape:
@@ -23,7 +21,7 @@ Audio:
 Misc:
 	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.
 	Reset (orange).  Resets the Spectrum (at the moment, simply sets the PC to 0).
-	Debug (sickly green).  Activates the debugger.  (Only works if Spiffy was run from a terminal)
+	Debug (sickly green).  Activates the debugger.  (Only works if Spiffy was run from a terminal)  See `debugger' for manual.
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.

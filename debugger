@@ -1,0 +1,90 @@
+Spiffy: Yet another ZX Spectrum emulator
+Debugger manual.
+
+The debugger is activated by pressing Esc or clicking the sickly green button with the picture of a bug.  It can only be activated if a tty is present.
+
+When the debugger is active, normal emulation will be halted and the debugger prompt ">" will appear in the tty.
+
+You can get rudimentary help from within the debugger by entering "h" (for a command list) or "h h" (for a list of help sections).
+
+=Running and Stepping the Z80=
+	"next", or "n", will step the Z80 by one instruction, or if Tstate stepping is enabled, by one Tstate.
+	Tstate stepping can be enabled with "1" and disabled with "!1"; there is also a command line option --[no-]Tstate.
+	"cont", or "c", will leave the debugger and continue normal emulation until a breakpoint is encountered or the debugger is activated again.
+	"quit", or "q", will exit Spiffy.
+
+=Examining Z80 internal state=
+	"state", or "s", will display a compact readout of the Z80's internal state, the bus, and regions of memory around (PC), (HL), (SP), (BC), (DE), and (nn).  nn refers to the contents of two internal Z80 registers which store 16-bit literal operands (eg. in LD rr,nn or LD r,(nn)).
+	"trace", or "t", will cause this readout to be displayed after each time the Z80 is single-stepped.  "!t" disables.
+	You can read individual registers with the '=' command; for instance "= BC" will display the value in BC, while "= X" will display the high byte of IX.  Type "h =" for a full table.
+	You can write to registers by adding another argument to the '=' command; "= HL 0100" will set HL to 0x0100.
+	You can enable or disable interrupts with "ei" and "di" respectively.
+	You can reset the Z80 with "reset", or "r".
+	To trigger an interrupt or NMI, use "int" or "nmi".  "i" is short for "int".  You can clear the INT/NMI lines with "!int" and "!nmi".
+
+=Breakpoints=
+	You can set a breakpoint at an address xxxx (in hex) with "break xxxx"; you can clear it with "!break xxxx".  "break" can be shortened to "b".
+	You can list the current breakpoints with "list" or "l".
+
+=Examining Memory=
+	You can read and write memory with the "memory", or "m", command, which takes the form
+	m [<type>]<mode> <addr> [<value>]
+	The <type> is one of:
+		Not present: Byte
+		l: 16-bit little-endian word
+		f: 5-byte float
+	The <mode> is either r (for read) or w (for write).
+	The <addr> is one of:
+		a 16-bit hex literal
+		%<sysvar>[+<offset>]
+		(%<sysvar>)[+<offset>]
+		*<reg>[+<offset>]
+	The <value> is only accepted when <mode> is w, in which case it is an 8- or 16-bit hex literal or a decimal number, depending on <type>.
+	Examples:
+		m r 1000
+			Reads a byte from 0x1000
+		m lw 1200 a3c
+			Writes the word 0x0a3c to 0x1200
+		m fr 8000
+			Reads a 5-byte float from 0x8000
+		m w %PIP 5
+			Writes the byte 0x5 to PIP (0x53c9)
+		m lr %STRMS+2
+			Reads a word from STRMS+2 (0x5c12)
+		m r (%UDG)
+			Reads a byte from the address pointed to by UDG (0x5c7b), which is normally 0xff58
+		m r (%CHARS)+256
+			Reads a byte from 256 bytes after the address pointed to by CHARS (0x5c36).  This address is normally 0x3c00, so the byte would be read from 0x3d00.
+		m r *HL
+			Reads a byte from the address stored in HL
+		m w *IX+25 0
+			Writes the byte 0 to (IX+25).
+	
+=System Variables=
+	The command "sysvars", or "y", lists all the system variables and their values, in appropriate formats for their types.
+	"y <sysvar>" will display only the requested <sysvar>.
+	The formats are:
+		CHAR	'%c' = %u = 0x%02x = '\\%03o'
+		FLAGS	0x%02x = %08b
+		ADDR	0x%04x
+		BYTES	{hexadecimal bytes}
+		U8		\
+		U16		| These three display an 8/16/24-bit little-endian unsigned integer
+		U24		/
+		XY		This displays the first and second bytes as (%u,%u)
+
+=Examining BASIC variables=
+	The BASIC variables can be listed, with their values, with "vars" or "v".
+	A specific variable can be examined, by passing it as an argument to "vars"; eg. "v mynumber".
+	You can examine arrays similarly, like "v a(1,2)" or "v a(1)(2)".
+	The address displayed for a BASIC variable depends on its type, as follows:
+		Numeric single: Address is that of the 5-byte float
+		String  single: Address is that of the variable name.  The string data starts 3 bytes later
+		Numeric array : Address is that of the 5-byte float of the first element of the array
+		Char    array : Address is that of the first element of the array
+	So for instance if a$ is an array[5][3], "v a$(2)" will give the address of a$(2)(1), while if b$ is a string, "v b$" will give the address of the metadata for b$, whereas "v b$(1)" will give the address of b$(1), the first character of the string.  Numeric variables always give the address of a 5-byte float, allowing you to modify the variable directly with "m fw".
+
+=Examining the BASIC program=
+	The BASIC program can be listed with "k" (the name was chosen because "k" is the key for LIST on the Spectrum).
+	Using "kn" instead causes the embedded floating-point numbers in the source to be displayed.
+	You can list a specific line by passing it as an argument to "k" or "kn".  For example "k 20" will display line 20.
