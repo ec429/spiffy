@@ -53,6 +53,7 @@ ula_t;
 // helper fns
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
+void putedge(uint32_t *T_since_tape_edge, unsigned long *trecpuls, FILE *trec);
 void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap);
 void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int *Tstates);
 void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int Tstates);
@@ -323,27 +324,7 @@ int main(int argc, char * argv[])
 				bus->portfe=bus->data;
 				if(trec&&((bus->portfe&PORTFE_MIC)?!oldmic:oldmic))
 				{
-					if(T_since_tape_edge>0xFF)
-					{
-						fputc(0, trec);
-						fputc(T_since_tape_edge, trec);
-						fputc(T_since_tape_edge>>8, trec);
-						fputc(T_since_tape_edge>>16, trec);
-						fputc(T_since_tape_edge>>24, trec);
-					}
-					else
-						fputc(T_since_tape_edge, trec);
-					if(!(++trecpuls&0xFF))
-					{
-						fseek(trec, 0x1D, SEEK_SET);
-						fputc(trecpuls, trec);
-						fputc(trecpuls>>8, trec);
-						fputc(trecpuls>>16, trec);
-						fputc(trecpuls>>24, trec);
-						fseek(trec, 0, SEEK_END);
-						fflush(trec);
-					}
-					T_since_tape_edge=0;
+					putedge(&T_since_tape_edge, &trecpuls, trec);
 					oldmic=bus->portfe&PORTFE_MIC;
 				}
 			}
@@ -1190,16 +1171,232 @@ int main(int argc, char * argv[])
 					}
 				}
 			}
+			else if(trec&&edgeload)
+			{
+				if(unlikely(*PC==0x04d8)) // Magic edge-saver part 1 (hard-coded implementation of SA-LEADER)
+				{
+					sa_leader:
+					// DJNZ SA-LEADER
+					while(1)
+					{
+						BREG--;
+						T_since_tape_edge+=8;
+						Tstates+=8;
+						if(!BREG) break;
+						T_since_tape_edge+=5;
+						Tstates+=5;
+					}
+					// OUT FE,A
+					bus->portfe=AREG;
+					T_since_tape_edge+=10;
+					Tstates+=10;
+					if((bus->portfe&PORTFE_MIC)?!oldmic:oldmic)
+					{
+						putedge(&T_since_tape_edge, &trecpuls, trec);
+						oldmic=bus->portfe&PORTFE_MIC;
+					}
+					T_since_tape_edge++;
+					Tstates++;
+					// XOR 0F
+					cpu->ods.y=5;
+					op_alu(cpu, 0x0F);
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					// LD B,A4
+					BREG=0xA4;
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					// DEC L
+					LREG=op_dec8(cpu, LREG);
+					T_since_tape_edge+=4;
+					Tstates+=4;
+					// JR NZ,SA-LEADER
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					if(!(FREG&FZ))
+					{
+						T_since_tape_edge+=5;
+						Tstates+=5;
+						goto sa_leader;
+					}
+					// DEC B
+					BREG=op_dec8(cpu, BREG);
+					T_since_tape_edge+=4;
+					Tstates+=4;
+					// DEC H
+					HREG=op_dec8(cpu, HREG);
+					T_since_tape_edge+=4;
+					Tstates+=4;
+					// JP P,SA-LEADER
+					T_since_tape_edge+=10;
+					Tstates+=10;
+					if(!(FREG&FS)) goto sa_leader;
+					// LD B,2F
+					BREG=0x2F;
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					// DJNZ SA-SYNC-1
+					while(1)
+					{
+						BREG--;
+						T_since_tape_edge+=8;
+						Tstates+=8;
+						if(!BREG) break;
+						T_since_tape_edge+=5;
+						Tstates+=5;
+					}
+					// OUT FE,A
+					bus->portfe=AREG;
+					T_since_tape_edge+=10;
+					Tstates+=10;
+					if((bus->portfe&PORTFE_MIC)?!oldmic:oldmic)
+					{
+						putedge(&T_since_tape_edge, &trecpuls, trec);
+						oldmic=bus->portfe&PORTFE_MIC;
+					}
+					T_since_tape_edge++;
+					Tstates++;
+					// LD A,0D
+					AREG=0x0D;
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					// LD B,37
+					BREG=0x37;
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					// DJNZ SA-SYNC-2
+					while(1)
+					{
+						BREG--;
+						T_since_tape_edge+=8;
+						Tstates+=8;
+						if(!BREG) break;
+						T_since_tape_edge+=5;
+						Tstates+=5;
+					}
+					// OUT FE,A
+					bus->portfe=AREG;
+					T_since_tape_edge+=10;
+					Tstates+=10;
+					if((bus->portfe&PORTFE_MIC)?!oldmic:oldmic)
+					{
+						putedge(&T_since_tape_edge, &trecpuls, trec);
+						oldmic=bus->portfe&PORTFE_MIC;
+					}
+					T_since_tape_edge++;
+					Tstates++;
+					// LD BC,3B0E
+					*BC=0x3B0E;
+					T_since_tape_edge+=10;
+					Tstates+=10;
+					// EX AF,AF'
+					unsigned short int tmp=*AF;
+					*AF=*AF_;
+					*AF_=tmp;
+					T_since_tape_edge+=4;
+					Tstates+=4;
+					// LD L,A
+					LREG=AREG;
+					T_since_tape_edge+=4;
+					Tstates+=4;
+					// JP 0x0507,SA-START
+					*PC=0x0507;
+					T_since_tape_edge+=10;
+					Tstates+=10;
+				}
+				else if(unlikely(*PC==0x0514)) // Magic edge-saver part 2 (hard-coded implementation of SA-BIT-1)
+				{
+					// DJNZ SA-BIT-1
+					while(1)
+					{
+						BREG--;
+						T_since_tape_edge+=8;
+						Tstates+=8;
+						if(!BREG) break;
+						T_since_tape_edge+=5;
+						Tstates+=5;
+					}
+					// JR NC,SA-OUT
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					if(!(FREG&FC))
+					{
+						T_since_tape_edge+=5;
+						Tstates+=5;
+						goto sa_out;
+					}
+					// LD B,42
+					BREG=0x42;
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					// DJNZ SA-SET
+					while(1)
+					{
+						BREG--;
+						T_since_tape_edge+=8;
+						Tstates+=8;
+						if(!BREG) break;
+						T_since_tape_edge+=5;
+						Tstates+=5;
+					}
+					sa_out:
+					// OUT FE,A
+					bus->portfe=AREG;
+					T_since_tape_edge+=10;
+					Tstates+=10;
+					if((bus->portfe&PORTFE_MIC)?!oldmic:oldmic)
+					{
+						putedge(&T_since_tape_edge, &trecpuls, trec);
+						oldmic=bus->portfe&PORTFE_MIC;
+					}
+					T_since_tape_edge++;
+					Tstates++;
+					// LD B,3E
+					BREG=0x3E;
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					*PC=0x0520;
+					/* This section doesn't work; if I enable the hardcoded JR NZ, the tapes are unreadable.  Dunno why
+					// JR NZ,0511,SA-BIT-2
+					T_since_tape_edge+=7;
+					Tstates+=7;
+					if(!(FREG&FZ))
+					{
+						T_since_tape_edge+=5;
+						Tstates+=5;
+						*PC=0x0511;
+					}
+					else
+					{
+						*PC=0x0522;
+						// DEC B
+						BREG=op_dec8(cpu, BREG);
+						T_since_tape_edge+=4;
+						Tstates+=4;
+						// XOR A
+						cpu->ods.y=5;
+						op_alu(cpu, AREG);
+						T_since_tape_edge+=4;
+						Tstates+=4;
+						// INC A
+						AREG=op_inc8(cpu, AREG);
+						T_since_tape_edge+=4;
+						Tstates+=4;
+						// 0x0525	SA-8-BITS
+						*PC=0x0525;
+					}*/
+				}
+			}
 		}
 		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
 		if(unlikely(Tstates==32))
 			bus->irq=false;
 		if(unlikely(Tstates>=69888))
 		{
-			bus->irq=true;
 			bus->reset=false;
 			SDL_Flip(screen);
 			Tstates-=69888;
+			bus->irq=(Tstates<32); // if we were edgeloading or edgesaving, we might have missed an irq, but we were DI anyway
 			Fstate=(Fstate+1)&0x1f; // flash alternates every 16 frames
 			struct timeval tn;
 			gettimeofday(&tn, NULL);
@@ -1822,6 +2019,32 @@ void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32
 	}
 	if(*play)
 		libspectrum_tape_get_next_edge(T_to_tape_edge, edgeflags, deck);
+}
+
+inline void putedge(uint32_t *T_since_tape_edge, unsigned long *trecpuls, FILE *trec)
+{
+	if(*T_since_tape_edge>0xFF)
+	{
+		fputc(0, trec);
+		fputc(*T_since_tape_edge, trec);
+		fputc(*T_since_tape_edge>>8, trec);
+		fputc(*T_since_tape_edge>>16, trec);
+		fputc(*T_since_tape_edge>>24, trec);
+	}
+	else
+		fputc(*T_since_tape_edge, trec);
+	if(!(++(*trecpuls)&0xFF))
+	{
+		fflush(trec);
+		fseek(trec, 0x1D, SEEK_SET);
+		fputc(*trecpuls, trec);
+		fputc(*trecpuls>>8, trec);
+		fputc(*trecpuls>>16, trec);
+		fputc(*trecpuls>>24, trec);
+		fflush(trec);
+		fseek(trec, 0, SEEK_END);
+	}
+	*T_since_tape_edge=0;
 }
 
 void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap)

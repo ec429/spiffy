@@ -9,7 +9,7 @@ The UI is a bit spartan right now.  There are three rows of controls: Tape, Audi
 Tape:
 	Speed readout.  Should hover around 100%.
 	Load (light brown).  Opens a file chooser dialog which you can use to load a tape or a snapshot.
-	Tape traps (toggle).  White=on, dark gray=off.  Enables trapping of LD-EDGE-1 in the ROM tape loader, for fast tape loading.
+	Tape traps (toggle).  White=on, dark gray=off.  Enables trapping of LD-EDGE-1 in the ROM tape loader, for fast tape loading.  Also enables trapping of SA-LEADER and SA-BIT-1 in the ROM tape saver, for fast tape saving (though not quite as fast as loading).
 	Play (green).  When tape is playing, turns pink.
 	Skip (dark blue).  Skips to next tape block.
 	Stop at end of block (toggle).  Lilac=on, dark red=off.  When enabled, the tape will be stopped at the end of each block.  Handy for multiload tapes.
