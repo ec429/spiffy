@@ -1,4 +1,4 @@
-spiffy Copyright (C) 2010-11 Edward Cree.
+spiffy Copyright (C) 2010-12 Edward Cree.
  This program comes with ABSOLUTELY NO WARRANTY; for details see the GPL v3.
  This is free software, and you are welcome to redistribute it
  under certain conditions: GPL v3+
@@ -520,7 +520,7 @@ a169 a1 -1
 a169 69 -1
 
 76
-0200 cf98 90d8 a169 0000 0000 0000 0000 0000 0000 0000 0001
+0200 cf98 90d8 a169 0000 0000 0000 0000 0000 0000 0000 0000
 00 01 0 0 0 1 4
 
 77

@@ -1005,6 +1005,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 						{
 							cpu->M=0;
 							cpu->halt=true;
+							(*PC)--;
 						}
 						else // x1 !(z6 y6) == LD r[y],r[z]
 						{
