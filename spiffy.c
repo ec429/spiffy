@@ -972,7 +972,7 @@ q[uit]         quit Spiffy\n");
 										i++;
 										do append_char(&fullname, RAM[i]&0x7F);
 										while(!(RAM[i++]&0x80));
-										if(what) match=strcmp(fullname.buf, what);
+										if(what) match=!strcmp(fullname.buf, what);
 										num=float_decode(RAM, i);
 										if(match) fprintf(stderr, "%04x # %s = %g\n", i, fullname.buf, num);
 										free_string(&fullname);
