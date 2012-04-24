@@ -8,13 +8,13 @@ GTK := `pkg-config --libs gtk+-2.0`
 GTKFLAGS := `pkg-config --cflags gtk+-2.0`
 VERSION := `git describe --tags`
 
-all: spiffy filechooser
+all: spiffy spiffy-filechooser
 
 spiffy: spiffy.c ops.o ops.h z80.o z80.h vchips.o vchips.h bits.o bits.h pbm.o pbm.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) spiffy.c $(LDFLAGS) -o spiffy ops.o z80.o vchips.o bits.o pbm.o -lspectrum $(SDL)
 
-filechooser: filechooser.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(GTKFLAGS) filechooser.c $(LDFLAGS) -o filechooser $(GTK)
+spiffy-filechooser: filechooser.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(GTKFLAGS) filechooser.c $(LDFLAGS) -o spiffy-filechooser $(GTK)
 
 ops.o: ops.c ops.h z80.h
 
@@ -28,9 +28,9 @@ pbm.o: pbm.c pbm.h bits.h
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
 
-install: spiffy filechooser
+install: spiffy spiffy-filechooser
 	install -D -m0755 spiffy $(PREFIX)/bin/spiffy
-	install -D -m0755 filechooser $(PREFIX)/bin/spiffy-filechooser
+	install -D -m0755 spiffy-filechooser $(PREFIX)/bin/spiffy-filechooser
 	install -D -m0644 keymap $(PREFIX)/share/spiffy/keymap
 	install -D -m0644 Vera.ttf $(PREFIX)/share/fonts/
 	install -D -m0644 *.rom -t $(PREFIX)/share/spiffy/
