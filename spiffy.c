@@ -519,10 +519,13 @@ h =            register assignments\n\
 ");
 								else if(strcmp(what, "m")==0)
 									fprintf(stderr, "spiffy debugger: memory commands\n\
-m r xxxx       read memory at address xxxx (hex)\n\
-m w xxxx [yy]  write value yy (hex) or 0 to address xxxx (hex)\n\
-m fr xxxx      read 5-byte float from address xxxx (hex)\n\
-m fw xxxx d    write 5-byte float d (decimal) to address xxxx (hex)\n\
+\tValues xxxx and yy[yy] are hex\n\
+m r xxxx       read byte from memory at address xxxx\n\
+m w xxxx [yy]  write byte yy or 0 to address xxxx\n\
+m lr xxxx      read word from memory at address xxxx\n\
+m lw xxxx yyyy write word yyyy or 0 to address xxxx\n\
+m fr xxxx      read 5-byte float from address xxxx\n\
+m fw xxxx d    write 5-byte float d (decimal) to address xxxx\n\
 ");
 								else if(strcmp(what, "v")==0)
 									fprintf(stderr, "spiffy debugger: BASIC variables\n\
@@ -545,11 +548,12 @@ kn             listing with float numbers\n\
 k 10           display line 10 of the program\n\
 ");
 								else if(strcmp(what, "=")==0)
-									fprintf(stderr, "spiffy debugger: register assignments\n\
+									fprintf(stderr, "spiffy debugger: registers\n\
+= reg          displays the value of register reg\n\
 = reg val      assigns val (hex) to register reg\n\
 \n\
-The registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
-8-bit assignments can be made as follows:\n\
+The (16-bit) registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
+8-bit reads/writes can be made as follows:\n\
  MSB LSB register\n\
   A   F     AF\n\
   B   C     BC\n\
@@ -557,7 +561,7 @@ The registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
   H   L     HL\n\
   X   x     IX\n\
   Y   y     IY\n\
-  I   R     IR (can't assign as 16-bit)\n\
+  I   R     IR (can't access as 16-bit)\n\
   S   P     SP\n\
   a   f     AF'\n\
   b   c     BC'\n\
@@ -568,21 +572,22 @@ The registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
 									fprintf(stderr, "spiffy debugger:\n\
 n[ext]         single-step the Z80\n\
 c[ont]         continue emulation\n\
-h[elp]         this help here\n\
+h[elp] [sect]  get debugger help (see 'h h')\n\
 s[tate]        show Z80 state\n\
 t[race]        trace Z80 state\n\
 b[reak] xxxx   set a breakpoint\n\
 !b[reak] xxxx  delete a breakpoint\n\
 l[ist]         list breakpoints\n\
-= reg val      assign a value to a register (see 'h =')\n\
-m[emory]       read/write memory (see 'h m')\n\
+= reg [val]    read/write a register (see 'h =')\n\
+m[emory] ...   read/write memory (see 'h m')\n\
 ei             enable interrupts\n\
 di             disable interrupts\n\
 r[eset]        reset the Z80\n\
 [!]i[nt]       set/clear INT line\n\
 [!]nmi         set/clear NMI line\n\
-v[ars]         examine BASIC variables (see 'h v')\n\
-k              examine BASIC listing (see 'h k')\n\
+v[ars] ...     examine BASIC variables (see 'h v')\n\
+k ...          examine BASIC listing (see 'h k')\n\
+y              examine system variables\n\
 q[uit]         quit Spiffy\n");
 							}
 							else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
@@ -599,6 +604,7 @@ q[uit]         quit Spiffy\n");
 								if(what)
 								{
 									char *rest=strtok(NULL, "");
+									const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
 									int reg=-1;
 									bool is16=false;
 									if(strcasecmp(what, "PC")==0)
@@ -608,7 +614,6 @@ q[uit]         quit Spiffy\n");
 									}
 									else if(strlen(what)==1)
 									{
-										const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
 										const char *p=strchr(reglist, *what);
 										if(p)
 											reg=(p+2-reglist)^1;
@@ -671,16 +676,26 @@ q[uit]         quit Spiffy\n");
 									}
 									if(reg>=0)
 									{
-										unsigned int val;
-										if(sscanf(rest, "%x", &val)==1)
+										if(rest)
 										{
-											cpu->regs[reg]=val;
-											if(is16)
-												cpu->regs[reg+1]=val>>8;
+											unsigned int val;
+											if(sscanf(rest, "%x", &val)==1)
+											{
+												cpu->regs[reg]=val;
+												if(is16)
+													cpu->regs[reg+1]=val>>8;
+											}
+											else
+											{
+												fprintf(stderr, "set: bad value `%s'\n", rest);
+											}
 										}
 										else
 										{
-											fprintf(stderr, "set: missing value\n");
+											if(is16)
+												fprintf(stderr, "%s = %04x\n", what, *(unsigned short int *)(cpu->regs+reg));
+											else
+												fprintf(stderr, "%c = %02x\n", reglist[(reg-2)^1], cpu->regs[reg]);
 										}
 									}
 									else
@@ -694,7 +709,7 @@ q[uit]         quit Spiffy\n");
 								char *what=strtok(NULL, " ");
 								if(what)
 								{
-									if(*what=='r')
+									if(strcmp(what, "r")==0)
 									{
 										char *rest=strtok(NULL, "");
 										if(rest)
@@ -702,7 +717,7 @@ q[uit]         quit Spiffy\n");
 											unsigned int addr;
 											if(sscanf(rest, "%x", &addr)==1)
 											{
-												fprintf(stderr, "[%04x]=%02x\n", addr, RAM[addr]);
+												fprintf(stderr, "[%04x.b]=%02x\n", addr, RAM[addr]);
 											}
 											else
 												fprintf(stderr, "memory: missing address\n");
@@ -710,7 +725,7 @@ q[uit]         quit Spiffy\n");
 										else
 											fprintf(stderr, "memory: missing address\n");
 									}
-									else if(*what=='w')
+									else if(strcmp(what, "w")==0)
 									{
 										char *a=strtok(NULL, " ");
 										if(a)
@@ -723,6 +738,40 @@ q[uit]         quit Spiffy\n");
 												if(!(rest&&(sscanf(rest, "%x", &val)==1)))
 													val=0;
 												RAM[addr]=val;
+											}
+											else
+												fprintf(stderr, "memory: missing address\n");
+										}
+									}
+									else if(strcmp(what, "lr")==0)
+									{
+										char *rest=strtok(NULL, "");
+										if(rest)
+										{
+											unsigned int addr;
+											if(sscanf(rest, "%x", &addr)==1)
+											{
+												fprintf(stderr, "[%04x.w]=%04x\n", addr, peek16(addr));
+											}
+											else
+												fprintf(stderr, "memory: missing address\n");
+										}
+										else
+											fprintf(stderr, "memory: missing address\n");
+									}
+									else if(strcmp(what, "lw")==0)
+									{
+										char *a=strtok(NULL, " ");
+										if(a)
+										{
+											char *rest=strtok(NULL, "");
+											unsigned int addr;
+											if(sscanf(a, "%x", &addr)==1)
+											{
+												unsigned int val;
+												if(!(rest&&(sscanf(rest, "%x", &val)==1)))
+													val=0;
+												poke16(addr, val);
 											}
 											else
 												fprintf(stderr, "memory: missing address\n");
@@ -1201,6 +1250,66 @@ q[uit]         quit Spiffy\n");
 										fputc('\n', stderr);
 									}
 								}
+							}
+							else if((strcmp(cmd, "y")==0)||(strcmp(cmd, "sysvars")==0))
+							{
+								char *what=strtok(NULL, "");
+								bool match=!what;
+								unsigned int i=0;
+								const struct sysvar *sv=sysvars();
+								while(sv[i].name)
+								{
+									if(what) match=!strcasecmp(what, sv[i].name);
+									if(match)
+									{
+										fprintf(stderr, "%04x %6s", sv[i].addr, sv[i].name);
+										unsigned char c=RAM[sv[i].addr];
+										switch(sv[i].type)
+										{
+											case SVT_CHAR:
+												if((c>=32)&&(c<127))
+													fprintf(stderr, " = '%c'", c);
+												fprintf(stderr, " = %u = 0x%02x = '\\%03o'\n", c, c, c);
+											break;
+											case SVT_FLAGS:
+												fprintf(stderr, " = 0x%02x = ", c);
+												for(unsigned int b=0;b<8;b++)
+													fputc(((c<<b)&0x80)?'1':'0', stderr);
+												fputc('\n', stderr);
+											break;
+											case SVT_ADDR:
+												fprintf(stderr, " = 0x%04x\n", peek16(sv[i].addr));
+											break;
+											case SVT_BYTES:
+												fprintf(stderr, " = {");
+												for(unsigned int b=0;b<sv[i].len;b++)
+												{
+													if(b) fputc(' ', stderr);
+													fprintf(stderr, "%02x", RAM[sv[i].addr+b]);
+												}
+												fprintf(stderr, "}\n");
+											break;
+											case SVT_U8:
+												fprintf(stderr, " = %u\n", c);
+											break;
+											case SVT_U16:
+												fprintf(stderr, " = %u\n", peek16(sv[i].addr));
+											break;
+											case SVT_U24:
+												fprintf(stderr, " = %u\n", peek16(sv[i].addr)|(RAM[sv[i].addr+2]<<16));
+											break;
+											case SVT_XY:
+												fprintf(stderr, " = (%u,%u)\n", c, RAM[sv[i].addr+1]);
+											break;
+											default:
+												fprintf(stderr, " has bad type %d\n", sv[i].type);
+											break;
+										}
+										if(what) break;
+									}
+									i++;
+								}
+								if(what&&!match) fprintf(stderr, "No such sysvar `%s'\n", what);
 							}
 							else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
 							{
