@@ -245,18 +245,18 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 				bus->rfsh=true;
 				bus->mreq=true;
 				cpu->dT=-1;
+				if(bus->nmi&&!cpu->block_ints)
+				{
+					cpu->IFF[0]=false;
+					cpu->nmiacc=true;
+					bus->rfsh=bus->m1=false;
+				}
+				else if(bus->irq&&cpu->IFF[0]&&!cpu->block_ints)
+				{
+					cpu->IFF[0]=cpu->IFF[1]=false;
+					cpu->intacc=true;
+				}
 			break;
-		}
-		if(bus->nmi&&!cpu->block_ints)
-		{
-			cpu->IFF[0]=false;
-			cpu->nmiacc=true;
-			bus->rfsh=bus->m1=false;
-		}
-		else if(bus->irq&&cpu->IFF[0]&&!cpu->block_ints)
-		{
-			cpu->IFF[0]=cpu->IFF[1]=false;
-			cpu->intacc=true;
 		}
 		return(errupt);
 	}
