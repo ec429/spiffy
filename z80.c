@@ -221,22 +221,18 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 	if(unlikely(cpu->halt))
 	{
 		cpu->M=0;
+		bus->tris=TRIS_OFF;
+		bus->addr=*PC;
+		bus->iorq=false;
+		bus->mreq=false;
 		switch(cpu->dT)
 		{
 			case 0:
 			case 1:
-				bus->tris=TRIS_OFF;
-				bus->addr=*PC;
-				bus->iorq=false;
-				bus->mreq=false;
 				bus->m1=true;
 				bus->rfsh=false;
 			break;
 			case 2:
-				bus->tris=TRIS_OFF;
-				bus->addr=*PC;
-				bus->iorq=false;
-				bus->mreq=false;
 				bus->m1=false;
 				bus->rfsh=true;
 				bus->addr=((*Intvec)<<8)+*Refresh;
@@ -245,24 +241,22 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 					(*Refresh)^=0x80;
 			break;
 			case 3:
-				bus->tris=TRIS_OFF;
-				bus->addr=*PC;
-				bus->iorq=false;
-				bus->mreq=false;
-				bus->m1=true;
-				bus->rfsh=false;
+				bus->m1=false;
+				bus->rfsh=true;
+				bus->mreq=true;
 				cpu->dT=-1;
-				if(bus->nmi&&!cpu->block_ints)
-				{
-					cpu->IFF[0]=false;
-					cpu->nmiacc=true;
-				}
-				else if(bus->irq&&cpu->IFF[0]&&!cpu->block_ints)
-				{
-					cpu->IFF[0]=cpu->IFF[1]=false;
-					cpu->intacc=true;
-				}
 			break;
+		}
+		if(bus->nmi&&!cpu->block_ints)
+		{
+			cpu->IFF[0]=false;
+			cpu->nmiacc=true;
+			bus->rfsh=bus->m1=false;
+		}
+		else if(bus->irq&&cpu->IFF[0]&&!cpu->block_ints)
+		{
+			cpu->IFF[0]=cpu->IFF[1]=false;
+			cpu->intacc=true;
 		}
 		return(errupt);
 	}
