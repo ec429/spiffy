@@ -118,6 +118,7 @@ void loadfile(const char *fn, libspectrum_tape **deck);
 #define poke16(a,v)	(RAM[(a)]=(v),RAM[(a)+1]=((v)>>8))
 double float_decode(const unsigned char *RAM, unsigned int addr);
 void float_encode(unsigned char *RAM, unsigned int addr, double val);
+void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -520,6 +521,10 @@ h =            register assignments\n\
 								else if(strcmp(what, "m")==0)
 									fprintf(stderr, "spiffy debugger: memory commands\n\
 \tValues xxxx and yy[yy] are hex\n\
+\tYou can also use %%sysvar[+x] instead of xxxx,\n\
+\t or (%%sysvar)[+x] if the sysvar is of address type\n\
+\t where sysvar is any of the sysvar names from the 'y' listing\n\
+\t and x is a (decimal) offset.\n\
 m r xxxx       read byte from memory at address xxxx\n\
 m w xxxx [yy]  write byte yy or 0 to address xxxx\n\
 m lr xxxx      read word from memory at address xxxx\n\
@@ -709,111 +714,51 @@ q[uit]         quit Spiffy\n");
 								char *what=strtok(NULL, " ");
 								if(what)
 								{
-									if(strcmp(what, "r")==0)
+									char *a=strtok(NULL, " ");
+									char *rest=strtok(NULL, "");
+									unsigned int addr;
+									if(a)
 									{
-										char *rest=strtok(NULL, "");
-										if(rest)
+										if(sscanf(a, "%x", &addr)==1) mdisplay(RAM, addr, what, rest);
+										else if(*a=='%')
 										{
-											unsigned int addr;
-											if(sscanf(rest, "%x", &addr)==1)
-											{
-												fprintf(stderr, "[%04x.b]=%02x\n", addr, RAM[addr]);
-											}
+											size_t plus=strcspn(a, "+-");
+											signed int offset=0;
+											if(a[plus]) sscanf(a+plus, "%d", &offset);
+											a[plus]=0;
+											const struct sysvar *sv=sysvarbyname(a+1);
+											if(sv)
+												mdisplay(RAM, sv->addr+offset, what, rest);
 											else
-												fprintf(stderr, "memory: missing address\n");
+												fprintf(stderr, "memory: no such sysvar `%s'\n", a+1);
 										}
-										else
-											fprintf(stderr, "memory: missing address\n");
-									}
-									else if(strcmp(what, "w")==0)
-									{
-										char *a=strtok(NULL, " ");
-										if(a)
+										else if(*a=='(')
 										{
-											char *rest=strtok(NULL, "");
-											unsigned int addr;
-											if(sscanf(a, "%x", &addr)==1)
+											char *brack=strchr(a, ')');
+											if(brack)
 											{
-												unsigned int val;
-												if(!(rest&&(sscanf(rest, "%x", &val)==1)))
-													val=0;
-												RAM[addr]=val;
-											}
-											else
-												fprintf(stderr, "memory: missing address\n");
-										}
-									}
-									else if(strcmp(what, "lr")==0)
-									{
-										char *rest=strtok(NULL, "");
-										if(rest)
-										{
-											unsigned int addr;
-											if(sscanf(rest, "%x", &addr)==1)
-											{
-												fprintf(stderr, "[%04x.w]=%04x\n", addr, peek16(addr));
-											}
-											else
-												fprintf(stderr, "memory: missing address\n");
-										}
-										else
-											fprintf(stderr, "memory: missing address\n");
-									}
-									else if(strcmp(what, "lw")==0)
-									{
-										char *a=strtok(NULL, " ");
-										if(a)
-										{
-											char *rest=strtok(NULL, "");
-											unsigned int addr;
-											if(sscanf(a, "%x", &addr)==1)
-											{
-												unsigned int val;
-												if(!(rest&&(sscanf(rest, "%x", &val)==1)))
-													val=0;
-												poke16(addr, val);
-											}
-											else
-												fprintf(stderr, "memory: missing address\n");
-										}
-									}
-									else if(strcmp(what, "fr")==0)
-									{
-										char *rest=strtok(NULL, "");
-										if(rest)
-										{
-											unsigned int addr;
-											if(sscanf(rest, "%x", &addr)==1)
-											{
-												fprintf(stderr, "[%04x.f]=%g\n", addr, float_decode(RAM, addr));
-											}
-											else
-												fprintf(stderr, "memory: missing address\n");
-										}
-										else
-											fprintf(stderr, "memory: missing address\n");
-									}
-									else if(strcmp(what, "fw")==0)
-									{
-										char *a=strtok(NULL, " ");
-										if(a)
-										{
-											char *rest=strtok(NULL, "");
-											unsigned int addr;
-											if(sscanf(a, "%x", &addr)==1)
-											{
-												double val;
-												if(!(rest&&(sscanf(rest, "%lg", &val)==1)))
-													fprintf(stderr, "memory: missing value\n");
+												*brack++=0;
+												signed int offset=0;
+												if(*brack) sscanf(brack, "%d", &offset);
+												const struct sysvar *sv=sysvarbyname(a+2);
+												if(sv)
+												{
+													if(sv->type==SVT_ADDR)
+														mdisplay(RAM, peek16(sv->addr)+offset, what, rest);
+													else
+														fprintf(stderr, "memory: sysvar `%s' is not of type SVT_ADDR\n", sv->name);
+												}
 												else
-													float_encode(RAM, addr, val);
+													fprintf(stderr, "memory: no such sysvar `%s'\n", a+2);
 											}
 											else
-												fprintf(stderr, "memory: missing address\n");
+												fprintf(stderr, "memory: unmatched `('\n");
 										}
+										else
+											fprintf(stderr, "memory: missing address\n");
 									}
 									else
-										fprintf(stderr, "memory: bad mode (see 'h m')\n");
+										fprintf(stderr, "memory: missing address\n");
 								}
 								else
 									fprintf(stderr, "memory: missing mode (see 'h m')\n");
@@ -2540,4 +2485,38 @@ int compare_bas_line(const void *a, const void *b)
 	if(na<nb) return(-1);
 	if(na>nb) return(1);
 	return(0);
+}
+
+void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest)
+{
+	if(strcmp(what, "r")==0)
+		fprintf(stderr, "[%04x.b]=%02x\n", addr, RAM[addr]);
+	else if(strcmp(what, "w")==0)
+	{
+		unsigned int val;
+		if(!(rest&&(sscanf(rest, "%x", &val)==1)))
+			val=0;
+		RAM[addr]=val;
+	}
+	else if(strcmp(what, "lr")==0)
+		fprintf(stderr, "[%04x.w]=%04x\n", addr, peek16(addr));
+	else if(strcmp(what, "lw")==0)
+	{
+		unsigned int val;
+		if(!(rest&&(sscanf(rest, "%x", &val)==1)))
+			val=0;
+		poke16(addr, val);
+	}
+	else if(strcmp(what, "fr")==0)
+		fprintf(stderr, "[%04x.f]=%g\n", addr, float_decode(RAM, addr));
+	else if(strcmp(what, "fw")==0)
+	{
+		double val;
+		if(!(rest&&(sscanf(rest, "%lg", &val)==1)))
+			fprintf(stderr, "memory: missing value\n");
+		else
+			float_encode(RAM, addr, val);
+	}
+	else
+		fprintf(stderr, "memory: bad mode (see 'h m')\n");
 }
