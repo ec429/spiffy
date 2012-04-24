@@ -35,7 +35,7 @@ typedef struct
 {
 	unsigned char regs[26]; // Registers (in little-endian pairs); see helper_notes for details
 	bool IFF[2]; // Interrupts Flip Flops
-	bool block_ints; // was the last opcode an EI or other TRIS_INT-blocking opcode?
+	bool block_ints; // was the last opcode an EI or other INT-blocking opcode?
 	int intmode; // Interrupt Mode
 	bool disp; // have we had the displacement byte? (DD/FD CB)
 	bool halt; // are we HALTed?
@@ -44,7 +44,7 @@ typedef struct
 	unsigned char internal[3]; // Internal Z80 registers
 	od ods;
 	int shiftstate;	// The 'shift state' resulting from prefixes.  bits as follows: 1=CB 2=ED 4=DD 8=FD.  Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
-	bool intacc; // accepted an TRIS_INTerrupt?
+	bool intacc; // accepted an INTerrupt?
 	bool nmiacc; // accepted an NMI?
 	int nothing; // number of Tstates doing nothing
 	int steps; // number of Tstates running a step_ and doing nothing else
@@ -66,7 +66,7 @@ typedef struct
 	bool waitline; // ¬WAIT line
 	bool clk_inhibit; // when true, hold the CLK line low (used by ULA)
 	bool reset; // ¬RESET line
-	bool irq; // ¬TRIS_INT line
+	bool irq; // ¬INT line
 	bool nmi; // ¬NMI line
 	bool halt; // ¬HALT line
 	bool reti; // was the last opcode RETI?	(some hardware detects this, eg. PIO)

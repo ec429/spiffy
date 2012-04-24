@@ -53,7 +53,7 @@ void z80_init(void)
 void z80_reset(z80 *cpu, bus_t *bus)
 {
 	memset(cpu->regs, 0, sizeof(unsigned char[26]));
-	cpu->block_ints=false; // was the last opcode an EI or other TRIS_INT-blocking opcode?
+	cpu->block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
 	cpu->IFF[0]=cpu->IFF[1]=false;
 	cpu->intmode=0; // Interrupt Mode
 	cpu->disp=false; // have we had the displacement byte? (DD/FD CB)
@@ -340,7 +340,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 								}
 							}
 							if(unlikely(cpu->M&&(cpu->shiftstate&0x02)&&(cpu->ods.x==2)&&(cpu->ods.y&4)&&(cpu->ods.z&2)&&!(cpu->ods.z&4)))
-							{ // TRIS_IN-- and OT-- functions take an extra Tstate
+							{ // IN-- and OT-- functions take an extra Tstate
 								cpu->dT--;
 							}
 							bus->mreq=false;
@@ -553,7 +553,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 					case 1: // ED x1
 						switch(cpu->ods.z)
 						{
-							case 0: // ED x1 z0 == TRIS_IN r[y],(C): M1=PR(4)
+							case 0: // ED x1 z0 == IN r[y],(C): M1=PR(4)
 								STEP_PR(*BC,&cpu->internal[1]);
 								if(cpu->M>1)
 								{
@@ -567,7 +567,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									cpu->M=0;
 								}
 							break;
-							case 1: // ED x1 z1 == TRIS_OUT (C),r[y]: M1=PW(4)
+							case 1: // ED x1 z1 == OUT (C),r[y]: M1=PW(4)
 								STEP_PW(*BC,(cpu->ods.y==6)?0:cpu->regs[tbl_r[cpu->ods.y]]);
 								if(cpu->M>1)
 									cpu->M=0;
@@ -812,7 +812,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 							case 3: // x0 z3
 								if(cpu->dT>=0)
 								{
-									if(!cpu->ods.q) // x0 z3 q0 == TRIS_INC rp[p]: M1=IO(2)
+									if(!cpu->ods.q) // x0 z3 q0 == INC rp[p]: M1=IO(2)
 									{
 										(*IRPP(cpu->ods.p))++;
 									}
@@ -824,14 +824,14 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									cpu->dT=-2;
 								}
 							break;
-							case 4: // x0 z4 == TRIS_INC r[y]: M1=IO(0)
-								if(cpu->ods.y==6) // x0 z4 y6 == TRIS_INC (HL)
+							case 4: // x0 z4 == INC r[y]: M1=IO(0)
+								if(cpu->ods.y==6) // x0 z4 y6 == INC (HL)
 								{
-									if(cpu->shiftstate&0xC) // DD/FD x0 z4 y6 == TRIS_INC (IXY+d): M1=OD(3)
+									if(cpu->shiftstate&0xC) // DD/FD x0 z4 y6 == INC (IXY+d): M1=OD(3)
 									{
 										STEP_OD(1); // get displacement byte
 									}
-									else // x0 z4 y6 == TRIS_INC (HL): M1=MR(4)
+									else // x0 z4 y6 == INC (HL): M1=MR(4)
 									{
 										STEP_MR(*HL, &cpu->internal[1]);
 										if(cpu->M>1)
@@ -1126,8 +1126,8 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 										STEP_OD(1);
 									break;
 									// x3 z3 y1 == CB prefix
-									case 2: // x3 z3 y2 == TRIS_OUT (n),A: M1=OD(3)
-									case 3: // x3 z3 y3 == TRIS_IN A,(n): M1=OD(3)
+									case 2: // x3 z3 y2 == OUT (n),A: M1=OD(3)
+									case 3: // x3 z3 y3 == IN A,(n): M1=OD(3)
 										STEP_OD(1);
 									break;
 									case 4: // x3 z3 y4 == EX (SP),HL: M1=SRL(3)
@@ -1409,10 +1409,10 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									break;
 								}
 							break;
-							case 4: // x0 z4 == TRIS_INC r[y]
-								if(cpu->ods.y==6) // x0 z4 y6 == TRIS_INC (HL)
+							case 4: // x0 z4 == INC r[y]
+								if(cpu->ods.y==6) // x0 z4 y6 == INC (HL)
 								{
-									if(cpu->shiftstate&0xC) // DD/FD x0 z4 y6 = TRIS_INC (IXY+d): M2=IO(5)
+									if(cpu->shiftstate&0xC) // DD/FD x0 z4 y6 = INC (IXY+d): M2=IO(5)
 									{
 										if(cpu->dT==0)
 										{
@@ -1420,7 +1420,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 											cpu->M++;
 										}
 									}
-									else // x0 z4 y6 == TRIS_INC (HL): M2=MW(3)
+									else // x0 z4 y6 == INC (HL): M2=MW(3)
 									{
 										if(cpu->dT==0)
 										{
@@ -1628,7 +1628,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 											cpu->dT=-1;
 										}
 									break;
-									case 2: // x3 z3 y2 == TRIS_OUT (n),A: M2=PW(4)
+									case 2: // x3 z3 y2 == OUT (n),A: M2=PW(4)
 										STEP_PW((cpu->regs[3]<<8)+cpu->internal[1], cpu->regs[3]);
 										if(cpu->M>2)
 										{
@@ -1636,7 +1636,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 											cpu->dT=-1;
 										}
 									break;
-									case 3: // x3 z3 y3 == TRIS_IN A,(n): M2=PR(4)
+									case 3: // x3 z3 y3 == IN A,(n): M2=PR(4)
 										STEP_PR((cpu->regs[3]<<8)+cpu->internal[1], &cpu->regs[3]);
 										if(cpu->M>2)
 										{
@@ -1838,11 +1838,11 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									break;
 								}
 							break;
-							case 4: // x0 z4 == TRIS_INC r[y]; M3 should only happen if DD/FD and r[y] is (HL)
+							case 4: // x0 z4 == INC r[y]; M3 should only happen if DD/FD and r[y] is (HL)
 							case 5: // x0 z5 == DEC r[y]; M3 should only happen if DD/FD and r[y] is (HL)
 								if(cpu->ods.y==6)
 								{
-									if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == TRIS_INC/DEC (IXY+d): M3=MR(3)
+									if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M3=MR(3)
 									{
 										STEP_MR((*IHL)+((signed char)cpu->internal[1]), &cpu->internal[2]);
 									}
@@ -2098,11 +2098,11 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									break;
 								}
 							break;
-							case 4: // x0 z4 == TRIS_INC r[y]; M4 should only happen if DD/FD and r[y] is (HL)
+							case 4: // x0 z4 == INC r[y]; M4 should only happen if DD/FD and r[y] is (HL)
 							case 5: // x0 z5 == DEC r[y]; M4 should only happen if DD/FD and r[y] is (HL)
 								if(cpu->ods.y==6)
 								{
-									if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == TRIS_INC/DEC (IXY+d): M4=MW(4)
+									if(cpu->shiftstate&0xC) // DD/FD x0 z4/5 y6 == INC/DEC (IXY+d): M4=MW(4)
 									{
 										STEP_MW((*IHL)+((signed char)cpu->internal[1]), ((cpu->ods.z&1)?op_dec8:op_inc8)(cpu, cpu->internal[2]));
 										if(cpu->M>4)

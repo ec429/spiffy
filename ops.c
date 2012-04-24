@@ -382,12 +382,12 @@ void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
 void op_bli(z80 *cpu, bus_t *bus)
 {
 	/*
-	y: 4=I 5=D 6=IR 7=DR	== b0: DEC (else TRIS_INC); b1: REPEAT
-	z: 0=LD 1=CP 2=TRIS_IN 3=TRIS_OUT
+	y: 4=I 5=D 6=IR 7=DR	== b0: DEC (else INC); b1: REPEAT
+	z: 0=LD 1=CP 2=IN 3=OUT
 		LDxx: LD (DE),(HL); DE+-; HL+-; BC--; R? BC? PC-=2.
 		CPxx: CP A,(HL); HL+-; BC--; R? BC&&(A!=HL)? PC-=2.
-		TRIS_INxx: TRIS_IN (HL), port(BC); HL+-; B--; R? B? PC-=2.
-		OTxx: BC--; TRIS_OUT port(BC),(HL); HL+-; R? B? PC-=2.
+		INxx: IN (HL), port(BC); HL+-; B--; R? B? PC-=2.
+		OTxx: BC--; OUT port(BC),(HL); HL+-; R? B? PC-=2.
 	*/
 	switch(cpu->M)
 	{
@@ -399,7 +399,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 				case 3: // OTxx M1: MR(3)
 					STEP_MR(*HL, &cpu->internal[1]);
 				break;
-				case 2: // TRIS_INxx M1: PR(4)
+				case 2: // INxx M1: PR(4)
 					STEP_PR(*BC, &cpu->internal[1]);
 				break;
 			}
@@ -470,7 +470,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 						}
 					}
 				break;
-				case 2: // TRIS_INxx M2: MW(3)
+				case 2: // INxx M2: MW(3)
 					STEP_MW(*HL, cpu->internal[1]);
 					if(cpu->M>2)
 					{
@@ -592,7 +592,7 @@ void op_sbc16(z80 *cpu)
 
 unsigned char op_inc8(z80 *cpu, unsigned char operand)
 {
-	// TRIS_INC r: Increment r, F=( XVX0X)=[SZ5H3V0 ]
+	// INC r: Increment r, F=( XVX0X)=[SZ5H3V0 ]
 	unsigned char src=operand+1;
 	cpu->regs[2]&=FC; // retain C (Carry) flag unchanged
 	cpu->regs[2]|=(src&FS); // S = Sign bit
@@ -630,7 +630,7 @@ void op_ra(z80 *cpu)
 	{
 		if(c) cpu->regs[3]|=r?0x80:0x01; // old carry (RLA/RRA)
 	}
-	else // TRIS_INTO Carry (8-bit)
+	else // INTO Carry (8-bit)
 	{
 		if(hi) cpu->regs[3]|=r?0x80:0x01; // new carry (RLCA/RRCA)
 	}
@@ -649,7 +649,7 @@ unsigned char op_r(z80 *cpu, unsigned char operand)
 	{
 		if(c) operand|=r?0x80:0x01; // old carry (RL/RR)
 	}
-	else // TRIS_INTO Carry (8-bit)
+	else // INTO Carry (8-bit)
 	{
 		if(hi) operand|=r?0x80:0x01; // new carry (RLC/RRC)
 	}

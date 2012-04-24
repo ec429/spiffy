@@ -540,7 +540,7 @@ m[emory]       read/write memory (see 'h m')\n\
 ei             enable interrupts\n\
 di             disable interrupts\n\
 r[eset]        reset the Z80\n\
-[!]i[nt]       set/clear TRIS_INT line\n\
+[!]i[nt]       set/clear INT line\n\
 [!]nmi         set/clear NMI line\n\
 v[ars]         examine BASIC variables (see 'h v')\n\
 q[uit]         quit Spiffy\n");
@@ -1934,9 +1934,9 @@ void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bu
 	printf("\n");
 	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u", Tstates, cpu->M, cpu->dT, cpu->internal[0], cpu->internal[1], cpu->internal[2], cpu->shiftstate);
 	if(cpu->nmiacc) printf(" NMI!");
-	else if(cpu->intacc) printf(" TRIS_INT!");
+	else if(cpu->intacc) printf(" INT!");
 	printf("\n");
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==TRIS_OUT?"WR":"wr", bus->tris==TRIS_IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"TRIS_INT":"int", bus->nmi?"NMI":"nmi", bus->reset?"RESET":"reset", bus->halt?"HALT":"halt");
+	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==TRIS_OUT?"WR":"wr", bus->tris==TRIS_IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->reset?"RESET":"reset", bus->halt?"HALT":"halt");
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
