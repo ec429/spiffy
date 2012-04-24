@@ -37,6 +37,22 @@ unsigned char tbl_rp2[4];
 unsigned char tbl_im[4];
 
 // Names/ptrs for the common regs; these tricks rely on the system being little-endian
+#define AREG	cpu->regs[3]
+#define FREG	cpu->regs[2]
+#define BREG	cpu->regs[5]
+#define CREG	cpu->regs[4]
+#define DREG	cpu->regs[7]
+#define EREG	cpu->regs[6]
+#define HREG	cpu->regs[9]
+#define LREG	cpu->regs[8]
+#define aREG	cpu->regs[19]
+#define fREG	cpu->regs[18]
+#define bREG	cpu->regs[21]
+#define cREG	cpu->regs[20]
+#define dREG	cpu->regs[23]
+#define eREG	cpu->regs[22]
+#define hREG	cpu->regs[25]
+#define lREG	cpu->regs[24]
 #define PC (unsigned short int *)cpu->regs
 #define AF (unsigned short int *)(cpu->regs+2)
 #define BC (unsigned short int *)(cpu->regs+4)

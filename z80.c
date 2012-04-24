@@ -76,6 +76,8 @@ void z80_reset(z80 *cpu, bus_t *bus)
 	bus->data=0;
 	bus->reti=false;
 	bus->halt=false;
+	bus_reset(bus);
+	bus->reset=false;
 }
 
 void bus_reset(bus_t *bus)

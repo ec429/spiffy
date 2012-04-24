@@ -23,7 +23,12 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 	{
 		for(unsigned int g=0;g<*sinc_rate;g++)
 		{
-			while(!a->play&&(a->rp==a->wp)) usleep(5e3);
+			unsigned int waits=0;
+			while(!a->play&&(a->rp==a->wp))
+			{
+				usleep(5e3);
+				if(waits++>20) break;
+			}
 			a->cbuf[a->rp]=a->bits[a->rp];
 			a->rp=(a->rp+1)%SINCBUFLEN;
 		}
