@@ -119,6 +119,7 @@ void loadfile(const char *fn, libspectrum_tape **deck);
 double float_decode(const unsigned char *RAM, unsigned int addr);
 void float_encode(unsigned char *RAM, unsigned int addr, double val);
 void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest);
+int reg16(const char *name);
 
 #ifdef CORETEST
 static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
@@ -525,6 +526,7 @@ h =            register assignments\n\
 \t or (%%sysvar)[+x] if the sysvar is of address type\n\
 \t where sysvar is any of the sysvar names from the 'y' listing\n\
 \t and x is a (decimal) offset.\n\
+\tYou can use *reg[+x] as well, where reg is a 16-bit register\n\
 m r xxxx       read byte from memory at address xxxx\n\
 m w xxxx [yy]  write byte yy or 0 to address xxxx\n\
 m lr xxxx      read word from memory at address xxxx\n\
@@ -610,74 +612,14 @@ q[uit]         quit Spiffy\n");
 								{
 									char *rest=strtok(NULL, "");
 									const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
-									int reg=-1;
-									bool is16=false;
-									if(strcasecmp(what, "PC")==0)
-									{
-										reg=0;
-										is16=true;
-									}
-									else if(strlen(what)==1)
+									int reg=reg16(what);
+									bool is16=(reg>=0);
+									if(strlen(what)==1)
 									{
 										const char *p=strchr(reglist, *what);
 										if(p)
 											reg=(p+2-reglist)^1;
 										is16=false;
-									}
-									else if(strcasecmp(what, "AF")==0)
-									{
-										reg=2;
-										is16=true;
-									}
-									else if(strcasecmp(what, "BC")==0)
-									{
-										reg=4;
-										is16=true;
-									}
-									else if(strcasecmp(what, "DE")==0)
-									{
-										reg=6;
-										is16=true;
-									}
-									else if(strcasecmp(what, "HL")==0)
-									{
-										reg=8;
-										is16=true;
-									}
-									else if(strcasecmp(what, "IX")==0)
-									{
-										reg=10;
-										is16=true;
-									}
-									else if(strcasecmp(what, "IY")==0)
-									{
-										reg=12;
-										is16=true;
-									}
-									else if(strcasecmp(what, "SP")==0)
-									{
-										reg=16;
-										is16=true;
-									}
-									else if(strcasecmp(what, "AF'")==0)
-									{
-										reg=18;
-										is16=true;
-									}
-									else if(strcasecmp(what, "BC'")==0)
-									{
-										reg=20;
-										is16=true;
-									}
-									else if(strcasecmp(what, "DE'")==0)
-									{
-										reg=22;
-										is16=true;
-									}
-									else if(strcasecmp(what, "HL'")==0)
-									{
-										reg=24;
-										is16=true;
 									}
 									if(reg>=0)
 									{
@@ -753,6 +695,18 @@ q[uit]         quit Spiffy\n");
 											}
 											else
 												fprintf(stderr, "memory: unmatched `('\n");
+										}
+										else if(*a=='*')
+										{
+											size_t plus=strcspn(a, "+-");
+											signed int offset=0;
+											if(a[plus]) sscanf(a+plus, "%d", &offset);
+											a[plus]=0;
+											int reg=reg16(a+1);
+											if(reg>=0)
+												mdisplay(RAM, (*(unsigned short int *)(cpu->regs+reg))+offset, what, rest);
+											else
+												fprintf(stderr, "memory: `%s' is not a 16-bit register\n", a+1);
 										}
 										else
 											fprintf(stderr, "memory: missing address\n");
@@ -2519,4 +2473,22 @@ void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const cha
 	}
 	else
 		fprintf(stderr, "memory: bad mode (see 'h m')\n");
+}
+
+int reg16(const char *name)
+{
+	if(!name) return(-1);
+	if(strcasecmp(name, "PC")==0) return(0);
+	if(strcasecmp(name, "AF")==0) return(2);
+	if(strcasecmp(name, "BC")==0) return(4);
+	if(strcasecmp(name, "DE")==0) return(6);
+	if(strcasecmp(name, "HL")==0) return(8);
+	if(strcasecmp(name, "IX")==0) return(10);
+	if(strcasecmp(name, "IY")==0) return(12);
+	if(strcasecmp(name, "SP")==0) return(16);
+	if(strcasecmp(name, "AF'")==0) return(18);
+	if(strcasecmp(name, "BC'")==0) return(20);
+	if(strcasecmp(name, "DE'")==0) return(22);
+	if(strcasecmp(name, "HL'")==0) return(24);
+	return(-1);
 }
