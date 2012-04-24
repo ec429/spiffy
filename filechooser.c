@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 	GtkWidget *mainwindow = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	g_signal_connect(mainwindow, "destroy", G_CALLBACK(destroy), NULL);
 	gtk_window_set_title(GTK_WINDOW(mainwindow), "Spiffy - Load file");
-	gtk_window_maximize(GTK_WINDOW(mainwindow));
+	gtk_window_set_default_size(GTK_WINDOW(mainwindow), 800, 600);
 	GtkWidget *chooser = gtk_file_chooser_widget_new(GTK_FILE_CHOOSER_ACTION_OPEN);
 	g_signal_connect(chooser, "file-activated", G_CALLBACK(clicked), chooser);
 	gtk_container_add(GTK_CONTAINER(mainwindow), chooser);
