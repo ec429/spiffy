@@ -53,3 +53,5 @@ void drawbutton(SDL_Surface *screen, button b);
 #define sr_down			buttons[12].posn
 #define recordbutton	buttons[13]
 #define snapbutton		buttons[14]
+#define trecbutton		buttons[15]
+#define nbuttons		16

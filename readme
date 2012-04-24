@@ -8,20 +8,23 @@ UI controls:
 The UI is a bit spartan right now.  There are three rows of controls: Tape, Audio and Misc.
 Tape:
 	Speed readout.  Should hover around 100%.
+	Load (light brown).  Opens a file chooser dialog which you can use to load a tape or a snapshot.
 	Tape traps (toggle).  White=on, dark gray=off.  Enables trapping of LD-EDGE-1 in the ROM tape loader, for fast tape loading.
 	Play (green).  When tape is playing, turns pink.
 	Skip (dark blue).  Skips to next tape block.
 	Stop at end of block (toggle).  Lilac=on, dark red=off.  When enabled, the tape will be stopped at the end of each block.  Handy for multiload tapes.
 	Rewind (magenta).  Rewinds the tape to the beginning.
+	Record tape (toggle).  Red, brighter when active.  Records tape SAVE to a CSW file.
 	Tape counter.  Only really useful when tape traps are disabled, in which case it displays the number of seconds remaining in the current block.
 Audio:
-	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to "record.wav".  (Note: you can't use this to save tapes.  Right now there is no way to save tapes in Spiffy)
+	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to a WAV file.  (Note: you can't use this to save tapes.  Use the CSW record on the Tape row, above).
 	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 51 or 76 for most beeper engines.
 	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  12 should be plenty.
 Misc:
 	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.
-	Reset (orange).  Resets the Spectrum (at the moment, simply sets the PC to 0).
+	Reset (orange).  Resets the Spectrum.
 	Debug (sickly green).  Activates the debugger.  (Only works if Spiffy was run from a terminal)  See `debugger' for manual.
+	Save Snapshot (grey).  Opens a file chooser dialog to save a .z80 snapshot.
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.

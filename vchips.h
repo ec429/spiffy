@@ -14,3 +14,6 @@ keymap *kmap;
 
 void do_ram(unsigned char RAM[65536], bus_t *bus, bool wrom);
 int init_keyboard(void);
+
+#define PORTFE_MIC	0x08
+#define PORTFE_SPEAKER	0x10

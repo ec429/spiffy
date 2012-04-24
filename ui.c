@@ -28,7 +28,7 @@ SDL_Surface * gf_init()
 
 void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause)
 {
-	static button btn[15];
+	static button btn[nbuttons];
 	*buttons=btn;
 	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
 	SDL_EnableUNICODE(1);
@@ -40,32 +40,32 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause)
 	fimg=configopen("buttons/load.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[0]=(button){.img=pbm_string(img), .posn={124, 298, 17, 17}, .col=0x8f8f1f};
+	btn[0]=(button){.img=pbm_string(img), .posn={116, 298, 17, 17}, .col=0x8f8f1f};
 	free_string(&img);
 	fimg=configopen("buttons/flash.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[1]=(button){.img=pbm_string(img), .posn={144, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
+	btn[1]=(button){.img=pbm_string(img), .posn={136, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
 	free_string(&img);
 	fimg=configopen("buttons/play.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[2]=(button){.img=pbm_string(img), .posn={164, 298, 17, 17}, .col=0x3fbf5f};
+	btn[2]=(button){.img=pbm_string(img), .posn={156, 298, 17, 17}, .col=0x3fbf5f};
 	free_string(&img);
 	fimg=configopen("buttons/next.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[3]=(button){.img=pbm_string(img), .posn={184, 298, 17, 17}, .col=0x07079f};
+	btn[3]=(button){.img=pbm_string(img), .posn={176, 298, 17, 17}, .col=0x07079f};
 	free_string(&img);
 	fimg=configopen("buttons/stop.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[4]=(button){.img=pbm_string(img), .posn={204, 298, 17, 17}, .col=0x3f0707};
+	btn[4]=(button){.img=pbm_string(img), .posn={196, 298, 17, 17}, .col=0x3f0707};
 	free_string(&img);
 	fimg=configopen("buttons/rewind.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[5]=(button){.img=pbm_string(img), .posn={224, 298, 17, 17}, .col=0x7f076f};
+	btn[5]=(button){.img=pbm_string(img), .posn={216, 298, 17, 17}, .col=0x7f076f};
 	free_string(&img);
 	fimg=configopen("buttons/pause.pbm", "rb");
 	img=sslurp(fimg);
@@ -99,6 +99,12 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause)
 	if(fimg) fclose(fimg);
 	btn[14]=(button){.img=pbm_string(img), .posn={68, 340, 17, 17}, .col=0xbfbfbf};
 	drawbutton(screen, btn[14]);
+	free_string(&img);
+	fimg=configopen("buttons/trec.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[15]=(button){.img=pbm_string(img), .posn={236, 298, 17, 17}, .col=0x4f0f0f};
+	drawbutton(screen, btn[15]);
 	free_string(&img);
 	for(unsigned int i=0;i<9;i++)
 		drawbutton(screen, btn[i]);

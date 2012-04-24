@@ -244,6 +244,10 @@ int main(int argc, char * argv[])
 	int oldtapeblock=-1;
 	unsigned int tapeblocklen=0;
 	libspectrum_snap *snap=NULL;
+	FILE *trec=NULL;
+	unsigned long trecpuls=0;
+	uint32_t T_since_tape_edge=0;
+	bool oldmic=false;
 	
 	SDL_Flip(screen);
 #ifdef AUDIO
@@ -285,12 +289,13 @@ int main(int argc, char * argv[])
 		#ifdef AUDIO
 		if(!(Tstates%(69888*50/(SAMPLE_RATE**sinc_rate))))
 		{
-			abuf.play=play;
+			abuf.play=play||trec;
 			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
-			if(delay&&!play)
+			if(delay&&!(play||trec))
 				while(newwp==abuf.rp) usleep(5e3);
-			abuf.bits[abuf.wp]=(bus->portfe&0x10);
-			abuf.bits[abuf.wp]^=ear;
+			abuf.bits[abuf.wp]=(bus->portfe&PORTFE_SPEAKER);
+			if(ear) abuf.bits[abuf.wp]=!abuf.bits[abuf.wp];
+			if(bus->portfe&PORTFE_MIC) abuf.bits[abuf.wp]=!abuf.bits[abuf.wp];
 			abuf.wp=newwp;
 		}
 		#endif /* AUDIO */
@@ -308,10 +313,40 @@ int main(int argc, char * argv[])
 		if(bus->mreq)
 			do_ram(RAM, bus, false);
 		
+		if(unlikely(trec&&!pause))
+			T_since_tape_edge++;
+		
 		if(unlikely(bus->iorq&&(bus->tris==TRIS_OUT)))
 		{
 			if(!(bus->addr&0x01))
+			{
 				bus->portfe=bus->data;
+				if(trec&&((bus->portfe&PORTFE_MIC)?!oldmic:oldmic))
+				{
+					if(T_since_tape_edge>0xFF)
+					{
+						fputc(0, trec);
+						fputc(T_since_tape_edge, trec);
+						fputc(T_since_tape_edge>>8, trec);
+						fputc(T_since_tape_edge>>16, trec);
+						fputc(T_since_tape_edge>>24, trec);
+					}
+					else
+						fputc(T_since_tape_edge, trec);
+					if(!(++trecpuls&0xFF))
+					{
+						fseek(trec, 0x1D, SEEK_SET);
+						fputc(trecpuls, trec);
+						fputc(trecpuls>>8, trec);
+						fputc(trecpuls>>16, trec);
+						fputc(trecpuls>>24, trec);
+						fseek(trec, 0, SEEK_END);
+						fflush(trec);
+					}
+					T_since_tape_edge=0;
+					oldmic=bus->portfe&PORTFE_MIC;
+				}
+			}
 		}
 		
 		if(unlikely(bus->iorq&&(bus->tris==TRIS_IN)))
@@ -1196,7 +1231,7 @@ int main(int argc, char * argv[])
 				{
 					snprintf(text, 32, "T--- [-]");
 				}
-				dtext(screen, 244, 298, 76, text, font, 0xbf, 0xbf, 0xbf);
+				dtext(screen, 256, 298, 56, text, font, 0xbf, 0xbf, 0xbf);
 				#ifdef AUDIO
 				snprintf(text, 32, "BW:%03u", filterfactor);
 				dtext(screen, 28, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
@@ -1514,6 +1549,59 @@ int main(int argc, char * argv[])
 									}
 									free(fn);
 								}
+								else if(pos_rect(mouse, trecbutton.posn))
+								{
+									if(trec)
+									{
+										fseek(trec, 0x1D, SEEK_SET);
+										fputc(trecpuls, trec);
+										fputc(trecpuls>>8, trec);
+										fputc(trecpuls>>16, trec);
+										fputc(trecpuls>>24, trec);
+										fclose(trec);
+										trec=NULL;
+									}
+									else
+									{
+										char *fn=NULL;
+										FILE *p=popen("spiffy-filechooser --save \"--title=Spiffy - Record Tape\"", "r");
+										if(p)
+										{
+											fn=fgetl(p);
+											fclose(p);
+										}
+										if(fn&&(*fn!='-'))
+										{
+											trec=fopen(fn+1, "wb");
+											if(!trec)
+												perror("fopen");
+											else
+											{
+												trecpuls=0;
+												fputs("Compressed Square Wave", trec);
+												fputc(0x1A, trec);
+												fputc(0x02, trec);
+												fputc(0x00, trec);
+												fputc(69888*50, trec);
+												fputc(69888*50>>8, trec);
+												fputc(69888*50>>16, trec);
+												fputc(69888*50>>24, trec);
+												fputc(0, trec);
+												fputc(0, trec);
+												fputc(0, trec);
+												fputc(0, trec);
+												fputc(0x01, trec);
+												fputc((bus->portfe&PORTFE_MIC)?1:0, trec);
+												fputc(0, trec);
+												fputs("Spiffy", trec);
+												for(unsigned int i=6;i<16;i++) fputc(0, trec);
+												fprintf(stderr, "Recording tape to `%s'\n", fn+1);
+												T_since_tape_edge=0;
+											}
+										}
+										free(fn);
+									}
+								}
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -1569,10 +1657,12 @@ int main(int argc, char * argv[])
 								playbutton.col=play?0xbf1f3f:0x3fbf5f;
 								stopbutton.col=stopper?0x3f07f7:0x3f0707;
 								pausebutton.col=pause?0xbf6f07:0x7f6f07;
+								trecbutton.col=trec?0xcf1717:0x4f0f0f;
 								drawbutton(screen, edgebutton);
 								drawbutton(screen, playbutton);
 								drawbutton(screen, stopbutton);
 								drawbutton(screen, pausebutton);
+								drawbutton(screen, trecbutton);
 							break;
 							case SDL_BUTTON_RIGHT:
 								#ifdef AUDIO
