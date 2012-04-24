@@ -55,6 +55,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
 void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap);
 void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int *Tstates);
+void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int Tstates);
 
 int main(int argc, char * argv[])
 {
@@ -1210,7 +1211,7 @@ int main(int argc, char * argv[])
 			SDL_Event event;
 			while(SDL_PollEvent(&event))
 			{
-				switch (event.type)
+				switch(event.type)
 				{
 					case SDL_QUIT:
 						errupt++;
@@ -1445,11 +1446,11 @@ int main(int argc, char * argv[])
 										fclose(p);
 										if(fn&&(*fn!='-'))
 										{
-											loadfile(fn, &deck, &snap);
+											loadfile(fn+1, &deck, &snap);
 											if(snap)
 											{
 												loadsnap(snap, cpu, bus, RAM, &Tstates);
-												fprintf(stderr, "Loaded snap '%s'\n", fn);
+												fprintf(stderr, "Loaded snap '%s'\n", fn+1);
 												libspectrum_snap_free(snap);
 												snap=NULL;
 											}
@@ -1476,6 +1477,43 @@ int main(int argc, char * argv[])
 									bus_reset(bus);
 								else if(pos_rect(mouse, bugbutton.posn))
 									debug=true;
+								else if(pos_rect(mouse, snapbutton.posn))
+								{
+									char *fn=NULL;
+									FILE *p=popen("spiffy-filechooser --save \"--title=Spiffy - Save Snapshot\"", "r");
+									if(p)
+									{
+										fn=fgetl(p);
+										fclose(p);
+									}
+									if(fn&&(*fn!='-'))
+									{
+										FILE *sf=fopen(fn+1, "wb");
+										if(sf)
+										{
+											savesnap(&snap, cpu, bus, RAM, Tstates);
+											unsigned char *buffer=NULL; size_t l=0;
+											int out_flags;
+											libspectrum_snap_write(&buffer, &l, &out_flags, snap, LIBSPECTRUM_ID_SNAPSHOT_Z80, NULL, 0);
+											fwrite(buffer, 1, l, sf);
+											if(out_flags&LIBSPECTRUM_FLAG_SNAPSHOT_MAJOR_INFO_LOSS)
+												fprintf(stderr, "Warning: libspectrum reports Major Info Loss, snap probably broken\n");
+											else if(out_flags&LIBSPECTRUM_FLAG_SNAPSHOT_MINOR_INFO_LOSS)
+												fprintf(stderr, "Warning: libspectrum reports Minor Info Loss, snap may be broken\n");
+											else
+												fprintf(stderr, "Snapshot saved\n");
+											libspectrum_snap_set_pages(snap, 5, NULL);
+											libspectrum_snap_set_pages(snap, 2, NULL);
+											libspectrum_snap_set_pages(snap, 0, NULL);
+											libspectrum_snap_free(snap);
+											snap=NULL;
+											fclose(sf);
+										}
+										else
+											perror("fopen");
+									}
+									free(fn);
+								}
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -1698,6 +1736,7 @@ void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32
 
 void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap)
 {
+	*snap=NULL;
 	FILE *fp=fopen(fn, "rb");
 	if(!fp)
 	{
@@ -1732,8 +1771,12 @@ void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap)
 					break;
 					case LIBSPECTRUM_CLASS_SNAPSHOT:
 						*snap=libspectrum_snap_alloc();
-						if(!libspectrum_snap_read(*snap, (unsigned char *)data.buf, data.i, type, fn))
-							fprintf(stderr, "Loading snap '%s'\n", fn);
+						if(libspectrum_snap_read(*snap, (unsigned char *)data.buf, data.i, type, fn))
+						{
+							fprintf(stderr, "Snap load failed\n");
+							libspectrum_snap_free(*snap);
+							*snap=NULL;
+						}
 					break;
 					default:
 						fprintf(stderr, "This class of file is not supported!\n");
@@ -1778,5 +1821,39 @@ void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, unsigned char *RAM, 
 		memcpy(RAM+0x8000, libspectrum_snap_pages(snap, 2), 0x4000);
 		memcpy(RAM+0xC000, libspectrum_snap_pages(snap, 0), 0x4000);
 		// At present we ignore SLT data
+	}
+}
+
+void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int Tstates)
+{
+	if((*snap=libspectrum_snap_alloc()))
+	{
+		libspectrum_snap_set_machine(*snap, LIBSPECTRUM_MACHINE_48);
+		libspectrum_snap_set_a(*snap, AREG);
+		libspectrum_snap_set_f(*snap, FREG);
+		libspectrum_snap_set_bc(*snap, *BC);
+		libspectrum_snap_set_de(*snap, *DE);
+		libspectrum_snap_set_hl(*snap, *HL);
+		libspectrum_snap_set_a_(*snap, aREG);
+		libspectrum_snap_set_f_(*snap, fREG);
+		libspectrum_snap_set_bc_(*snap, *BC_);
+		libspectrum_snap_set_de_(*snap, *DE_);
+		libspectrum_snap_set_hl_(*snap, *HL_);
+		libspectrum_snap_set_ix(*snap, *Ix);
+		libspectrum_snap_set_iy(*snap, *Iy);
+		libspectrum_snap_set_i(*snap, *Intvec);
+		libspectrum_snap_set_r(*snap, *Refresh);
+		libspectrum_snap_set_sp(*snap, *SP);
+		libspectrum_snap_set_pc(*snap, *PC);
+		libspectrum_snap_set_iff1(*snap, cpu->IFF[0]);
+		libspectrum_snap_set_iff2(*snap, cpu->IFF[1]);
+		libspectrum_snap_set_im(*snap, cpu->intmode);
+		libspectrum_snap_set_tstates(*snap, Tstates);
+		libspectrum_snap_set_halted(*snap, cpu->halt);
+		libspectrum_snap_set_last_instruction_ei(*snap, cpu->block_ints);
+		libspectrum_snap_set_out_ula(*snap, bus->portfe);
+		libspectrum_snap_set_pages(*snap, 5, RAM+0x4000);
+		libspectrum_snap_set_pages(*snap, 2, RAM+0x8000);
+		libspectrum_snap_set_pages(*snap, 0, RAM+0xC000);
 	}
 }

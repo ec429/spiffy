@@ -26,6 +26,8 @@ void do_ram(unsigned char RAM[65536], bus_t *bus, bool wrom)
 
 int init_keyboard(void)
 {
+	nkmaps=0;
+	kmap=NULL;
 	FILE *f=configopen("keymap", "r");
 	if(!f) return(-1);
 	while(!feof(f))

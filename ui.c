@@ -28,7 +28,7 @@ SDL_Surface * gf_init()
 
 void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause)
 {
-	static button btn[14];
+	static button btn[15];
 	*buttons=btn;
 	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
 	SDL_EnableUNICODE(1);
@@ -94,6 +94,12 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause)
 	drawbutton(screen, btn[13]);
 	free_string(&img);
 #endif /* AUDIO */
+	fimg=configopen("buttons/snap.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[14]=(button){.img=pbm_string(img), .posn={68, 340, 17, 17}, .col=0xbfbfbf};
+	drawbutton(screen, btn[14]);
+	free_string(&img);
 	for(unsigned int i=0;i<9;i++)
 		drawbutton(screen, btn[i]);
 }
