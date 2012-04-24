@@ -30,23 +30,10 @@
 #include "pbm.h"
 #include "sysvars.h"
 #include "basic.h"
-
-// SDL surface params
-#define OSIZ_X	320
-#define OSIZ_Y	360
-#define OBPP	32
-
-#define AUDIO		// Activates audio
-
-#ifdef AUDIO
-#define MAX_SINC_RATE	32
-#define SAMPLE_RATE		8000 // Audio sample rate, Hz
-#define AUDIOBUFLEN		(SAMPLE_RATE/100)
-#define MAX_SINCBUFLEN	(AUDIOBUFLEN*MAX_SINC_RATE)
-unsigned char sinc_rate=12;
-#define SINCBUFLEN		(AUDIOBUFLEN*sinc_rate)
-void update_sinc(unsigned char filterfactor);
-#endif /* AUDIO */
+#include "debug.h"
+#include "ui.h"
+#include "audio.h"
+#include "coretest.h"
 
 #define ROM_FILE "48.rom" // Spectrum ROM file (TODO: make configable)
 
@@ -54,32 +41,6 @@ void update_sinc(unsigned char filterfactor);
  This program comes with ABSOLUTELY NO WARRANTY; for details see the GPL v3.\n\
  This is free software, and you are welcome to redistribute it\n\
  under certain conditions: GPL v3+\n"
-
-typedef struct _pos
-{
-	int x;
-	int y;
-} pos;
-
-SDL_Surface * gf_init();
-void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
-int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
-void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
-void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
-#ifdef AUDIO
-void mixaudio(void *abuf, Uint8 *stream, int len);
-typedef struct
-{
-	bool bits[MAX_SINCBUFLEN];
-	bool cbuf[MAX_SINCBUFLEN];
-	unsigned int rp, wp; // read & write pointers for 'bits' circular buffer
-	bool play; // true if tape is playing (we mute and allow skipping)
-	FILE *record;
-}
-audiobuf;
-
-double sincgroups[MAX_SINC_RATE][AUDIOBUFLEN];
-#endif /* AUDIO */
 
 typedef struct
 {
@@ -89,44 +50,10 @@ typedef struct
 }
 ula_t;
 
-typedef struct
-{
-	SDL_Rect posn;
-	SDL_Surface *img;
-	uint32_t col;
-}
-button;
-
-typedef struct
-{
-	unsigned short int number;
-	string line;
-	unsigned short int addr;
-}
-bas_line;
-int compare_bas_line(const void *, const void *);
-
 // helper fns
-void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
-int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
-bool pos_rect(pos p, SDL_Rect r);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
-void drawbutton(SDL_Surface *screen, button b);
 void loadfile(const char *fn, libspectrum_tape **deck);
-#define peek16(a)	(RAM[(a)]|(RAM[(a)+1]<<8))
-#define poke16(a,v)	(RAM[(a)]=(v),RAM[(a)+1]=((v)>>8))
-double float_decode(const unsigned char *RAM, unsigned int addr);
-void float_encode(unsigned char *RAM, unsigned int addr, double val);
-void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest);
-int reg16(const char *name);
-
-#ifdef CORETEST
-static int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
-static void dump_z80_state( z80 *cpu, unsigned int tstates );
-static void dump_memory_state( unsigned char *memory, unsigned char *initial_memory );
-static int run_test( FILE *f );
-#endif /* CORETEST */
 
 int main(int argc, char * argv[])
 {
@@ -140,9 +67,7 @@ int main(int argc, char * argv[])
 	bool bugstep=false; // Single-step?
 	bool debugcycle=false; // Single-Tstate stepping?
 	bool trace=false; // execution tracing in debugger?
-	#ifdef CORETEST
 	bool coretest=false; // run the core tests?
-	#endif /* CORETEST */
 	bool pause=false;
 	bool stopper=false; // stop tape at end of this block?
 	bool edgeload=true; // edge loader enabled
@@ -192,12 +117,10 @@ int main(int argc, char * argv[])
 		{ // deactivate single-Tstate stepping under debugger
 			debugcycle=false;
 		}
-		#ifdef CORETEST
 		else if((strcmp(argv[arg], "--coretest") == 0) || (strcmp(argv[arg], "-c") == 0))
 		{ // run the core tests
 			coretest=true;
 		}
-		#endif /* CORETEST */
 		else
 		{ // unrecognised option, assume it's a filename
 			fn=argv[arg];
@@ -207,7 +130,6 @@ int main(int argc, char * argv[])
 	printf(GPL_MSG);
 	bool ls=!libspectrum_init();
 	
-	#ifdef CORETEST
 	if(coretest)
 	{
 		FILE *f;
@@ -230,7 +152,6 @@ int main(int argc, char * argv[])
 		}
 		return 0;
 	}
-	#endif /* CORETEST */
 	
 	// State
 	z80 _cpu, *cpu=&_cpu; // we want to work with a pointer
@@ -243,79 +164,8 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "Failed to set up video\n");
 		return(2);
 	}
-	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
-	SDL_EnableUNICODE(1);
-	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-	SDL_Event event;
-	line(screen, 0, 296, OSIZ_X-1, 296, 255, 255, 255);
-	SDL_Rect cls={0, 297, OSIZ_X, OSIZ_Y-297};
-	SDL_FillRect(screen, &cls, SDL_MapRGB(screen->format, 0, 0, 0));
-	FILE *fimg;
-	string img;
-	fimg=configopen("buttons/load.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button loadbutton={.img=pbm_string(img), .posn={124, 298, 17, 17}, .col=0x8f8f1f};
-	drawbutton(screen, loadbutton);
-	free_string(&img);
-	fimg=configopen("buttons/flash.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button edgebutton={.img=pbm_string(img), .posn={144, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
-	drawbutton(screen, edgebutton);
-	free_string(&img);
-	fimg=configopen("buttons/play.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button playbutton={.img=pbm_string(img), .posn={164, 298, 17, 17}, .col=0x3fbf5f};
-	drawbutton(screen, playbutton);
-	free_string(&img);
-	fimg=configopen("buttons/next.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button nextbutton={.img=pbm_string(img), .posn={184, 298, 17, 17}, .col=0x07079f};
-	drawbutton(screen, nextbutton);
-	free_string(&img);
-	fimg=configopen("buttons/stop.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button stopbutton={.img=pbm_string(img), .posn={204, 298, 17, 17}, .col=0x3f0707};
-	drawbutton(screen, stopbutton);
-	free_string(&img);
-	fimg=configopen("buttons/rewind.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button rewindbutton={.img=pbm_string(img), .posn={224, 298, 17, 17}, .col=0x7f076f};
-	drawbutton(screen, rewindbutton);
-	free_string(&img);
-	fimg=configopen("buttons/pause.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button pausebutton={.img=pbm_string(img), .posn={8, 340, 17, 17}, .col=pause?0xbf6f07:0x7f6f07};
-	drawbutton(screen, pausebutton);
-	free_string(&img);
-	fimg=configopen("buttons/reset.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button resetbutton={.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0xffaf07};
-	drawbutton(screen, resetbutton);
-	free_string(&img);
-	fimg=configopen("buttons/bug.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button bugbutton={.img=pbm_string(img), .posn={48, 340, 17, 17}, .col=0xbfff3f};
-	drawbutton(screen, bugbutton);
-	free_string(&img);
-#ifdef AUDIO
-	SDL_Rect aw_up={76, 321, 7, 6}, aw_down={76, 328, 7, 6};
-	SDL_Rect sr_up={140, 321, 7, 6}, sr_down={140, 328, 7, 6};
-	fimg=configopen("buttons/record.pbm", "rb");
-	img=sslurp(fimg);
-	if(fimg) fclose(fimg);
-	button recordbutton={.img=pbm_string(img), .posn={8, 320, 17, 17}, .col=0x7f0707};
-	drawbutton(screen, recordbutton);
-	free_string(&img);
-#endif /* AUDIO */
+	button *buttons;
+	ui_init(screen, &buttons, edgeload, pause);
 	int errupt = 0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
@@ -338,6 +188,7 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "spiffy: failed to initialise audio subsystem:\tSDL_InitSubSystem:%s\n", SDL_GetError());
 		return(3);
 	}
+	unsigned char *sinc_rate=get_sinc_rate();
 	SDL_AudioSpec fmt;
 	fmt.freq = SAMPLE_RATE;
 	fmt.format = AUDIO_S16;
@@ -423,7 +274,7 @@ int main(int argc, char * argv[])
 		}
 		Tstates++;
 		#ifdef AUDIO
-		if(!(Tstates%(69888*50/(SAMPLE_RATE*sinc_rate))))
+		if(!(Tstates%(69888*50/(SAMPLE_RATE**sinc_rate))))
 		{
 			abuf.play=play;
 			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
@@ -511,91 +362,17 @@ int main(int argc, char * argv[])
 								const char *what=strtok(NULL, " ");
 								if(!what) what="";
 								if(strcmp(what, "h")==0)
-									fprintf(stderr, "spiffy debugger: help sections\n\
-h              commands list\n\
-h h            this section list\n\
-h m            memory commands\n\
-h v            BASIC variables\n\
-h k            BASIC listing\n\
-h =            register assignments\n\
-");
+									fprintf(stderr, h_h);
 								else if(strcmp(what, "m")==0)
-									fprintf(stderr, "spiffy debugger: memory commands\n\
-\tValues xxxx and yy[yy] are hex\n\
-\tYou can also use %%sysvar[+x] instead of xxxx,\n\
-\t or (%%sysvar)[+x] if the sysvar is of address type\n\
-\t where sysvar is any of the sysvar names from the 'y' listing\n\
-\t and x is a (decimal) offset.\n\
-\tYou can use *reg[+x] as well, where reg is a 16-bit register\n\
-m r xxxx       read byte from memory at address xxxx\n\
-m w xxxx [yy]  write byte yy or 0 to address xxxx\n\
-m lr xxxx      read word from memory at address xxxx\n\
-m lw xxxx yyyy write word yyyy or 0 to address xxxx\n\
-m fr xxxx      read 5-byte float from address xxxx\n\
-m fw xxxx d    write 5-byte float d (decimal) to address xxxx\n\
-");
+									fprintf(stderr, h_m);
 								else if(strcmp(what, "v")==0)
-									fprintf(stderr, "spiffy debugger: BASIC variables\n\
-v              list all variables\n\
-v foo          examine (numeric) foo\n\
-v a$           examine (string) a$\n\
-v a(1,2,3)     examine numeric array a\n\
-v a$(4)        examine character array a$\n\
-    If the variable is numeric, the listed address is that of the 5-byte float\n\
-    value; if string, the listed address is the start of the variable's\n\
-    metadata (the string data starts 3 bytes later).  If it's an array, the\n\
-    address of the first element of the array is given (that is, the address\n\
-    when all the remaining subscripts are filled out with 1s); this is the\n\
-    case regardless of whether the array is numeric or character.\n\
-");
+									fprintf(stderr, h_v);
 								else if(strcmp(what, "k")==0)
-									fprintf(stderr, "spiffy debugger: BASIC listing\n\
-k              entire program listing\n\
-kn             listing with float numbers\n\
-k 10           display line 10 of the program\n\
-");
+									fprintf(stderr, h_k);
 								else if(strcmp(what, "=")==0)
-									fprintf(stderr, "spiffy debugger: registers\n\
-= reg          displays the value of register reg\n\
-= reg val      assigns val (hex) to register reg\n\
-\n\
-The (16-bit) registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
-8-bit reads/writes can be made as follows:\n\
- MSB LSB register\n\
-  A   F     AF\n\
-  B   C     BC\n\
-  D   E     DE\n\
-  H   L     HL\n\
-  X   x     IX\n\
-  Y   y     IY\n\
-  I   R     IR (can't access as 16-bit)\n\
-  S   P     SP\n\
-  a   f     AF'\n\
-  b   c     BC'\n\
-  d   e     DE'\n\
-  h   l     HL'\n\
-");
+									fprintf(stderr, h_eq);
 								else
-									fprintf(stderr, "spiffy debugger:\n\
-n[ext]         single-step the Z80\n\
-c[ont]         continue emulation\n\
-h[elp] [sect]  get debugger help (see 'h h')\n\
-s[tate]        show Z80 state\n\
-t[race]        trace Z80 state\n\
-b[reak] xxxx   set a breakpoint\n\
-!b[reak] xxxx  delete a breakpoint\n\
-l[ist]         list breakpoints\n\
-= reg [val]    read/write a register (see 'h =')\n\
-m[emory] ...   read/write memory (see 'h m')\n\
-ei             enable interrupts\n\
-di             disable interrupts\n\
-r[eset]        reset the Z80\n\
-[!]i[nt]       set/clear INT line\n\
-[!]nmi         set/clear NMI line\n\
-v[ars] ...     examine BASIC variables (see 'h v')\n\
-k ...          examine BASIC listing (see 'h k')\n\
-y              examine system variables\n\
-q[uit]         quit Spiffy\n");
+									fprintf(stderr, h_cmds);
 							}
 							else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
 								show_state(RAM, cpu, Tstates, bus);
@@ -1420,12 +1197,13 @@ q[uit]         quit Spiffy\n");
 				dtext(screen, 28, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
-				snprintf(text, 32, "SR:%03u", sinc_rate);
+				snprintf(text, 32, "SR:%03u", *sinc_rate);
 				dtext(screen, 92, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
 				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
 				#endif /* AUDIO */
 			}
+			SDL_Event event;
 			while(SDL_PollEvent(&event))
 			{
 				switch (event.type)
@@ -1717,12 +1495,12 @@ q[uit]         quit Spiffy\n");
 								}
 								else if(pos_rect(mouse, sr_up))
 								{
-									sinc_rate=min(sinc_rate+1,MAX_SINC_RATE);
+									*sinc_rate=min(*sinc_rate+1,MAX_SINC_RATE);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, sr_down))
 								{
-									sinc_rate=max(sinc_rate-1,1);
+									*sinc_rate=max(*sinc_rate-1,1);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, recordbutton.posn))
@@ -1737,33 +1515,7 @@ q[uit]         quit Spiffy\n");
 									{
 										FILE *a=fopen("record.wav", "wb");
 										if(a)
-										{
-											fwrite("RIFF", 1, 4, a);
-											fwrite("\377\377\377\377", 1, 4, a);
-											fwrite("WAVEfmt ", 1, 8, a);
-											fputc(16, a);
-											fputc(0, a);
-											fputc(0, a);
-											fputc(0, a);
-											fputc(1, a);
-											fputc(0, a);
-											fputc(1, a);
-											fputc(0, a);
-											fputc(SAMPLE_RATE, a);
-											fputc(SAMPLE_RATE>>8, a);
-											fputc(SAMPLE_RATE>>16, a);
-											fputc(SAMPLE_RATE>>24, a);
-											fputc(SAMPLE_RATE<<1, a);
-											fputc(SAMPLE_RATE>>7, a);
-											fputc(SAMPLE_RATE>>15, a);
-											fputc(SAMPLE_RATE>>23, a);
-											fputc(2, a);
-											fputc(0, a);
-											fputc(16, a);
-											fputc(0, a);
-											fwrite("data", 1, 4, a);
-											fwrite("\377\377\377\377", 1, 4, a);
-										}
+											wavheader(a);
 										abuf.record=a;
 									}
 								}
@@ -1793,12 +1545,12 @@ q[uit]         quit Spiffy\n");
 								}
 								else if(pos_rect(mouse, sr_up))
 								{
-									sinc_rate=min(sinc_rate<<1,MAX_SINC_RATE);
+									*sinc_rate=min(*sinc_rate<<1,MAX_SINC_RATE);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, sr_down))
 								{
-									sinc_rate=max(sinc_rate>>1,1);
+									*sinc_rate=max(*sinc_rate>>1,1);
 									update_sinc(filterfactor);
 								}
 								#endif /* AUDIO */
@@ -1835,214 +1587,6 @@ q[uit]         quit Spiffy\n");
 	abuf.play=true; // let the audio thread run free and finish
 #endif
 	return(0);
-}
-
-SDL_Surface * gf_init()
-{
-	SDL_Surface * screen;
-	if(SDL_Init(SDL_INIT_VIDEO)<0)
-	{
-		fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
-		return(NULL);
-	}
-	atexit(SDL_Quit);
-	if((screen = SDL_SetVideoMode(OSIZ_X, OSIZ_Y, OBPP, SDL_HWSURFACE))==0)
-	{
-		fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
-		return(NULL);
-	}
-	return(screen);
-}
-
-inline void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b)
-{
-	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
-	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
-		* pixloc = (unsigned long int *)(((unsigned char *)screen->pixels)+s_off);
-	*pixloc = pixval;
-}
-
-int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b)
-{
-	if(x2<x1)
-	{
-		int _t=x1;
-		x1=x2;
-		x2=_t;
-		_t=y1;
-		y1=y2;
-		y2=_t;
-	}
-	int dy=y2-y1,
-		dx=x2-x1;
-	if(dx==0)
-	{
-		int cy;
-		for(cy=y1;(dy>0)?cy-y2:y2-cy<=0;cy+=(dy>0)?1:-1)
-		{
-			pset(screen, x1, cy, r, g, b);
-		}
-	}
-	else if(dy==0)
-	{
-		int cx;
-		for(cx=x1;cx<=x2;cx++)
-		{
-			pset(screen, cx, y1, r, g, b);
-		}
-	}
-	else
-	{
-		double m = (double)dy/(double)dx;
-		int cx=x1, cy=y1;
-		if(m>0)
-		{
-			while(cx<x2)
-			{
-				do {
-					pset(screen, cx, cy, r, g, b);
-					cx++;
-				} while((((cx-x1) * m)<(cy-y1)) && cx<x2);
-				do {
-					pset(screen, cx, cy, r, g, b);
-					cy++;
-				} while((((cx-x1) * m)>(cy-y1)) && cy<y2);
-			}
-		}
-		else
-		{
-			while(cx<x2)
-			{
-				do {
-					pset(screen, cx, cy, r, g, b);
-					cx++;
-				} while((((cx-x1) * m)>(cy-y1)) && cx<x2);
-				do {
-					pset(screen, cx, cy, r, g, b);
-					cy--;
-				} while((((cx-x1) * m)<(cy-y1)) && cy>y2);
-			}
-		}
-	}
-	return(0);
-}
-
-void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol)
-{
-	SDL_FillRect(screen, &where, SDL_MapRGB(screen->format, bcol>>16, bcol>>8, bcol));
-	pset(screen, where.x+1, where.y+3, col>>16, col>>8, col);
-	pset(screen, where.x+2, where.y+2, col>>16, col>>8, col);
-	pset(screen, where.x+3, where.y+1, col>>16, col>>8, col);
-	pset(screen, where.x+4, where.y+2, col>>16, col>>8, col);
-	pset(screen, where.x+5, where.y+3, col>>16, col>>8, col);
-}
-
-void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol)
-{
-	SDL_FillRect(screen, &where, SDL_MapRGB(screen->format, bcol>>16, bcol>>8, bcol));
-	pset(screen, where.x+1, where.y+2, col>>16, col>>8, col);
-	pset(screen, where.x+2, where.y+3, col>>16, col>>8, col);
-	pset(screen, where.x+3, where.y+4, col>>16, col>>8, col);
-	pset(screen, where.x+4, where.y+3, col>>16, col>>8, col);
-	pset(screen, where.x+5, where.y+2, col>>16, col>>8, col);
-}
-
-#ifdef AUDIO
-void mixaudio(void *abuf, Uint8 *stream, int len)
-{
-	audiobuf *a=abuf;
-	for(int i=0;i<len;i+=2)
-	{
-		for(unsigned int g=0;g<sinc_rate;g++)
-		{
-			while(!a->play&&(a->rp==a->wp)) usleep(5e3);
-			a->cbuf[a->rp]=a->bits[a->rp];
-			a->rp=(a->rp+1)%SINCBUFLEN;
-		}
-		unsigned int l=a->play?SINCBUFLEN>>2:SINCBUFLEN;
-		double v=0;
-		for(unsigned int j=0;j<l;j++)
-		{
-			signed char d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
-			if(d)
-				v+=d*sincgroups[sinc_rate-(j%sinc_rate)-1][j/sinc_rate];
-		}
-		if(a->play) v*=0.2;
-		Uint16 samp=floor(v*1024.0);
-		stream[i]=samp;
-		stream[i+1]=samp>>8;
-		if(a->record)
-		{
-			fputc(stream[i], a->record);
-			fputc(stream[i+1], a->record);
-		}
-	}
-}
-
-void update_sinc(unsigned char filterfactor)
-{
-	double sinc[SINCBUFLEN];
-	for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
-	{
-		double v=filterfactor*(i/(double)SINCBUFLEN-0.5);
-		sinc[i]=(v?sin(v)/v:1)*16.0/(double)sinc_rate;
-	}
-	for(unsigned int g=0;g<sinc_rate;g++)
-	{
-		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
-			sincgroups[g][j]=0;
-		for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
-		{
-			unsigned int j=(i+g)/sinc_rate;
-			if(j<AUDIOBUFLEN)
-				sincgroups[g][j]+=sinc[i];
-		}
-	}
-}
-#endif /* AUDIO */
-
-void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus)
-{
-	int i;
-	printf("\nState: %c%c%c%c%c%c%c%c\n", cpu->regs[2]&0x80?'S':'-', cpu->regs[2]&0x40?'Z':'-', cpu->regs[2]&0x20?'5':'-', cpu->regs[2]&0x10?'H':'-', cpu->regs[2]&0x08?'3':'-', cpu->regs[2]&0x04?'P':'-', cpu->regs[2]&0x02?'N':'-', cpu->regs[2]&0x01?'C':'-');
-	printf("P C  A F  B C  D E  H L  I x  I y  I R  S P  a f  b c  d e  h l  IFF IM\n");
-	for(i=0;i<26;i+=2)
-	{
-		printf("%02x%02x ", cpu->regs[i+1], cpu->regs[i]);
-	}
-	printf("%c %c %1x\n", cpu->IFF[0]?'1':'0', cpu->IFF[1]?'1':'0', cpu->intmode);
-	printf("\n");
-	printf("Memory\t- near (PC), (HL) and (SP):\n");
-	for(i=0;i<5;i++)
-	{
-		unsigned short int off = (*PC) + 8*(i-2);
-		off-=off%8;
-		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
-		off = (*HL) + 8*(i-2);
-		off-=off%8;
-		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
-		off = (*SP) + 2*(i);
-		printf("%04x: %02x%02x\n", (unsigned short int)off, RAM[(off+1)%(1<<16)], RAM[off]);
-	}
-	printf("\t- near (BC), (DE) and (nn):\n");
-	for(i=0;i<5;i++)
-	{
-		unsigned short int off = (*BC) + 8*(i-2);
-		off-=off%8;
-		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
-		off = (*DE) + 8*(i-2);
-		off-=off%8;
-		printf("%04x: %02x%02x %02x%02x %02x%02x %02x%02x\t", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3], RAM[off+4], RAM[off+5], RAM[off+6], RAM[off+7]);
-		off = I16 + 4*(i-2);
-		off-=off%4;
-		printf("%04x: %02x%02x %02x%02x\n", (unsigned short int)off, RAM[off], RAM[off+1], RAM[off+2], RAM[off+3]);
-	}
-	printf("\n");
-	printf("T-states: %u\tM-cycle: %u[%d]\tInternal regs: %02x-%02x-%02x\tShift state: %u", Tstates, cpu->M, cpu->dT, cpu->internal[0], cpu->internal[1], cpu->internal[2], cpu->shiftstate);
-	if(cpu->nmiacc) printf(" NMI!");
-	else if(cpu->intacc) printf(" INT!");
-	printf("\n");
-	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==TRIS_OUT?"WR":"wr", bus->tris==TRIS_IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->reset?"RESET":"reset", bus->halt?"HALT":"halt");
 }
 
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
@@ -2114,176 +1658,6 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 	}
 }
 
-int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
-{
-	SDL_Color clrFg = {r, g, b,0};
-	SDL_Rect rcDest = {x, y, w, 16};
-	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
-	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
-	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
-	SDL_FreeSurface(sText);
-	return(0);
-}
-
-bool pos_rect(pos p, SDL_Rect r)
-{
-	return((p.x>=r.x)&&(p.y>=r.y)&&(p.x<r.x+r.w)&&(p.y<r.y+r.h));
-}
-
-#ifdef CORETEST
-static int
-read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory )
-{
-	const char *progname="spiffy";
-	unsigned af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc;
-	unsigned i, r, iff1, iff2, im;
-	unsigned end_tstates2;
-	unsigned address;
-	char test_name[ 80 ];
-
-	do {
-
-		if( !fgets( test_name, sizeof( test_name ), f ) ) {
-
-			if( feof( f ) ) return 1;
-
-			fprintf( stderr, "%s: error reading test description from file: %s\n",
-				 progname, strerror( errno ) );
-			return 1;
-		}
-
-	} while( test_name[0] == '\n' );
-
-	if( fscanf( f, "%x %x %x %x %x %x %x %x %x %x %x %x", &af, &bc,
-				&de, &hl, &af_, &bc_, &de_, &hl_, &ix, &iy, &sp, &pc ) != 12 ) {
-		fprintf( stderr, "%s: first registers line in file corrupt\n", progname);
-		return 1;
-	}
-
-	*AF	= af;	*BC	= bc;	*DE	= de;	*HL	= hl;
-	*AF_ = af_; *BC_ = bc_; *DE_ = de_; *HL_ = hl_;
-	*Ix	= ix;	*Iy	= iy;	*SP	= sp;	*PC	= pc;
-
-	int halted;
-	if( fscanf( f, "%x %x %u %u %u %d %u", &i, &r, &iff1, &iff2, &im,
-				&halted, &end_tstates2 ) != 7 ) {
-		fprintf( stderr, "%s: second registers line in file corrupt\n", progname);
-		return 1;
-	}
-
-	*Intvec = i; *Refresh = r; cpu->IFF[0] = iff1; cpu->IFF[1] = iff2; cpu->intmode = im; cpu->halt=halted;
-	*end_tstates = end_tstates2;
-
-	while( 1 ) {
-
-		if( fscanf( f, "%x", &address ) != 1 ) {
-			fprintf( stderr, "%s: no address found in file\n", progname);
-			return 1;
-		}
-
-		if( address >= 0x10000 ) break;
-
-		while( 1 ) {
-
-			unsigned byte;
-
-			if( fscanf( f, "%x", &byte ) != 1 ) {
-	fprintf( stderr, "%s: no data byte found in file\n", progname);
-	return 1;
-			}
-		
-			if( byte >= 0x100 ) break;
-
-			memory[ address++ ] = byte;
-
-		}
-	}
-
-	printf( "%s", test_name );
-
-	return 0;
-}
-
-static void
-dump_z80_state( z80 *cpu, unsigned int tstates )
-{
-	printf( "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x\n",
-		*AF, *BC, *DE, *HL, *AF_, *BC_, *DE_, *HL_, *Ix, *Iy, *SP, *PC );
-	printf( "%02x %02x %d %d %d %d %d\n", *Intvec, *Refresh,
-		cpu->IFF[0], cpu->IFF[1], cpu->intmode, cpu->halt, tstates );
-}
-
-static void
-dump_memory_state( unsigned char *memory, unsigned char *initial_memory )
-{
-	size_t i;
-
-	for( i = 0; i < 0x10000; i++ ) {
-
-		if( memory[ i ] == initial_memory[ i ] ) continue;
-
-		printf( "%04x ", (unsigned)i );
-
-		while( i < 0x10000 && memory[ i ] != initial_memory[ i ] )
-			printf( "%02x ", memory[ i++ ] );
-
-		printf( "-1\n" );
-	}
-}
-
-static int
-run_test(FILE *f)
-{
-	size_t i;
-	unsigned int tstates=0;
-	unsigned char memory[0x10000], initial_memory[0x10000];
-	ramtop=0x10000;
-	for( i = 0; i < 0x10000; i += 4 ) {
-		memory[ i     ] = 0xde; memory[ i + 1 ] = 0xad;
-		memory[ i + 2 ] = 0xbe; memory[ i + 3 ] = 0xef;
-	}
-
-	z80 _cpu, *cpu=&_cpu;
-	bus_t _bus, *bus=&_bus;
-	z80_reset(cpu, bus);
-	unsigned int end_tstates;
-	if( read_test( f, &end_tstates, cpu, memory ) ) return 0;
-
-	/* Grab a copy of the memory for comparison at the end */
-	memcpy( initial_memory, memory, 0x10000 );
-
-	int errupt=0;
-	while(!errupt)
-	{
-		do_ram(memory, bus, true);
-		fflush(stdout);
-		if(cpu->nothing)
-		{
-			cpu->nothing--;
-			if(cpu->steps)
-				cpu->steps--;
-			cpu->dT++;
-		}
-		else
-			errupt=z80_tstep(cpu, bus, errupt);
-		fflush(stderr);
-		if(++tstates>=end_tstates)
-		{
-			if((cpu->M==0)&&(cpu->dT==0)&&!cpu->block_ints)
-				errupt++;
-		}
-	}
-
-	/* And dump our final state */
-	dump_z80_state(cpu, tstates);
-	dump_memory_state(memory, initial_memory);
-
-	printf( "\n" );
-
-	return 1;
-}
-#endif /* CORETEST */
-
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen)
 {
 	int block;
@@ -2315,12 +1689,6 @@ void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32
 	}
 	if(*play)
 		libspectrum_tape_get_next_edge(T_to_tape_edge, edgeflags, deck);
-}
-
-void drawbutton(SDL_Surface *screen, button b)
-{
-	SDL_FillRect(screen, &b.posn, SDL_MapRGB(screen->format, b.col>>16, b.col>>8, b.col));
-	if(b.img) SDL_BlitSurface(b.img, NULL, screen, &b.posn);
 }
 
 void loadfile(const char *fn, libspectrum_tape **deck)
@@ -2374,121 +1742,4 @@ void loadfile(const char *fn, libspectrum_tape **deck)
 			}
 		}
 	}
-}
-
-double float_decode(const unsigned char *RAM, unsigned int addr)
-{
-	if(!RAM[addr])
-	{
-		if((!RAM[addr+1])||(RAM[addr+1]==0xFF))
-		{
-			if(!RAM[addr+4])
-			{
-				unsigned short int val=peek16(addr+2);
-				if(RAM[addr+1]) return(val-131072);
-				return(val);
-			}
-		}
-	}
-	signed char exponent=RAM[addr]-128;
-	unsigned long mantissa=((RAM[addr+1]|0x80)<<24)|(RAM[addr+2]<<16)|(RAM[addr+3]<<8)|RAM[addr+4];
-	bool minus=RAM[addr+1]&0x80;
-	return((minus?-1.0:1.0)*mantissa*exp2(exponent-32));
-}
-
-void float_encode(unsigned char *RAM, unsigned int addr, double val)
-{
-	if((fabs(val)<65536)&&(ceil(val)==val))
-	{
-		RAM[addr]=RAM[addr+4]=0;
-		signed int ival=ceil(val);
-		if(signbit(val))
-		{
-			RAM[addr+1]=0xFF;
-			ival+=131072;
-		}
-		else
-			RAM[addr+1]=0;
-		poke16(addr+2, (unsigned int)ival);
-	}
-	else if(isfinite(val))
-	{
-		signed char exponent=1+floor(log2(fabs(val)));
-		double mantissa=rint(fabs(val)*exp2(32-exponent));
-		if(mantissa>0xffffffff)
-		{
-			fprintf(stderr, "float_encode: 6 Number too big, %g\n", val);
-			return;
-		}
-		unsigned long mi=mantissa;
-		RAM[addr]=exponent+128;
-		RAM[addr+1]=((mi>>24)&0x7F)|(signbit(val)?0x80:0);
-		RAM[addr+2]=mi>>16;
-		RAM[addr+3]=mi>>8;
-		RAM[addr+4]=mi;
-	}
-	else
-	{
-		fprintf(stderr, "float_encode: cannot encode non-finite number %g\n", val);
-	}
-}
-
-int compare_bas_line(const void *a, const void *b)
-{
-	unsigned short int na=((bas_line *)a)->number, nb=((bas_line *)b)->number;
-	if(na<nb) return(-1);
-	if(na>nb) return(1);
-	return(0);
-}
-
-void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest)
-{
-	if(strcmp(what, "r")==0)
-		fprintf(stderr, "[%04x.b]=%02x\n", addr, RAM[addr]);
-	else if(strcmp(what, "w")==0)
-	{
-		unsigned int val;
-		if(!(rest&&(sscanf(rest, "%x", &val)==1)))
-			val=0;
-		RAM[addr]=val;
-	}
-	else if(strcmp(what, "lr")==0)
-		fprintf(stderr, "[%04x.w]=%04x\n", addr, peek16(addr));
-	else if(strcmp(what, "lw")==0)
-	{
-		unsigned int val;
-		if(!(rest&&(sscanf(rest, "%x", &val)==1)))
-			val=0;
-		poke16(addr, val);
-	}
-	else if(strcmp(what, "fr")==0)
-		fprintf(stderr, "[%04x.f]=%g\n", addr, float_decode(RAM, addr));
-	else if(strcmp(what, "fw")==0)
-	{
-		double val;
-		if(!(rest&&(sscanf(rest, "%lg", &val)==1)))
-			fprintf(stderr, "memory: missing value\n");
-		else
-			float_encode(RAM, addr, val);
-	}
-	else
-		fprintf(stderr, "memory: bad mode (see 'h m')\n");
-}
-
-int reg16(const char *name)
-{
-	if(!name) return(-1);
-	if(strcasecmp(name, "PC")==0) return(0);
-	if(strcasecmp(name, "AF")==0) return(2);
-	if(strcasecmp(name, "BC")==0) return(4);
-	if(strcasecmp(name, "DE")==0) return(6);
-	if(strcasecmp(name, "HL")==0) return(8);
-	if(strcasecmp(name, "IX")==0) return(10);
-	if(strcasecmp(name, "IY")==0) return(12);
-	if(strcasecmp(name, "SP")==0) return(16);
-	if(strcasecmp(name, "AF'")==0) return(18);
-	if(strcasecmp(name, "BC'")==0) return(20);
-	if(strcasecmp(name, "DE'")==0) return(22);
-	if(strcasecmp(name, "HL'")==0) return(24);
-	return(-1);
 }

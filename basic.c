@@ -1,5 +1,14 @@
+/*
+	spiffy - ZX spectrum emulator
+	
+	Copyright Edward Cree, 2010-12
+	basic.c - BASIC debugging functions
+*/
+
 #include "basic.h"
 #include <stdio.h>
+#include <stdbool.h>
+#include <math.h>
 
 const char *toktbl[]={
 "RND ", // 0xA5
@@ -136,4 +145,69 @@ const char *baschar(unsigned char c)
 	buf[0]=c;
 	buf[1]=0;
 	return(buf);
+}
+
+double float_decode(const unsigned char *RAM, unsigned int addr)
+{
+	if(!RAM[addr])
+	{
+		if((!RAM[addr+1])||(RAM[addr+1]==0xFF))
+		{
+			if(!RAM[addr+4])
+			{
+				unsigned short int val=peek16(addr+2);
+				if(RAM[addr+1]) return(val-131072);
+				return(val);
+			}
+		}
+	}
+	signed char exponent=RAM[addr]-128;
+	unsigned long mantissa=((RAM[addr+1]|0x80)<<24)|(RAM[addr+2]<<16)|(RAM[addr+3]<<8)|RAM[addr+4];
+	bool minus=RAM[addr+1]&0x80;
+	return((minus?-1.0:1.0)*mantissa*exp2(exponent-32));
+}
+
+void float_encode(unsigned char *RAM, unsigned int addr, double val)
+{
+	if((fabs(val)<65536)&&(ceil(val)==val))
+	{
+		RAM[addr]=RAM[addr+4]=0;
+		signed int ival=ceil(val);
+		if(signbit(val))
+		{
+			RAM[addr+1]=0xFF;
+			ival+=131072;
+		}
+		else
+			RAM[addr+1]=0;
+		poke16(addr+2, (unsigned int)ival);
+	}
+	else if(isfinite(val))
+	{
+		signed char exponent=1+floor(log2(fabs(val)));
+		double mantissa=rint(fabs(val)*exp2(32-exponent));
+		if(mantissa>0xffffffff)
+		{
+			fprintf(stderr, "float_encode: 6 Number too big, %g\n", val);
+			return;
+		}
+		unsigned long mi=mantissa;
+		RAM[addr]=exponent+128;
+		RAM[addr+1]=((mi>>24)&0x7F)|(signbit(val)?0x80:0);
+		RAM[addr+2]=mi>>16;
+		RAM[addr+3]=mi>>8;
+		RAM[addr+4]=mi;
+	}
+	else
+	{
+		fprintf(stderr, "float_encode: cannot encode non-finite number %g\n", val);
+	}
+}
+
+int compare_bas_line(const void *a, const void *b)
+{
+	unsigned short int na=((bas_line *)a)->number, nb=((bas_line *)b)->number;
+	if(na<nb) return(-1);
+	if(na>nb) return(1);
+	return(0);
 }

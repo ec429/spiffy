@@ -19,6 +19,9 @@ string;
 #define max(a,b)	((a)>(b)?(a):(b))
 #endif /* max */
 
+#define peek16(a)	(RAM[(a)]|(RAM[(a)+1]<<8))
+#define poke16(a,v)	(RAM[(a)]=(v),RAM[(a)+1]=((v)>>8))
+
 char *fgetl(FILE *); // gets a line of string data; returns a malloc-like pointer
 char *finpl(FILE *); // gets a line of string data; returns a malloc-like pointer
 char *slurp(FILE *); // gets a file of string data; returns a malloc-like pointer
