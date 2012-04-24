@@ -75,6 +75,7 @@ The (16-bit) registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
 
 #define h_cmds "spiffy debugger:\n\
 n[ext]         single-step the Z80\n\
+[!]1           enable/disable Tstate stepping\n\
 c[ont]         continue emulation\n\
 h[elp] [sect]  get debugger help (see 'h h')\n\
 s[tate]        show Z80 state\n\

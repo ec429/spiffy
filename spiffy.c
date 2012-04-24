@@ -109,6 +109,10 @@ int main(int argc, char * argv[])
 		{ // activate single-step mode under debugger
 			bugstep=true;
 		}
+		else if((strcmp(argv[arg], "--pause") == 0) || (strcmp(argv[arg], "-p") == 0))
+		{ // start with the emulation paused
+			pause=true;
+		}
 		else if((strcmp(argv[arg], "--Tstate") == 0) || (strcmp(argv[arg], "-T") == 0))
 		{ // activate single-Tstate stepping under debugger
 			debugcycle=true;
@@ -380,6 +384,10 @@ int main(int argc, char * argv[])
 								trace=true;
 							else if((strcmp(cmd, "!t")==0)||(strcmp(cmd, "!trace")==0))
 								trace=false;
+							else if(strcmp(cmd, "1")==0)
+								debugcycle=true;
+							else if(strcmp(cmd, "!1")==0)
+								debugcycle=false;
 							else if((strcmp(cmd, "n")==0)||(strcmp(cmd, "next")==0))
 								derrupt++;
 							else if((strcmp(cmd, "=")==0)||(strcmp(cmd, "assign")==0))
