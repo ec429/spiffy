@@ -42,6 +42,7 @@ dist: all
 	for p in $$(ls); do cp $$p spiffy_$(VERSION)/$$p; done;
 	cp -r buttons spiffy_$(VERSION)/
 	-rm spiffy_$(VERSION)/*.tgz
+	-rm -r spiffy_$(VERSION)/wbits
 	tar -czf spiffy_$(VERSION).tgz spiffy_$(VERSION)/
 	rm -r spiffy_$(VERSION)/
 
