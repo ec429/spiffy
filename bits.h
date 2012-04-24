@@ -12,8 +12,12 @@ typedef struct
 }
 string;
 
+#ifndef min
 #define min(a,b)	((a)<(b)?(a):(b))
+#endif /* min */
+#ifndef max
 #define max(a,b)	((a)>(b)?(a):(b))
+#endif /* max */
 
 char *fgetl(FILE *); // gets a line of string data; returns a malloc-like pointer
 char *finpl(FILE *); // gets a line of string data; returns a malloc-like pointer
