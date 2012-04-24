@@ -71,7 +71,7 @@ You can get rudimentary help from within the debugger by entering "h" (for a com
 		ADDR	0x%04x
 		BYTES	{hexadecimal bytes}
 		U8		\
-		U16		| These three display an 8/16/24-bit little-endian unsigned integer
+		U16		| These three display an 8/16/24-bit little-endian unsigned integer, in decimal
 		U24		/
 		XY		This displays the first and second bytes as (%u,%u)
 
