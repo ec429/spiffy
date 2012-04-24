@@ -58,7 +58,7 @@ void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bu
 void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest)
 {
 	if(strcmp(what, "r")==0)
-		fprintf(stderr, "[%04x.b]=%02x\n", addr, RAM[addr]);
+		fprintf(stderr, "[%04x.b] = %02x\n", addr, RAM[addr]);
 	else if(strcmp(what, "w")==0)
 	{
 		unsigned int val;
@@ -67,7 +67,7 @@ void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const cha
 		RAM[addr]=val;
 	}
 	else if(strcmp(what, "lr")==0)
-		fprintf(stderr, "[%04x.w]=%04x\n", addr, peek16(addr));
+		fprintf(stderr, "[%04x.w] = %04x\n", addr, peek16(addr));
 	else if(strcmp(what, "lw")==0)
 	{
 		unsigned int val;
@@ -76,7 +76,7 @@ void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const cha
 		poke16(addr, val);
 	}
 	else if(strcmp(what, "fr")==0)
-		fprintf(stderr, "[%04x.f]=%g\n", addr, float_decode(RAM, addr));
+		fprintf(stderr, "[%04x.f] = %g\n", addr, float_decode(RAM, addr));
 	else if(strcmp(what, "fw")==0)
 	{
 		double val;
@@ -84,6 +84,31 @@ void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const cha
 			fprintf(stderr, "memory: missing value\n");
 		else
 			float_encode(RAM, addr, val);
+	}
+	else if(strcmp(what, "8r")==0)
+	{
+		for(unsigned int i=0;i<8;i++)
+		{
+			unsigned char c=RAM[addr+i];
+			fprintf(stderr, "[%04x.b] = %02x = ", addr+i, c);
+			for(unsigned int b=0;b<8;b++)
+				fputc(((c<<b)&0x80)?'1':'0', stderr);
+			fprintf(stderr, "b\n");
+		}
+	}
+	else if(strcmp(what, "Rr")==0)
+	{
+		fprintf(stderr, "[%04x.R] =", addr);
+		for(unsigned int i=0;i<16;i++)
+		{
+			if(i)
+				fputc(' ', stderr);
+			if(!(i&3))
+				fputc(' ', stderr);
+			unsigned char c=RAM[addr+i];
+			fprintf(stderr, "%02x", c);
+		}
+		fputc('\n', stderr);
 	}
 	else
 		fprintf(stderr, "memory: bad mode (see 'h m')\n");

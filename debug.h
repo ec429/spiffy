@@ -33,7 +33,9 @@ m w xxxx [yy]  write byte yy or 0 to address xxxx\n\
 m lr xxxx      read word from memory at address xxxx\n\
 m lw xxxx yyyy write word yyyy or 0 to address xxxx\n\
 m fr xxxx      read 5-byte float from address xxxx\n\
-m fw xxxx d    write 5-byte float d (decimal) to address xxxx\n"
+m fw xxxx d    write 5-byte float d (decimal) to address xxxx\n\
+m 8r xxxx      read 8 bytes from xxxx, display as binary grid\n\
+m Rr xxxx      read 16 bytes from xxxx, display as hex\n"
 
 #define h_v "spiffy debugger: BASIC variables\n\
 v              list all variables\n\

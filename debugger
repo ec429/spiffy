@@ -33,6 +33,8 @@ You can get rudimentary help from within the debugger by entering "h" (for a com
 		Not present: Byte
 		l: 16-bit little-endian word
 		f: 5-byte float
+		8: 8 byte grid (read only)
+		R: 16 byte row (read only)
 	The <mode> is either r (for read) or w (for write).
 	The <addr> is one of:
 		a 16-bit hex literal
@@ -53,8 +55,8 @@ You can get rudimentary help from within the debugger by entering "h" (for a com
 			Reads a word from STRMS+2 (0x5c12)
 		m r (%UDG)
 			Reads a byte from the address pointed to by UDG (0x5c7b), which is normally 0xff58
-		m r (%CHARS)+256
-			Reads a byte from 256 bytes after the address pointed to by CHARS (0x5c36).  This address is normally 0x3c00, so the byte would be read from 0x3d00.
+		m 8r (%CHARS)+280
+			Reads 8 bytes from 280 bytes after the address pointed to by CHARS (0x5c36).  This address is normally 0x3c00, so the bytes would be read from 0x3d30.  This is the location of the '#' character in the ROM font, as is visible in the grid displayed by this command.
 		m r *HL
 			Reads a byte from the address stored in HL
 		m w *IX+25 0
