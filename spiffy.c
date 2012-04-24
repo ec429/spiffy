@@ -37,12 +37,12 @@
 #define AUDIO		// Activates audio
 
 #ifdef AUDIO
-#define MAX_STRIS_INC_RATE	32
+#define MAX_SINC_RATE	32
 #define SAMPLE_RATE		8000 // Audio sample rate, Hz
 #define AUDIOBUFLEN		(SAMPLE_RATE/100)
-#define MAX_STRIS_INCBUFLEN	(AUDIOBUFLEN*MAX_STRIS_INC_RATE)
+#define MAX_SINCBUFLEN	(AUDIOBUFLEN*MAX_SINC_RATE)
 unsigned char sinc_rate=12;
-#define STRIS_INCBUFLEN		(AUDIOBUFLEN*sinc_rate)
+#define SINCBUFLEN		(AUDIOBUFLEN*sinc_rate)
 void update_sinc(unsigned char filterfactor);
 #endif /* AUDIO */
 
@@ -68,15 +68,15 @@ void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
 {
-	bool bits[MAX_STRIS_INCBUFLEN];
-	bool cbuf[MAX_STRIS_INCBUFLEN];
+	bool bits[MAX_SINCBUFLEN];
+	bool cbuf[MAX_SINCBUFLEN];
 	unsigned int rp, wp; // read & write pointers for 'bits' circular buffer
 	bool play; // true if tape is playing (we mute and allow skipping)
 	FILE *record;
 }
 audiobuf;
 
-double sincgroups[MAX_STRIS_INC_RATE][AUDIOBUFLEN];
+double sincgroups[MAX_SINC_RATE][AUDIOBUFLEN];
 #endif /* AUDIO */
 
 typedef struct
@@ -413,7 +413,7 @@ int main(int argc, char * argv[])
 		if(!(Tstates%(69888*50/(SAMPLE_RATE*sinc_rate))))
 		{
 			abuf.play=play;
-			unsigned int newwp=(abuf.wp+1)%STRIS_INCBUFLEN;
+			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
 			if(delay&&!play)
 				while(newwp==abuf.rp) usleep(5e3);
 			abuf.bits[abuf.wp]=(bus->portfe&0x10);
@@ -1611,7 +1611,7 @@ q[uit]         quit Spiffy\n");
 								}
 								else if(pos_rect(mouse, sr_up))
 								{
-									sinc_rate=min(sinc_rate+1,MAX_STRIS_INC_RATE);
+									sinc_rate=min(sinc_rate+1,MAX_SINC_RATE);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, sr_down))
@@ -1687,7 +1687,7 @@ q[uit]         quit Spiffy\n");
 								}
 								else if(pos_rect(mouse, sr_up))
 								{
-									sinc_rate=min(sinc_rate<<1,MAX_STRIS_INC_RATE);
+									sinc_rate=min(sinc_rate<<1,MAX_SINC_RATE);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, sr_down))
@@ -1851,13 +1851,13 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		{
 			while(!a->play&&(a->rp==a->wp)) usleep(5e3);
 			a->cbuf[a->rp]=a->bits[a->rp];
-			a->rp=(a->rp+1)%STRIS_INCBUFLEN;
+			a->rp=(a->rp+1)%SINCBUFLEN;
 		}
-		unsigned int l=a->play?STRIS_INCBUFLEN>>2:STRIS_INCBUFLEN;
+		unsigned int l=a->play?SINCBUFLEN>>2:SINCBUFLEN;
 		double v=0;
 		for(unsigned int j=0;j<l;j++)
 		{
-			signed char d=a->cbuf[(a->rp+STRIS_INCBUFLEN-j)%STRIS_INCBUFLEN]-a->cbuf[(a->rp+STRIS_INCBUFLEN-j-1)%STRIS_INCBUFLEN];
+			signed char d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
 			if(d)
 				v+=d*sincgroups[sinc_rate-(j%sinc_rate)-1][j/sinc_rate];
 		}
@@ -1875,17 +1875,17 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 
 void update_sinc(unsigned char filterfactor)
 {
-	double sinc[STRIS_INCBUFLEN];
-	for(unsigned int i=0;i<STRIS_INCBUFLEN;i++)
+	double sinc[SINCBUFLEN];
+	for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
 	{
-		double v=filterfactor*(i/(double)STRIS_INCBUFLEN-0.5);
+		double v=filterfactor*(i/(double)SINCBUFLEN-0.5);
 		sinc[i]=(v?sin(v)/v:1)*16.0/(double)sinc_rate;
 	}
 	for(unsigned int g=0;g<sinc_rate;g++)
 	{
 		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
 			sincgroups[g][j]=0;
-		for(unsigned int i=0;i<STRIS_INCBUFLEN;i++)
+		for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
 		{
 			unsigned int j=(i+g)/sinc_rate;
 			if(j<AUDIOBUFLEN)

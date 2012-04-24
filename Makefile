@@ -45,3 +45,14 @@ dist: all
 	tar -czf spiffy_$(VERSION).tgz spiffy_$(VERSION)/
 	rm -r spiffy_$(VERSION)/
 
+distw: all
+	mkdir spiffy_w$(VERSION)
+	for p in $$(ls); do cp $$p spiffy_w$(VERSION)/$$p; done;
+	-for p in $$(ls wbits); do cp wbits/$$p spiffy_w$(VERSION)/$$p; done;
+	cp -r buttons spiffy_w$(VERSION)/
+	-rm spiffy_w$(VERSION)/*.tgz
+	rm spiffy_w$(VERSION)/*.o
+	rm spiffy_w$(VERSION)/spiffy
+	rm spiffy_w$(VERSION)/spiffy-filechooser
+	make -C spiffy_w$(VERSION) -fMakefile all
+
