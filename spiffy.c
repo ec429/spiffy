@@ -351,6 +351,14 @@ int main(int argc, char * argv[])
 			int derrupt=0;
 			while(!derrupt)
 			{
+				if(feof(stdin))
+				{
+					fprintf(stderr, "EOF on stdin, closing debugger\n");
+					debug=false;
+					bugbutton.col=0x4f6f3f;
+					drawbutton(screen, bugbutton);
+					break;
+				}
 				fprintf(stderr, ">");
 				fflush(stderr);
 				char *line=finpl(stdin);
