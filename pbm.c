@@ -60,3 +60,13 @@ SDL_Surface *pbm_string(string s)
 	}
 	return(rv);
 }
+
+int pbm_putheader(FILE *f, unsigned int w, unsigned int h)
+{
+	if(!f) return(0);
+	int bytes=0;
+	fprintf(f, "P1\n%u %n%u", w, &bytes, h);
+	if(!h) fprintf(f, "          ");
+	fprintf(f, "\n");
+	return(bytes);
+}

@@ -50,6 +50,8 @@ typedef struct
 }
 ula_t;
 
+bool zxp_enabled=false; // Emulate a connected ZX Printer?
+
 // helper fns
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
@@ -79,6 +81,7 @@ int main(int argc, char * argv[])
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
 	const char *fn=NULL;
+	const char *zxp_fn="zxp.pbm";
 	unsigned int nbreaks=0;
 	unsigned int *breakpoints=NULL;
 	int arg;
@@ -110,6 +113,15 @@ int main(int argc, char * argv[])
 		else if((strcmp(argv[arg], "--pause") == 0) || (strcmp(argv[arg], "-p") == 0))
 		{ // start with the emulation paused
 			pause=true;
+		}
+		else if(strcmp(argv[arg], "--zxprinter") == 0)
+		{ // enable ZX Printer
+			zxp_enabled=true;
+		}
+		else if(strncmp(argv[arg], "--zxprinter=", 12) == 0)
+		{ // enable ZX Printer and set zxp_fn
+			zxp_enabled=true;
+			zxp_fn=argv[arg]+12;
 		}
 		else if((strcmp(argv[arg], "--Tstate") == 0) || (strcmp(argv[arg], "-T") == 0))
 		{ // activate single-Tstate stepping under debugger
@@ -160,15 +172,15 @@ int main(int argc, char * argv[])
 	bus_t _bus, *bus=&_bus;
 	ula_t _ula, *ula=&_ula;
 	
-	SDL_Surface * screen=gf_init();
+	SDL_Surface * screen=gf_init(320, zxp_enabled?480:360);
 	if(!screen)
 	{
 		fprintf(stderr, "Failed to set up video\n");
 		return(2);
 	}
 	button *buttons;
-	ui_init(screen, &buttons, edgeload, pause);
-	int errupt = 0;
+	ui_init(screen, &buttons, edgeload, pause, zxp_enabled);
+	int errupt=0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bool ear=false; // tape reading EAR
 	bool kstate[8][5]; // keyboard state
@@ -206,7 +218,31 @@ int main(int argc, char * argv[])
 		return(3);
 	}
 #endif /* AUDIO */
-
+	
+	// ZX Printer state
+	unsigned int zxp_stylus_posn=0; // ranges from 0 to 384, with the paper starting at 128
+	bool zxp_slow_motor=false; // d1
+	bool zxp_stop_motor=true; // d2
+	bool zxp_stylus_power=false; // d7
+	bool zxp_d0_latch=false; // encoder disc
+	bool zxp_d7_latch=false; // stylus hits left of paper
+	bool zxp_feed_button=false; // is the feed button being held?
+	int zxp_height_offset; // offset of height field in zxp_output pbm file
+	unsigned int zxp_rows=0;
+	FILE *zxp_output=NULL;
+	if(zxp_enabled)
+	{
+		zxp_output=fopen(zxp_fn, "wb");
+		if(!zxp_output)
+		{
+			fprintf(stderr, "Failed to open `%s'; ZX printer output will not be saved!\n", zxp_fn);
+			perror("\tfopen");
+		}
+		else
+			zxp_height_offset=pbm_putheader(zxp_output, 256, 0);
+	}
+	
+	// Timing
 	struct timeval frametime[100];
 	gettimeofday(frametime, NULL);
 	for(int i=1;i<100;i++) frametime[i]=frametime[0];
@@ -319,7 +355,7 @@ int main(int argc, char * argv[])
 		
 		if(unlikely(bus->iorq&&(bus->tris==TRIS_OUT)))
 		{
-			if(!(bus->addr&0x01))
+			if(!(bus->addr&0x01)) // ULA
 			{
 				bus->portfe=bus->data;
 				if(trec&&((bus->portfe&PORTFE_MIC)?!oldmic:oldmic))
@@ -328,17 +364,31 @@ int main(int argc, char * argv[])
 					oldmic=bus->portfe&PORTFE_MIC;
 				}
 			}
+			else if(zxp_enabled&&!(bus->addr&0x04)) // ZX Printer
+			{
+				zxp_d0_latch=false;
+				zxp_d7_latch=false;
+				zxp_slow_motor=bus->data&0x02;
+				zxp_stop_motor=bus->data&0x04;
+				zxp_stylus_power=bus->data&0x80;
+			}
 		}
 		
 		if(unlikely(bus->iorq&&(bus->tris==TRIS_IN)))
 		{
-			if(!(bus->addr&0x01))
+			if(!(bus->addr&0x01)) // ULA
 			{
 				unsigned char hi=bus->addr>>8;
 				bus->data=(ear?0x40:0)|0x1f;
 				for(int i=0;i<8;i++)
 					if(!(hi&(1<<i)))
 						bus->data&=~kenc[i];
+			}
+			else if(zxp_enabled&&!(bus->addr&0x04)) // ZX Printer
+			{
+				bus->data=0x3e;
+				if(zxp_d0_latch) bus->data|=0x01;
+				if(zxp_d7_latch) bus->data|=0x80;
 			}
 			else
 				bus->data=0xff; // technically this is wrong, TODO floating bus
@@ -1399,7 +1449,43 @@ int main(int argc, char * argv[])
 		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
 		if(unlikely(Tstates==32))
 			bus->irq=false;
-		if(unlikely(Tstates>=69888))
+		if(zxp_enabled&&!(Tstates%128)) // ZX Printer emulation
+		{
+			if(zxp_stylus_power&&(zxp_stylus_posn>=128)) pset(screen, zxp_stylus_posn-96, 479, 15, 3, 0);
+			if(!(Tstates%256))
+			{
+				if(zxp_feed_button||(!zxp_stop_motor&&!(zxp_slow_motor&&(Tstates%512))))
+				{
+					zxp_d0_latch=true;
+					if(++zxp_stylus_posn>=384)
+					{
+						zxp_stylus_posn=0;
+						zxp_rows++;
+						if(zxp_output)
+						{
+							fseek(zxp_output, zxp_height_offset, SEEK_SET);
+							fprintf(zxp_output, "%u", zxp_rows);
+							fseek(zxp_output, 0, SEEK_END);
+							for(unsigned int x=0;x<256;x++)
+							{
+								if(x) fprintf(zxp_output, " ");
+								unsigned char r, g, b;
+								pget(screen, x+32, 479, &r, &g, &b);
+								bool dark=(r+g+b)<384;
+								fprintf(zxp_output, "%c", dark?'1':'0');
+							}
+							fprintf(zxp_output, "\n");
+							fflush(zxp_output);
+						}
+						SDL_BlitSurface(screen, &(SDL_Rect){0, 361, screen->w, 119}, screen, &(SDL_Rect){0, 360, screen->w, 119});
+						SDL_FillRect(screen, &(SDL_Rect){32, 479, 256, 1}, SDL_MapRGB(screen->format, 191, 191, 195));
+					}
+					else if(zxp_stylus_posn==128)
+						zxp_d7_latch=true;
+				}
+			}
+		}
+		if(unlikely(Tstates>=69888)) // Frame
 		{
 			bus->reset=false;
 			SDL_Flip(screen);
@@ -1807,6 +1893,8 @@ int main(int argc, char * argv[])
 										free(fn);
 									}
 								}
+								else if(pos_rect(mouse, feedbutton.posn))
+									zxp_feed_button=true;
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -1903,6 +1991,7 @@ int main(int argc, char * argv[])
 						mouse.x=event.button.x;
 						mouse.y=event.button.y;
 						button=event.button.button;
+						zxp_feed_button=false;
 						switch(button)
 						{
 							case SDL_BUTTON_LEFT:
@@ -1934,7 +2023,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 	if(likely((line>=0) && (line<296)))
 	{
 		bool contend=false;
-		if((col>=0) && (col<OSIZ_X))
+		if((col>=0) && (col<screen->w))
 		{
 			unsigned char uladb=0xff, ulaab=bus->portfe&0x07;
 			int ccol=(col>>3)-4;

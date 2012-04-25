@@ -9,7 +9,7 @@
 #include "bits.h"
 #include "pbm.h"
 
-SDL_Surface * gf_init()
+SDL_Surface * gf_init(unsigned int x, unsigned int y)
 {
 	SDL_Surface * screen;
 	if(SDL_Init(SDL_INIT_VIDEO)<0)
@@ -18,7 +18,7 @@ SDL_Surface * gf_init()
 		return(NULL);
 	}
 	atexit(SDL_Quit);
-	if((screen = SDL_SetVideoMode(OSIZ_X, OSIZ_Y, OBPP, SDL_HWSURFACE))==0)
+	if((screen = SDL_SetVideoMode(x, y, 32, SDL_HWSURFACE))==0)
 	{
 		fprintf(stderr, "SDL_SetVideoMode: %s\n", SDL_GetError());
 		return(NULL);
@@ -26,15 +26,21 @@ SDL_Surface * gf_init()
 	return(screen);
 }
 
-void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause)
+void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, bool printer)
 {
 	static button btn[nbuttons];
 	*buttons=btn;
 	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
 	SDL_EnableUNICODE(1);
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-	line(screen, 0, 296, OSIZ_X-1, 296, 255, 255, 255);
-	SDL_FillRect(screen, &(SDL_Rect){0, 297, OSIZ_X, OSIZ_Y-297}, SDL_MapRGB(screen->format, 0, 0, 0));
+	SDL_FillRect(screen, &(SDL_Rect){0, 296, screen->w, 1}, SDL_MapRGB(screen->format, 255, 255, 255));
+	SDL_FillRect(screen, &(SDL_Rect){0, 297, screen->w, 63}, SDL_MapRGB(screen->format, 0, 0, 0)); // controls area
+	if(printer)
+	{
+		SDL_FillRect(screen, &(SDL_Rect){0, 359, screen->w, 1}, SDL_MapRGB(screen->format, 255, 255, 255));
+		SDL_FillRect(screen, &(SDL_Rect){0, 360, screen->w, 120}, SDL_MapRGB(screen->format, 31, 31, 31)); // printer area
+		SDL_FillRect(screen, &(SDL_Rect){32, 460, 256, 20}, SDL_MapRGB(screen->format, 191, 191, 195)); // printer paper
+	}
 	FILE *fimg;
 	string img;
 	fimg=configopen("buttons/load.pbm", "rb");
@@ -105,6 +111,12 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause)
 	if(fimg) fclose(fimg);
 	btn[15]=(button){.img=pbm_string(img), .posn={236, 298, 17, 17}, .col=0x4f0f0f};
 	drawbutton(screen, btn[15]);
+	free_string(&img);
+	fimg=configopen("buttons/feed.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[16]=(button){.img=pbm_string(img), .posn={88, 340, 17, 17}, .col=printer?0x3f276f:0x170f1f};
+	drawbutton(screen, btn[16]);
 	free_string(&img);
 	for(unsigned int i=0;i<9;i++)
 		drawbutton(screen, btn[i]);
@@ -223,4 +235,12 @@ void drawbutton(SDL_Surface *screen, button b)
 {
 	SDL_FillRect(screen, &b.posn, SDL_MapRGB(screen->format, b.col>>16, b.col>>8, b.col));
 	if(b.img) SDL_BlitSurface(b.img, NULL, screen, &b.posn);
+}
+
+inline void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b)
+{
+	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
+	unsigned long int *pixloc = (unsigned long int *)(((unsigned char *)screen->pixels)+s_off),
+		pixval = *pixloc;
+	SDL_GetRGB(pixval, screen->format, r, g, b);
 }

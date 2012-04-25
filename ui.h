@@ -9,11 +9,6 @@
 #include <SDL.h>
 #include <SDL/SDL_ttf.h>
 
-// SDL surface params
-#define OSIZ_X	320
-#define OSIZ_Y	360
-#define OBPP	32
-
 typedef struct
 {
 	SDL_Rect posn;
@@ -29,7 +24,7 @@ typedef struct _pos
 } pos;
 
 SDL_Surface * gf_init();
-void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause);
+void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, bool printer);
 void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
 void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
@@ -37,6 +32,7 @@ void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned
 int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
 bool pos_rect(pos p, SDL_Rect r);
 void drawbutton(SDL_Surface *screen, button b);
+void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b);
 
 #define loadbutton		buttons[0]
 #define edgebutton		buttons[1]
@@ -54,4 +50,5 @@ void drawbutton(SDL_Surface *screen, button b);
 #define recordbutton	buttons[13]
 #define snapbutton		buttons[14]
 #define trecbutton		buttons[15]
-#define nbuttons		16
+#define feedbutton		buttons[16]
+#define nbuttons		17
