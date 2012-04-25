@@ -82,6 +82,7 @@ int main(int argc, char * argv[])
 	#endif /* AUDIO */
 	const char *fn=NULL;
 	const char *zxp_fn="zxp.pbm";
+	js_type keystick=JS_C; // keystick mode: Cursor, Sinclair, Kempston, disabled
 	unsigned int nbreaks=0;
 	unsigned int *breakpoints=NULL;
 	int arg;
@@ -182,6 +183,7 @@ int main(int argc, char * argv[])
 	ui_init(screen, &buttons, edgeload, pause, zxp_enabled);
 	int errupt=0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
+	bus->kempbyte=0; // used in Kempston keystick mode
 	bool ear=false; // tape reading EAR
 	bool kstate[8][5]; // keyboard state
 	unsigned char kenc[8]; // encoded keyboard state
@@ -389,6 +391,10 @@ int main(int argc, char * argv[])
 				bus->data=0x3e;
 				if(zxp_d0_latch) bus->data|=0x01;
 				if(zxp_d7_latch) bus->data|=0x80;
+			}
+			else if((keystick==JS_K)&&((bus->addr&0xFF)==0x1F)) // Kempston joystick
+			{
+				bus->data=bus->kempbyte;
 			}
 			else
 				bus->data=0xff; // technically this is wrong, TODO floating bus
@@ -1561,23 +1567,88 @@ int main(int argc, char * argv[])
 							}
 							else if(key.sym==SDLK_LEFT)
 							{
-								kstate[0][0]=true;
-								kstate[3][4]=true;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('5', kstate, true);
+									break;
+									case JS_S:
+										mapk('6', kstate, true);
+									break;
+									case JS_K:
+										bus->kempbyte|=0x02;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_DOWN)
 							{
-								kstate[0][0]=true;
-								kstate[4][4]=true;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('6', kstate, true);
+									break;
+									case JS_S:
+										mapk('8', kstate, true);
+									break;
+									case JS_K:
+										bus->kempbyte|=0x04;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_UP)
 							{
-								kstate[0][0]=true;
-								kstate[4][3]=true;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('7', kstate, true);
+									break;
+									case JS_S:
+										mapk('9', kstate, true);
+									break;
+									case JS_K:
+										bus->kempbyte|=0x08;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_RIGHT)
 							{
-								kstate[0][0]=true;
-								kstate[4][2]=true;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('8', kstate, true);
+									break;
+									case JS_S:
+										mapk('7', kstate, true);
+									break;
+									case JS_K:
+										bus->kempbyte|=0x01;
+									break;
+									case JS_X:
+									break;
+								}
+							}
+							else if(key.sym==SDLK_KP0)
+							{
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('0', kstate, true);
+									break;
+									case JS_S:
+										mapk('0', kstate, true);
+									break;
+									case JS_K:
+										bus->kempbyte|=0x10;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_CAPSLOCK)
 							{
@@ -1631,23 +1702,15 @@ int main(int argc, char * argv[])
 							else if((key.sym&0xFF80)==0)
 							{
 								char k=key.sym&0x7F;
-								for(unsigned int i=0;i<nkmaps;i++)
-								{
-									if(kmap[i].key==k)
-									{
-										kstate[kmap[i].row[0]][kmap[i].col[0]]=true;
-										if(kmap[i].twokey)
-											kstate[kmap[i].row[1]][kmap[i].col[1]]=true;
-									}
-								}
+								mapk(k, kstate, true);
 							}
+							// else it's not [low] ASCII
 							for(unsigned int i=0;i<8;i++)
 							{
 								kenc[i]=0;
 								for(unsigned int j=0;j<5;j++)
 									if(kstate[i][j]) kenc[i]|=(1<<j);
 							}
-							// else it's not [low] ASCII
 						}
 					break;
 					case SDL_KEYUP:
@@ -1663,23 +1726,88 @@ int main(int argc, char * argv[])
 							}
 							else if(key.sym==SDLK_LEFT)
 							{
-								kstate[0][0]=false;
-								kstate[3][4]=false;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('5', kstate, false);
+									break;
+									case JS_S:
+										mapk('6', kstate, false);
+									break;
+									case JS_K:
+										bus->kempbyte&=~0x02;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_DOWN)
 							{
-								kstate[0][0]=false;
-								kstate[4][4]=false;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('6', kstate, false);
+									break;
+									case JS_S:
+										mapk('8', kstate, false);
+									break;
+									case JS_K:
+										bus->kempbyte&=~0x04;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_UP)
 							{
-								kstate[0][0]=false;
-								kstate[4][3]=false;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('7', kstate, false);
+									break;
+									case JS_S:
+										mapk('9', kstate, false);
+									break;
+									case JS_K:
+										bus->kempbyte&=~0x08;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_RIGHT)
 							{
-								kstate[0][0]=false;
-								kstate[4][2]=false;
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('8', kstate, false);
+									break;
+									case JS_S:
+										mapk('7', kstate, false);
+									break;
+									case JS_K:
+										bus->kempbyte&=~0x01;
+									break;
+									case JS_X:
+									break;
+								}
+							}
+							else if(key.sym==SDLK_KP0)
+							{
+								switch(keystick)
+								{
+									case JS_C:
+										mapk('0', kstate, false);
+									break;
+									case JS_S:
+										mapk('0', kstate, false);
+									break;
+									case JS_K:
+										bus->kempbyte&=~0x10;
+									break;
+									case JS_X:
+									break;
+								}
 							}
 							else if(key.sym==SDLK_CAPSLOCK)
 							{
@@ -1733,23 +1861,15 @@ int main(int argc, char * argv[])
 							else if((key.sym&0xFF80)==0)
 							{
 								char k=key.sym&0x7F;
-								for(unsigned int i=0;i<nkmaps;i++)
-								{
-									if(kmap[i].key==k)
-									{
-										kstate[kmap[i].row[0]][kmap[i].col[0]]=false;
-										if(kmap[i].twokey)
-											kstate[kmap[i].row[1]][kmap[i].col[1]]=false;
-									}
-								}
+								mapk(k, kstate, false);
 							}
+							// else it's not [low] ASCII
 							for(unsigned int i=0;i<8;i++)
 							{
 								kenc[i]=0;
 								for(unsigned int j=0;j<5;j++)
 									if(kstate[i][j]) kenc[i]|=(1<<j);
 							}
-							// else it's not [low] ASCII
 						}
 					break;
 					case SDL_MOUSEMOTION:
@@ -1895,6 +2015,17 @@ int main(int argc, char * argv[])
 								}
 								else if(pos_rect(mouse, feedbutton.posn))
 									zxp_feed_button=true;
+								else if(pos_rect(mouse, jscbutton.posn))
+									keystick=JS_C;
+								else if(pos_rect(mouse, jssbutton.posn))
+									keystick=JS_S;
+								else if(pos_rect(mouse, jskbutton.posn))
+								{
+									keystick=JS_K;
+									bus->kempbyte=0;
+								}
+								else if(pos_rect(mouse, jsxbutton.posn))
+									keystick=JS_X;
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -1951,6 +2082,7 @@ int main(int argc, char * argv[])
 								stopbutton.col=stopper?0x3f07f7:0x3f0707;
 								pausebutton.col=pause?0xbf6f07:0x7f6f07;
 								trecbutton.col=trec?0xcf1717:0x4f0f0f;
+								ksupdate(screen, buttons, keystick);
 								drawbutton(screen, edgebutton);
 								drawbutton(screen, playbutton);
 								drawbutton(screen, stopbutton);

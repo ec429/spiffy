@@ -118,6 +118,27 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 	btn[16]=(button){.img=pbm_string(img), .posn={88, 340, 17, 17}, .col=printer?0x3f276f:0x170f1f};
 	drawbutton(screen, btn[16]);
 	free_string(&img);
+	fimg=configopen("buttons/js_c.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[17]=(button){.img=pbm_string(img), .posn={108, 340, 9, 9}, .col=0x3fff3f};
+	free_string(&img);
+	fimg=configopen("buttons/js_s.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[18]=(button){.img=pbm_string(img), .posn={116, 340, 9, 9}, .col=0x3f3f3f};
+	free_string(&img);
+	fimg=configopen("buttons/js_k.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[19]=(button){.img=pbm_string(img), .posn={108, 348, 9, 9}, .col=0x3f3f3f};
+	free_string(&img);
+	fimg=configopen("buttons/js_x.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[20]=(button){.img=pbm_string(img), .posn={116, 348, 9, 9}, .col=0x3f3f3f};
+	free_string(&img);
+	ksupdate(screen, *buttons, JS_C);
 	for(unsigned int i=0;i<9;i++)
 		drawbutton(screen, btn[i]);
 }
@@ -243,4 +264,17 @@ inline void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned 
 	unsigned long int *pixloc = (unsigned long int *)(((unsigned char *)screen->pixels)+s_off),
 		pixval = *pixloc;
 	SDL_GetRGB(pixval, screen->format, r, g, b);
+}
+
+void ksupdate(SDL_Surface * screen, button *buttons, js_type keystick)
+{
+	for(unsigned int i=0;i<4;i++)
+		buttons[17+i].col=0x3f3f3f;
+	for(unsigned int i=0;i<4;i++)
+		drawbutton(screen, buttons[17+i]);
+	if(keystick<4)
+	{
+		buttons[17+keystick].col=0x3fff3f;
+		drawbutton(screen, buttons[17+keystick]);
+	}
 }

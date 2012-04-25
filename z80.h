@@ -71,6 +71,7 @@ typedef struct
 	bool halt; // ¬HALT line
 	bool reti; // was the last opcode RETI?	(some hardware detects this, eg. PIO)
 	unsigned char portfe; // last byte written to port 0xFE (used by ULA; should really be part of ULA internal data)
+	unsigned char kempbyte; // byte presented by Kempston joystick
 }
 bus_t;
 

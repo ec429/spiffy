@@ -75,3 +75,16 @@ int init_keyboard(void)
 	fclose(f);
 	return(0);
 }
+
+void mapk(unsigned char k, bool kstate[8][5], bool down)
+{
+	for(unsigned int i=0;i<nkmaps;i++)
+	{
+		if(kmap[i].key==k)
+		{
+			kstate[kmap[i].row[0]][kmap[i].col[0]]=down;
+			if(kmap[i].twokey)
+				kstate[kmap[i].row[1]][kmap[i].col[1]]=down;
+		}
+	}
+}

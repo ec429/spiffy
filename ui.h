@@ -23,6 +23,8 @@ typedef struct _pos
 	int y;
 } pos;
 
+typedef enum {JS_C, JS_S, JS_K, JS_X} js_type;
+
 SDL_Surface * gf_init();
 void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, bool printer);
 void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
@@ -33,6 +35,7 @@ int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font *
 bool pos_rect(pos p, SDL_Rect r);
 void drawbutton(SDL_Surface *screen, button b);
 void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b);
+void ksupdate(SDL_Surface * screen, button *buttons, js_type keystick);
 
 #define loadbutton		buttons[0]
 #define edgebutton		buttons[1]
@@ -51,4 +54,8 @@ void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g
 #define snapbutton		buttons[14]
 #define trecbutton		buttons[15]
 #define feedbutton		buttons[16]
-#define nbuttons		17
+#define jscbutton		buttons[17]
+#define jssbutton		buttons[18]
+#define jskbutton		buttons[19]
+#define jsxbutton		buttons[20]
+#define nbuttons		21

@@ -42,6 +42,7 @@ Misc:
 	Debug (sickly green).  Activates the debugger.  (Only works if Spiffy was run from a terminal)  See `debugger' for manual.
 	Save Snapshot (grey).  Opens a file chooser dialog to save a .z80 snapshot.
 	Printer Feed (purple).  While held, feeds paper through the ZX Printer.  (Greyed out if ZX Printer disabled)
+	Keystick mode (green & grey).  Selects the joystick mode to use for the cursor keys (and numpad 0 to fire); C=Cursors, S=Sinclair, K=Kempston, X=disable keystick.
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
