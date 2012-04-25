@@ -1,8 +1,24 @@
 Spiffy: Yet another ZX Spectrum emulator
 Readme.
 
-Spiffy is currently in a fairly early stage of development; the Z80 core works (and passes the Fuse coretests), but of peripherals only video, audio, the keyboard and tape input been added.
+Spiffy is currently in a fairly early stage of development; the Z80 core works (and passes the Fuse coretests), but of peripherals only video, audio, the keyboard, tape, and the ZX Printer have been added.
 Also, timings and contention are probably inaccurate.  In particular, the 'split bus' is not properly emulated, chiefly because I don't understand it.  (I need to read csmith's book!)
+
+Command line options:
+	--debug,-d
+		Start with the debugger activated.
+	-b=xxxx
+		Set a breakpoint at xxxx (hex).
+	--pause,-p
+		Start with the emulation paused.
+	--zxprinter[=<file>]
+		Enable the ZX Printer.  If <file> is specified, saves the (NetPBM format) output to <file>, otherwise "zxp.pbm".
+	--Tstate,-T
+		Enable single-Tstate stepping in the debugger.
+	--no-Tstate,+T
+		Disable single-Tstate stepping, instead step by instruction (this is the default)
+	--coretest
+		Run the core tests; produces a load of output on stdout.
 
 UI controls:
 The UI is a bit spartan right now.  There are three rows of controls: Tape, Audio and Misc.
@@ -25,6 +41,7 @@ Misc:
 	Reset (orange).  Resets the Spectrum.
 	Debug (sickly green).  Activates the debugger.  (Only works if Spiffy was run from a terminal)  See `debugger' for manual.
 	Save Snapshot (grey).  Opens a file chooser dialog to save a .z80 snapshot.
+	Printer Feed (purple).  While held, feeds paper through the ZX Printer.  (Greyed out if ZX Printer disabled)
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
