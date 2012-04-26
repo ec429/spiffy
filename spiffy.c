@@ -1634,6 +1634,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('5', kstate, true);
+										kstate[0][0]=true;
 									break;
 									case JS_S:
 										mapk('6', kstate, true);
@@ -1651,6 +1652,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('6', kstate, true);
+										kstate[0][0]=true;
 									break;
 									case JS_S:
 										mapk('8', kstate, true);
@@ -1668,6 +1670,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('7', kstate, true);
+										kstate[0][0]=true;
 									break;
 									case JS_S:
 										mapk('9', kstate, true);
@@ -1685,6 +1688,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('8', kstate, true);
+										kstate[0][0]=true;
 									break;
 									case JS_S:
 										mapk('7', kstate, true);
@@ -1702,6 +1706,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('0', kstate, true);
+										kstate[0][0]=true;
 									break;
 									case JS_S:
 										mapk('0', kstate, true);
@@ -1793,6 +1798,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('5', kstate, false);
+										kstate[0][0]=false;
 									break;
 									case JS_S:
 										mapk('6', kstate, false);
@@ -1810,6 +1816,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('6', kstate, false);
+										kstate[0][0]=false;
 									break;
 									case JS_S:
 										mapk('8', kstate, false);
@@ -1827,6 +1834,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('7', kstate, false);
+										kstate[0][0]=false;
 									break;
 									case JS_S:
 										mapk('9', kstate, false);
@@ -1844,6 +1852,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('8', kstate, false);
+										kstate[0][0]=false;
 									break;
 									case JS_S:
 										mapk('7', kstate, false);
@@ -1861,6 +1870,7 @@ int main(int argc, char * argv[])
 								{
 									case JS_C:
 										mapk('0', kstate, false);
+										kstate[0][0]=false;
 									break;
 									case JS_S:
 										mapk('0', kstate, false);

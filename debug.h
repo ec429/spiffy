@@ -95,4 +95,5 @@ r[eset]        reset the Z80\n\
 v[ars] ...     examine BASIC variables (see 'h v')\n\
 k ...          examine BASIC listing (see 'h k')\n\
 y              examine system variables\n\
+a[ystate]      show AY state (if AY enabled)\n\
 q[uit]         quit Spiffy\n"
