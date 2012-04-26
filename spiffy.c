@@ -447,11 +447,13 @@ int main(int argc, char * argv[])
 			if(trace)
 				show_state(RAM, cpu, Tstates, bus);
 			int derrupt=0;
+			static unsigned int blanks=0;
 			while(!derrupt)
 			{
 				if(feof(stdin))
 				{
 					fprintf(stderr, "EOF on stdin, closing debugger\n");
+					nodebug:
 					debug=false;
 					bugbutton.col=0x4f6f3f;
 					drawbutton(screen, bugbutton);
@@ -477,7 +479,8 @@ int main(int argc, char * argv[])
 					}
 					if(!cmd)
 					{
-						fprintf(stderr, "This is the spiffy debugger.\nType `h' for a list of commands, or `help h' for a list of help sections\n");
+						if(!blanks++) fprintf(stderr, "This is the spiffy debugger.\nType `h' for a list of commands, or `help h' for a list of help sections\n");
+						if(blanks>4) goto nodebug;
 					}
 					else
 					{
