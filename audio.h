@@ -46,6 +46,7 @@ typedef struct
 	bool envrev; // envelope direction reversed?
 	unsigned char out[3]; // final output level A/B/C
 	unsigned int noise; // internal noise register
+	unsigned int noisecount; // counter for noise
 }
 ay_t;
 

@@ -214,7 +214,7 @@ int main(int argc, char * argv[])
 	fmt.freq = SAMPLE_RATE;
 	fmt.format = AUDIO_S16;
 	fmt.channels = 1;
-	fmt.samples = AUDIOBUFLEN;
+	fmt.samples = AUDIOBUFLEN*4;
 	fmt.callback = mixaudio;
 	audiobuf abuf = {.rp=0, .wp=0, .record=NULL};
 	fmt.userdata = &abuf;
@@ -283,6 +283,12 @@ int main(int argc, char * argv[])
 	z80_reset(cpu, bus);
 	bus_reset(bus);
 	ay_init(&ay);
+	if(ay_enabled)
+	{
+		*sinc_rate=2;
+		filterfactor=128;
+		update_sinc(filterfactor);
+	}
 	
 	libspectrum_tape *deck=NULL;
 	bool play=false;
@@ -389,7 +395,17 @@ int main(int argc, char * argv[])
 				if(bus->addr&0x4000)
 					ay.regsel=bus->data;
 				else if(ay.regsel<16)
+				{
 					ay.reg[ay.regsel]=bus->data;
+					if(ay.regsel==13)
+					{
+						ay.envcount=0;
+						ay.envstop=false;
+						ay.envrev=false;
+						if(bus->data&0x04) ay.env=0;
+						else ay.env=15;
+					}
+				}
 			}
 		}
 		
@@ -416,7 +432,9 @@ int main(int argc, char * argv[])
 			else if(ay_enabled&&((bus->addr&0x8002)==0x8000))
 			{
 				if(bus->addr&0x4000)
+				{
 					bus->data=ay.reg[ay.regsel];
+				}
 			}
 			else
 				bus->data=0xff; // technically this is wrong, TODO floating bus
@@ -1099,6 +1117,25 @@ int main(int argc, char * argv[])
 								i++;
 							}
 							if(what&&!match) fprintf(stderr, "No such sysvar `%s'\n", what);
+						}
+						else if((strcmp(cmd, "a")==0)||(strcmp(cmd, "aystate")==0))
+						{
+							if(ay_enabled)
+							{
+								fprintf(stderr, "Regs: AF AC BF BC CF CC NO MI AV BV CV EF EC ES IA IB\n     ");
+								for(unsigned int i=0;i<16;i++)
+									fprintf(stderr, " %02x", ay.reg[i]);
+								fprintf(stderr, "\n\n");
+								fprintf(stderr, "regsel: %u\t\tnoise: %u\n", ay.regsel, ay.noise);
+								fprintf(stderr, "env: %u\t\tenvcount: %u\n", ay.env, ay.envcount);
+								fprintf(stderr, "envstop: %s\t\tenvrev: %s\n", ay.envstop?"true ":"false", ay.envrev?"true":"false");
+								fprintf(stderr, "chans     A      B      C\n");
+								fprintf(stderr, "bit:      %c      %c      %c\n", ay.bit[0]?'1':'0', ay.bit[1]?'1':'0', ay.bit[2]?'1':'0');
+								fprintf(stderr, "count: %06u %06u %06u\n", ay.count[0], ay.count[1], ay.count[2]);
+								fprintf(stderr, "out:    %04u   %04u   %04u\n", ay.out[0], ay.out[1], ay.out[2]);
+							}
+							else
+								fprintf(stderr, "AY chip not enabled!\n");
 						}
 						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
 						{

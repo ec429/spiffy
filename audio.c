@@ -27,7 +27,7 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 			while(!a->play&&(a->rp==a->wp))
 			{
 				usleep(5e3);
-				if(waits++>20) break;
+				if(waits++>40) break;
 			}
 			a->cbuf[a->rp]=a->bits[a->rp];
 			a->rp=(a->rp+1)%SINCBUFLEN;
@@ -192,10 +192,16 @@ void ay_tstep(ay_t *ay, unsigned int steps)
 		}
 	}
 	
-	// Arbitrary setup value
-	if(!ay->noise) ay->noise=0xAAAA;
-	// Based on some random webpage, may not be accurate
-	ay->noise = (ay->noise >> 1) ^ ((ay->noise & 1) ? 0x14000 : 0);
+	unsigned int nc=ay->reg[6]&0x1f;
+	if(!nc) nc=0x20;
+	if(++ay->noisecount>=nc)
+	{
+		ay->noisecount=0;
+		// Arbitrary setup value
+		if(!ay->noise) ay->noise=0xAAAA;
+		// Based on some random webpage, may not be accurate
+		ay->noise = (ay->noise >> 1) ^ ((ay->noise & 1) ? 0x14000 : 0);
+	}
 	
 	for(unsigned int i=0;i<3;i++)
 	{
@@ -207,8 +213,8 @@ void ay_tstep(ay_t *ay, unsigned int steps)
 			ay->count[i]=0;
 		}
 		if(!(ay->reg[7]&(1<<i)))
-			ay->out[i]=ay->bit[i]?ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env:(ay->reg[8+i]&0xf)]:0;
+			ay->out[i]=ay->bit[i]?ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env&0x0f:(ay->reg[8+i]&0xf)]:0;
 		if((ay->noise&1)&&!(ay->reg[7]&(8<<i)))
-			ay->out[i]^=0x80;
+			ay->out[i]^=0xff;
 	}
 }
