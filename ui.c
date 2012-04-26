@@ -151,6 +151,24 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 	btn[22]=(button){.img=pbm_string(img), .posn={148, 340, 17, 17}, .col=0x6f6fdf};
 	drawbutton(screen, btn[22]);
 	free_string(&img);
+	fimg=configopen("buttons/blur.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[23]=(button){.img=pbm_string(img), .posn={168, 340, 17, 17}, .col=0xbf3f3f};
+	drawbutton(screen, btn[23]);
+	free_string(&img);
+	fimg=configopen("buttons/vblur.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[24]=(button){.img=pbm_string(img), .posn={188, 340, 17, 17}, .col=0xbf3f3f};
+	drawbutton(screen, btn[24]);
+	free_string(&img);
+	fimg=configopen("buttons/misg.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[25]=(button){.img=pbm_string(img), .posn={208, 340, 17, 17}, .col=0x1f5f1f};
+	drawbutton(screen, btn[25]);
+	free_string(&img);
 	for(unsigned int i=0;i<9;i++)
 		drawbutton(screen, btn[i]);
 }

@@ -12,12 +12,17 @@ const char *filter_name(unsigned int filt_id)
 {
 	if(filt_id==FILT_BW) return("Black & White");
 	else if(filt_id==FILT_SCAN) return("TV Scanlines");
+	else if(filt_id==FILT_BLUR) return("Horizontal Blur");
+	else if(filt_id==FILT_VBLUR) return("Vertical Blur");
+	else if(filt_id==FILT_MISG) return("Misaligned Green");
 	else if(!filt_id) return("Unfiltered");
 	else return("Error");
 }
 
-void filter_pix(unsigned int filt_mask, unsigned int __attribute__((unused)) x, unsigned int y, unsigned char pix, bool bright, unsigned char *r, unsigned char *g, unsigned char *b)
+void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char pix, bool bright, unsigned char *r, unsigned char *g, unsigned char *b)
 {
+	static unsigned char lastr, lastg, lastb, misg;
+	static unsigned char rowr[320], rowg[320], rowb[320];
 	unsigned char t=bright?240:200;
 	*r=(pix&2)?t:0;
 	*g=(pix&4)?t:0;
@@ -26,7 +31,7 @@ void filter_pix(unsigned int filt_mask, unsigned int __attribute__((unused)) x, 
 	
 	if(filt_mask&FILT_BW)
 	{
-		*r=*g=*b=(pix*24)+((pix&&bright)?80:0);
+		*r=*g=*b=(pix*25)+((pix&&bright)?80:0);
 	}
 	
 	if(filt_mask&FILT_SCAN)
@@ -43,5 +48,39 @@ void filter_pix(unsigned int filt_mask, unsigned int __attribute__((unused)) x, 
 			*g=max(*g, 15)-15;
 			*b=max(*b, 15)-15;
 		}
+	}
+	
+	if(filt_mask&FILT_BLUR)
+	{
+		if(x)
+		{
+			*r=(*r/3)+(lastr*2/3);
+			*g=(*g/3)+(lastg*2/3);
+			*b=(*b/3)+(lastb*2/3);
+		}
+		lastr=*r;
+		lastg=*g;
+		lastb=*b;
+	}
+	
+	if(filt_mask&FILT_VBLUR)
+	{
+		if(y)
+		{
+			*r=(*r>>1)+(rowr[x]>>1);
+			*g=(*g>>1)+(rowg[x]>>1);
+			*b=(*b>>1)+(rowb[x]>>1);
+		}
+		rowr[x]=*r;
+		rowg[x]=*g;
+		rowb[x]=*b;
+	}
+	
+	if((filt_mask&FILT_MISG)&&!(filt_mask&FILT_BW)) // MISG doesn't make sense for a BW set
+	{
+		unsigned char tmp=*g;
+		if(x)
+			*g=misg;
+		misg=tmp;
 	}
 }

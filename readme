@@ -46,7 +46,10 @@ Misc:
 	Printer Feed (purple).  While held, feeds paper through the ZX Printer.  (Greyed out if ZX Printer disabled)
 	Keystick mode (green & grey).  Selects the joystick mode to use for the cursor keys (and numpad 0 to fire); C=Cursors, S=Sinclair, K=Kempston, X=disable keystick.
 	Black & White (grey/white).  Toggles the "Black & White" filter.
-	TV Scanlines (blue).  Toggles the "TV Scanlines" filter.
+	TV Scanlines (blue).  Toggles the "TV Scanlines" filter.  (These aren't proper scanlines, only pretend ones, because the display is only 1x size).
+	Horizontal Blur (pink).  Toggles the "Horizontal Blur" filter.
+	Vertical Blur (pink).  Toggles the "Vertical Blur" filter.
+	Misaligned Green (olive green).  Toggles the "Misaligned Green" filter.
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.
