@@ -81,6 +81,7 @@ int main(int argc, char * argv[])
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
 	const char *fn=NULL;
+	ay_enabled=false;
 	const char *zxp_fn="zxp.pbm";
 	js_type keystick=JS_C; // keystick mode: Cursor, Sinclair, Kempston, disabled
 	unsigned int nbreaks=0;
@@ -123,6 +124,10 @@ int main(int argc, char * argv[])
 		{ // enable ZX Printer and set zxp_fn
 			zxp_enabled=true;
 			zxp_fn=argv[arg]+12;
+		}
+		else if(strcmp(argv[arg], "--ay") == 0)
+		{ // enable AY chip
+			ay_enabled=true;
 		}
 		else if((strcmp(argv[arg], "--Tstate") == 0) || (strcmp(argv[arg], "-T") == 0))
 		{ // activate single-Tstate stepping under debugger
@@ -277,6 +282,7 @@ int main(int argc, char * argv[])
 	int Fstate=0; // FLASH state
 	z80_reset(cpu, bus);
 	bus_reset(bus);
+	ay_init(&ay);
 	
 	libspectrum_tape *deck=NULL;
 	bool play=false;
@@ -332,9 +338,13 @@ int main(int argc, char * argv[])
 			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
 			if(delay&&!(play||trec))
 				while(newwp==abuf.rp) usleep(5e3);
-			abuf.bits[abuf.wp]=(bus->portfe&PORTFE_SPEAKER);
-			if(ear) abuf.bits[abuf.wp]=!abuf.bits[abuf.wp];
-			if(bus->portfe&PORTFE_MIC) abuf.bits[abuf.wp]=!abuf.bits[abuf.wp];
+			abuf.bits[abuf.wp]=(bus->portfe&PORTFE_SPEAKER)?0x80:0;
+			if(ear) abuf.bits[abuf.wp]^=0x20;
+			if(bus->portfe&PORTFE_MIC) abuf.bits[abuf.wp]^=0x20;
+			if(ay_enabled)
+			{
+				abuf.bits[abuf.wp]+=(ay.out[0]+ay.out[1]+ay.out[2])/8;
+			}
 			abuf.wp=newwp;
 		}
 		#endif /* AUDIO */
@@ -374,6 +384,13 @@ int main(int argc, char * argv[])
 				zxp_stop_motor=bus->data&0x04;
 				zxp_stylus_power=bus->data&0x80;
 			}
+			else if(ay_enabled&&((bus->addr&0x8002)==0x8000))
+			{
+				if(bus->addr&0x4000)
+					ay.regsel=bus->data;
+				else if(ay.regsel<16)
+					ay.reg[ay.regsel]=bus->data;
+			}
 		}
 		
 		if(unlikely(bus->iorq&&(bus->tris==TRIS_IN)))
@@ -395,6 +412,11 @@ int main(int argc, char * argv[])
 			else if((keystick==JS_K)&&((bus->addr&0xFF)==0x1F)) // Kempston joystick
 			{
 				bus->data=bus->kempbyte;
+			}
+			else if(ay_enabled&&((bus->addr&0x8002)==0x8000))
+			{
+				if(bus->addr&0x4000)
+					bus->data=ay.reg[ay.regsel];
 			}
 			else
 				bus->data=0xff; // technically this is wrong, TODO floating bus
@@ -1103,6 +1125,10 @@ int main(int argc, char * argv[])
 		else if(!pause)
 		{
 			errupt=z80_tstep(cpu, bus, errupt);
+			if(!(Tstates&0xf))
+			{
+				ay_tstep(&ay, (Tstates&0xff));
+			}
 			if(unlikely(play&&(*PC==0x05e7)&&(edgeload))) // Magic edge-loader (hard-coded implementation of LD-EDGE-1)
 			{
 				unsigned int wait=358;

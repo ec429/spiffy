@@ -36,12 +36,12 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		double v=0;
 		for(unsigned int j=0;j<l;j++)
 		{
-			signed char d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
+			signed int d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
 			if(d)
 				v+=d*sincgroups[*sinc_rate-(j%*sinc_rate)-1][j/(*sinc_rate)];
 		}
-		if(a->play) v*=0.2;
-		Uint16 samp=floor(v*1024.0);
+		if(a->play) v*=0.6;
+		Uint16 samp=floor(v*4.0);
 		stream[i]=samp;
 		stream[i+1]=samp>>8;
 		if(a->record)
@@ -100,4 +100,115 @@ void wavheader(FILE *a)
 	fputc(0, a);
 	fwrite("data", 1, 4, a);
 	fwrite("\377\377\377\377", 1, 4, a);
+}
+
+void ay_init(ay_t *ay)
+{
+	ay->reg[7]=0xff;
+}
+
+unsigned char ay_vol_tbl[16]={0, 2, 5, 7, 10, 14, 19, 29, 40, 56, 80, 103, 131, 161, 197, 236};
+
+void ay_tstep(ay_t *ay, unsigned int steps)
+{
+	if(!steps)
+	{
+		unsigned int ec=ay->reg[11]+(ay->reg[12]<<8);
+		if(!ec) ec=0x1000;
+		if(++ay->envcount>=ec)
+		{
+			ay->envcount=0;
+			if(!ay->envstop)
+			{
+				bool inc=ay->envrev;
+				if(ay->reg[13]&0x04) inc=!inc;
+				if(inc)
+				{
+					if(++ay->env>15)
+					{
+						if(ay->reg[13]&0x08)
+						{
+							if(ay->reg[13]&0x04)
+							{
+								ay->envrev=false;
+								ay->env=14;
+							}
+							else if(ay->reg[13]&0x01)
+							{
+								ay->env=(ay->reg[13]&0x02)?0:15;
+								ay->envstop=true;
+							}
+							else if(ay->reg[13]&0x02)
+							{
+								ay->envrev=true;
+								ay->env=14;
+							}
+							else
+							{
+								ay->env=0;
+							}
+						}
+						else
+						{
+							ay->env=0;
+							ay->envstop=true;
+						}
+					}
+				}
+				else
+				{
+					if(!ay->env--)
+					{
+						if(ay->reg[13]&0x08)
+						{
+							if(ay->reg[13]&0x04)
+							{
+								ay->envrev=false;
+								ay->env=1;
+							}
+							else if(ay->reg[13]&0x01)
+							{
+								ay->env=(ay->reg[13]&0x02)?15:0;
+								ay->envstop=true;
+							}
+							else if(ay->reg[13]&0x02)
+							{
+								ay->envrev=true;
+								ay->env=1;
+							}
+							else
+							{
+								ay->env=15;
+							}
+						}
+						else
+						{
+							ay->env=0;
+							ay->envstop=true;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Arbitrary setup value
+	if(!ay->noise) ay->noise=0xAAAA;
+	// Based on some random webpage, may not be accurate
+	ay->noise = (ay->noise >> 1) ^ ((ay->noise & 1) ? 0x14000 : 0);
+	
+	for(unsigned int i=0;i<3;i++)
+	{
+		unsigned int rc=ay->reg[i<<1]+((ay->reg[(i<<1)+1]&0xf)<<8);
+		if(!rc) rc=0x1000;
+		if(++ay->count[i]>=rc)
+		{
+			ay->bit[i]=!ay->bit[i];
+			ay->count[i]=0;
+		}
+		if(!(ay->reg[7]&(1<<i)))
+			ay->out[i]=ay->bit[i]?ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env:(ay->reg[8+i]&0xf)]:0;
+		if((ay->noise&1)&&!(ay->reg[7]&(8<<i)))
+			ay->out[i]^=0x80;
+	}
 }

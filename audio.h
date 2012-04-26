@@ -19,8 +19,8 @@ void update_sinc(unsigned char filterfactor);
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
 {
-	bool bits[MAX_SINCBUFLEN];
-	bool cbuf[MAX_SINCBUFLEN];
+	unsigned char bits[MAX_SINCBUFLEN];
+	unsigned char cbuf[MAX_SINCBUFLEN];
 	unsigned int rp, wp; // read & write pointers for 'bits' circular buffer
 	bool play; // true if tape is playing (we mute and allow skipping)
 	FILE *record;
@@ -31,3 +31,25 @@ double sincgroups[MAX_SINC_RATE][AUDIOBUFLEN];
 
 void wavheader(FILE *a);
 #endif /* AUDIO */
+
+bool ay_enabled;
+
+typedef struct
+{
+	unsigned char reg[16]; // The programmable registers R0-R15
+	unsigned char regsel; // the selected register for reading/writing
+	bool bit[3]; // output high? A/B/C
+	unsigned int count[3]; // counters A/B/C
+	unsigned int envcount; // counter for envelope
+	unsigned char env; // envelope magnitude
+	bool envstop; // envelope stopped?
+	bool envrev; // envelope direction reversed?
+	unsigned char out[3]; // final output level A/B/C
+	unsigned int noise; // internal noise register
+}
+ay_t;
+
+ay_t ay;
+
+void ay_init(ay_t *ay);
+void ay_tstep(ay_t *ay, unsigned int steps);
