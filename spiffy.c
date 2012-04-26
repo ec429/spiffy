@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "ui.h"
 #include "audio.h"
+#include "filters.h"
 #include "coretest.h"
 
 #define ROM_FILE "48.rom" // Spectrum ROM file (TODO: make configable)
@@ -51,6 +52,7 @@ typedef struct
 ula_t;
 
 bool zxp_enabled=false; // Emulate a connected ZX Printer?
+unsigned int filt_mask=0; // Which graphics filters to enable (see filters.h)
 
 // helper fns
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
@@ -2099,6 +2101,10 @@ int main(int argc, char * argv[])
 								}
 								else if(pos_rect(mouse, jsxbutton.posn))
 									keystick=JS_X;
+								else if(pos_rect(mouse, bwbutton.posn))
+									filt_mask^=FILT_BW;
+								else if(pos_rect(mouse, scanbutton.posn))
+									filt_mask^=FILT_SCAN;
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -2155,12 +2161,16 @@ int main(int argc, char * argv[])
 								stopbutton.col=stopper?0x3f07f7:0x3f0707;
 								pausebutton.col=pause?0xbf6f07:0x7f6f07;
 								trecbutton.col=trec?0xcf1717:0x4f0f0f;
+								bwbutton.col=(filt_mask&FILT_BW)?0xffffff:0x9f9f9f;
+								scanbutton.col=(filt_mask&FILT_SCAN)?0x7f7fff:0x6f6fdf;
 								ksupdate(screen, buttons, keystick);
 								drawbutton(screen, edgebutton);
 								drawbutton(screen, playbutton);
 								drawbutton(screen, stopbutton);
 								drawbutton(screen, pausebutton);
 								drawbutton(screen, trecbutton);
+								drawbutton(screen, bwbutton);
+								drawbutton(screen, scanbutton);
 							break;
 							case SDL_BUTTON_RIGHT:
 								#ifdef AUDIO
@@ -2266,25 +2276,18 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 				int paper=(ulaab&0x38)>>3;
 				bool flash=ulaab&0x80;
 				bool bright=ulaab&0x40;
-				int pr,pg,pb,ir,ig,ib; // blue1 red2 green4
-				unsigned char t=bright?240:200;
-				pr=(paper&2)?t:0;
-				pg=(paper&4)?t:0;
-				pb=(paper&1)?t:0;
-				if(paper==1) pb+=15;
-				ir=(ink&2)?t:0;
-				ig=(ink&4)?t:0;
-				ib=(ink&1)?t:0;
-				if(ink==1) ib+=15;
+				unsigned char r,g,b; // blue1 red2 green4
 				unsigned char s=0x80>>(((Tstates+12)%4)<<1);
 				bool d=uladb&s;
 				if(flash && (Fstate&0x10))
 					d=!d;
-				pset(screen, col, line, d?ir:pr, d?ig:pg, d?ib:pb);
+				filter_pix(filt_mask, col, line, d?ink:paper, bright, &r, &g, &b);
+				pset(screen, col, line, r, g, b);
 				d=uladb&(s>>1);
 				if(flash && (Fstate&0x10))
 					d=!d;
-				pset(screen, col+1, line, d?ir:pr, d?ig:pg, d?ib:pb);
+				filter_pix(filt_mask, col+1, line, d?ink:paper, bright, &r, &g, &b);
+				pset(screen, col+1, line, r, g, b);
 			}
 		}
 	}

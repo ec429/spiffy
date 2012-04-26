@@ -7,8 +7,8 @@ SDLFLAGS := `sdl-config --cflags`
 GTK := `pkg-config --libs gtk+-2.0`
 GTKFLAGS := `pkg-config --cflags gtk+-2.0`
 VERSION := `git describe --tags`
-LIBS := ops.o z80.o vchips.o bits.o pbm.o sysvars.o basic.o debug.o ui.o audio.o coretest.o
-INCLUDES := ops.h z80.h vchips.h bits.h pbm.h sysvars.h basic.h debug.h ui.h audio.h coretest.h
+LIBS := ops.o z80.o vchips.o bits.o pbm.o sysvars.o basic.o debug.o ui.o audio.o filters.o coretest.o
+INCLUDES := ops.h z80.h vchips.h bits.h pbm.h sysvars.h basic.h debug.h ui.h audio.h filters.h coretest.h
 
 all: spiffy spiffy-filechooser
 
@@ -36,6 +36,8 @@ ui.o: ui.c ui.h bits.h pbm.h
 
 audio.o: audio.c audio.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) -o $@ -c $<
+
+filters.o: filters.c filters.h bits.h
 
 coretest.o: coretest.c coretest.h z80.h ops.h vchips.h
 

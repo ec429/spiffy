@@ -23,7 +23,7 @@ Command line options:
 		Run the core tests; produces a load of output on stdout.
 
 UI controls:
-The UI is a bit spartan right now.  There are three rows of controls: Tape, Audio and Misc.
+There are three rows of controls: Tape, Audio and Misc.  Each button should have an icon on it; if they're just square boxes of colour, it means Spiffy couldn't find its data files.
 Tape:
 	Speed readout.  Should hover around 100%.
 	Load (light brown).  Opens a file chooser dialog which you can use to load a tape or a snapshot.
@@ -45,6 +45,8 @@ Misc:
 	Save Snapshot (grey).  Opens a file chooser dialog to save a .z80 snapshot.
 	Printer Feed (purple).  While held, feeds paper through the ZX Printer.  (Greyed out if ZX Printer disabled)
 	Keystick mode (green & grey).  Selects the joystick mode to use for the cursor keys (and numpad 0 to fire); C=Cursors, S=Sinclair, K=Kempston, X=disable keystick.
+	Black & White (grey/white).  Toggles the "Black & White" filter.
+	TV Scanlines (blue).  Toggles the "TV Scanlines" filter.
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.

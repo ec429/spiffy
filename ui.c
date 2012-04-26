@@ -139,6 +139,18 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 	btn[20]=(button){.img=pbm_string(img), .posn={116, 348, 9, 9}, .col=0x3f3f3f};
 	free_string(&img);
 	ksupdate(screen, *buttons, JS_C);
+	fimg=configopen("buttons/bw.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[21]=(button){.img=pbm_string(img), .posn={128, 340, 17, 17}, .col=0x9f9f9f};
+	drawbutton(screen, btn[21]);
+	free_string(&img);
+	fimg=configopen("buttons/scan.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[22]=(button){.img=pbm_string(img), .posn={148, 340, 17, 17}, .col=0x6f6fdf};
+	drawbutton(screen, btn[22]);
+	free_string(&img);
 	for(unsigned int i=0;i<9;i++)
 		drawbutton(screen, btn[i]);
 }

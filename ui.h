@@ -58,4 +58,6 @@ void ksupdate(SDL_Surface * screen, button *buttons, js_type keystick);
 #define jssbutton		buttons[18]
 #define jskbutton		buttons[19]
 #define jsxbutton		buttons[20]
-#define nbuttons		21
+#define bwbutton		buttons[21]
+#define scanbutton		buttons[22]
+#define nbuttons		23
