@@ -492,6 +492,7 @@ int main(int argc, char * argv[])
 		
 		if(unlikely(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle)))
 		{
+			SDL_PauseAudio(1);
 			if(trace)
 				show_state(RAM, cpu, Tstates, bus);
 			int derrupt=0;
@@ -1269,6 +1270,7 @@ int main(int argc, char * argv[])
 				}
 				free(line);
 			}
+			SDL_PauseAudio(0);
 		}
 		
 		if(cpu->nothing)
@@ -2077,6 +2079,7 @@ int main(int argc, char * argv[])
 							case SDL_BUTTON_LEFT:
 								if(pos_rect(mouse, loadbutton.posn))
 								{
+									SDL_PauseAudio(1);
 									FILE *p=popen("spiffy-filechooser --load\"--title=Spiffy - Load Tape or Snapshot\"", "r");
 									if(p)
 									{
@@ -2094,6 +2097,7 @@ int main(int argc, char * argv[])
 											}
 										}
 									}
+								SDL_PauseAudio(0);
 								}
 								else if(pos_rect(mouse, edgebutton.posn))
 									edgeload=!edgeload;
@@ -2117,6 +2121,7 @@ int main(int argc, char * argv[])
 									debug=true;
 								else if(pos_rect(mouse, snapbutton.posn))
 								{
+									SDL_PauseAudio(1);
 									char *fn=NULL;
 									FILE *p=popen("spiffy-filechooser --save \"--title=Spiffy - Save Snapshot\"", "r");
 									if(p)
@@ -2151,6 +2156,7 @@ int main(int argc, char * argv[])
 											perror("fopen");
 									}
 									free(fn);
+									SDL_PauseAudio(0);
 								}
 								else if(pos_rect(mouse, trecbutton.posn))
 								{
@@ -2166,6 +2172,7 @@ int main(int argc, char * argv[])
 									}
 									else
 									{
+										SDL_PauseAudio(1);
 										char *fn=NULL;
 										FILE *p=popen("spiffy-filechooser --save \"--title=Spiffy - Record Tape\"", "r");
 										if(p)
@@ -2203,6 +2210,7 @@ int main(int argc, char * argv[])
 											}
 										}
 										free(fn);
+										SDL_PauseAudio(0);
 									}
 								}
 								else if(pos_rect(mouse, feedbutton.posn))
@@ -2259,6 +2267,7 @@ int main(int argc, char * argv[])
 									}
 									else
 									{
+										SDL_PauseAudio(1);
 										char *fn=NULL;
 										FILE *p=popen("spiffy-filechooser --save \"--title=Spiffy - Save Audio Capture\"", "r");
 										if(p)
@@ -2274,6 +2283,7 @@ int main(int argc, char * argv[])
 											abuf.record=a;
 										}
 										free(fn);
+										SDL_PauseAudio(0);
 									}
 								}
 								recordbutton.col=abuf.record?0xff0707:0x7f0707;
