@@ -387,16 +387,19 @@ void op_bli(z80 *cpu, bus_t *bus)
 		LDxx: LD (DE),(HL); DE+-; HL+-; BC--; R? BC? PC-=2.
 		CPxx: CP A,(HL); HL+-; BC--; R? BC&&(A!=HL)? PC-=2.
 		INxx: IN (HL), port(BC); HL+-; B--; R? B? PC-=2.
-		OTxx: BC--; OUT port(BC),(HL); HL+-; R? B? PC-=2.
+		OTxx: B--; OUT port(BC),(HL); HL+-; R? B? PC-=2.
 	*/
 	switch(cpu->M)
 	{
 		case 1: // bli M1
 			switch(cpu->ods.z)
 			{
+				case 3: // OTxx M1: MR(3)
+					if(cpu->dT==0)
+						cpu->regs[5]--;
+				/* fallthrough */
 				case 0: // LDxx M1: MR(3)
 				case 1: // CPxx M1: MR(3)
-				case 3: // OTxx M1: MR(3)
 					STEP_MR(*HL, &cpu->internal[1]);
 				break;
 				case 2: // INxx M1: PR(4)
