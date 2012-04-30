@@ -1202,7 +1202,14 @@ int main(int argc, char * argv[])
 								if(what) // [reg] or val
 								{
 									unsigned int reg, val;
-									if((strcmp(what, "m")==0)||(strcmp(what, "mode")==0))
+									if((strcmp(what, "r")==0)||(strcmp(what, "reset")==0))
+									{
+										ula->ulaplus_mode=0;
+										ula->ulaplus_regsel=0;
+										for(reg=0;reg<64;reg++)
+											ula->ulaplus_regs[reg]=0;
+									}
+									else if((strcmp(what, "m")==0)||(strcmp(what, "mode")==0))
 									{
 										if(rest)
 										{
@@ -1212,7 +1219,7 @@ int main(int argc, char * argv[])
 										else
 											fprintf(stderr, "u m: missing value\n");
 									}
-									if(sscanf(what, "[%x]", &reg)==1)
+									else if(sscanf(what, "[%x]", &reg)==1)
 									{
 										if(reg<64)
 										{
