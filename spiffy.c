@@ -85,6 +85,7 @@ int main(int argc, char * argv[])
 	const char *fn=NULL;
 	ay_enabled=false;
 	const char *zxp_fn="zxp.pbm";
+	bool zxp_fix=false; // change the ZXP address from ¬A2 to A6.¬A2?  For compatibility with ZXI devices
 	js_type keystick=JS_C; // keystick mode: Cursor, Sinclair, Kempston, disabled
 	unsigned int nbreaks=0;
 	unsigned int *breakpoints=NULL;
@@ -126,6 +127,10 @@ int main(int argc, char * argv[])
 		{ // enable ZX Printer and set zxp_fn
 			zxp_enabled=true;
 			zxp_fn=argv[arg]+12;
+		}
+		else if(strcmp(argv[arg], "--zxpfix") == 0)
+		{ // ZX Printer address fix
+			zxp_fix=true;
 		}
 		else if(strcmp(argv[arg], "--ay") == 0)
 		{ // enable AY chip
@@ -384,7 +389,7 @@ int main(int argc, char * argv[])
 					oldmic=bus->portfe&PORTFE_MIC;
 				}
 			}
-			else if(zxp_enabled&&!(bus->addr&0x04)) // ZX Printer
+			else if(zxp_enabled&&!(bus->addr&0x04)&&((!zxp_fix)||(bus->addr&0x40))) // ZX Printer
 			{
 				zxp_d0_latch=false;
 				zxp_d7_latch=false;
@@ -421,7 +426,7 @@ int main(int argc, char * argv[])
 					if(!(hi&(1<<i)))
 						bus->data&=~kenc[i];
 			}
-			else if(zxp_enabled&&!(bus->addr&0x04)) // ZX Printer
+			else if(zxp_enabled&&!(bus->addr&0x04)&&((!zxp_fix)||(bus->addr&0x40))) // ZX Printer
 			{
 				bus->data=0x3e;
 				if(zxp_d0_latch) bus->data|=0x01;
