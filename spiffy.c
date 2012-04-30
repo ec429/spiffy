@@ -2403,7 +2403,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 			{
 				if(((bus->addr&0xC000)==0x4000))
 					ula->memwait=true;
-				if(bus->iorq&&!(bus->addr&1))
+				if((bus->iorq&&!(bus->addr&1))||(ula->ulaplus_enabled&&((bus->addr==0xff3b)||(bus->addr==0xbf3b))))
 					ula->iowait=true;
 				ula->t1=false;
 			}
