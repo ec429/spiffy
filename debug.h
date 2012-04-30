@@ -19,7 +19,15 @@ h h            this section list\n\
 h m            memory commands\n\
 h v            BASIC variables\n\
 h k            BASIC listing\n\
-h =            register assignments\n"
+h =            register assignments\n\
+h u            ULAplus state\n"
+
+#define h_u "spiffy debugger: ULAplus state\n\
+u              display ULAplus summary\n\
+u xx           decode ULAplus palette entry literal xx\n\
+u [xx]         decode xxth ULAplus palette entry\n\
+u [xx] yy      write yy to xxth ULAplus palette entry\n\
+u m xx         write xx to ULAplus mode register\n"
 
 #define h_m	"spiffy debugger: memory commands\n\
 \tValues xxxx and yy[yy] are hex\n\
@@ -96,4 +104,5 @@ v[ars] ...     examine BASIC variables (see 'h v')\n\
 k ...          examine BASIC listing (see 'h k')\n\
 y              examine system variables\n\
 a[ystate]      show AY state (if AY enabled)\n\
+u[laplus]      show ULAplus state (if ULA+ enabled)\n\
 q[uit]         quit Spiffy\n"

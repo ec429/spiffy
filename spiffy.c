@@ -551,6 +551,8 @@ int main(int argc, char * argv[])
 								fprintf(stderr, h_k);
 							else if(strcmp(what, "=")==0)
 								fprintf(stderr, h_eq);
+							else if(strcmp(what, "u")==0)
+								fprintf(stderr, h_u);
 							else
 								fprintf(stderr, h_cmds);
 						}
@@ -1189,6 +1191,70 @@ int main(int argc, char * argv[])
 							}
 							else
 								fprintf(stderr, "AY chip not enabled!\n");
+						}
+						else if((strcmp(cmd, "u")==0)||(strcmp(cmd, "ulaplus")==0))
+						{
+							if(ula->ulaplus_enabled)
+							{
+								char *what=strtok(NULL, " ");
+								char *rest=what?strtok(NULL, ""):NULL;
+								if(what) // [reg] or val
+								{
+									unsigned int reg, val;
+									if((strcmp(what, "m")==0)||(strcmp(what, "mode")==0))
+									{
+										if(rest)
+										{
+											if(sscanf(rest, "%x", &val)==1)
+												ula->ulaplus_mode=val;
+										}
+										else
+											fprintf(stderr, "u m: missing value\n");
+									}
+									if(sscanf(what, "[%x]", &reg)==1)
+									{
+										if(reg<64)
+										{
+											if(rest)
+											{
+												if(sscanf(rest, "%x", &val)==1)
+													ula->ulaplus_regs[reg]=val;
+											}
+											fprintf(stderr, "ula+reg: [%02x] = %02x:\n", reg, val=ula->ulaplus_regs[reg]);
+											fprintf(stderr, "   clut %u\n", reg>>4);
+											if(reg&8)
+												fprintf(stderr, "  paper %u\n", reg&7);
+											else
+												fprintf(stderr, "    ink %u\n", reg&7);
+											fprintf(stderr, "   r = %u\n", (val>>2)&7);
+											fprintf(stderr, "   g = %u\n", (val>>5)&7);
+											fprintf(stderr, "   b = %u\n", ((val&3)<<1)|(val&1));
+										}
+										else
+											fprintf(stderr, "ULAplus only has 64 regs!\n");
+									}
+									else if(sscanf(what, "%x", &val)==1)
+									{
+										fprintf(stderr, "ula+val: %02x:\n", val);
+										fprintf(stderr, "   r = %u\n", (val>>2)&7);
+										fprintf(stderr, "   g = %u\n", (val>>5)&7);
+										fprintf(stderr, "   b = %u\n", ((val&3)<<1)|(val&1));
+									}
+								}
+								else
+								{
+									fprintf(stderr, "regsel: %u\t\tmode: %u\n", ula->ulaplus_regsel, ula->ulaplus_mode);
+									fprintf(stderr, "regs: x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 xA xB xC xD xE xF");
+									for(unsigned int i=0;i<64;i++)
+									{
+										if(!(i&0xF)) fprintf(stderr, "\n   %u:", i>>4);
+										fprintf(stderr, " %02x", ula->ulaplus_regs[i]);
+									}
+									fprintf(stderr, "\n");
+								}
+							}
+							else
+								fprintf(stderr, "ULAplus not enabled!\n");
 						}
 						else if((strcmp(cmd, "q")==0)||(strcmp(cmd, "quit")==0))
 						{
