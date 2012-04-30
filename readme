@@ -1,8 +1,10 @@
 Spiffy: Yet another ZX Spectrum emulator
 Readme.
 
-Spiffy is currently in a fairly early stage of development; the Z80 core works (and passes the Fuse coretests), but of peripherals only video, audio, the keyboard, tape, and the ZX Printer have been added.  There's also an AY chip, but it only seems to work with a small proportion of software.
-Also, timings and contention are probably inaccurate.  In particular, the 'split bus' is not properly emulated, chiefly because I don't understand it.  (I need to read csmith's book!)
+Spiffy is currently in a fairly early stage of development.
+The Z80 core works (and passes the Fuse coretests).  The debugger works but it's not the friendliest of interfaces.
+Peripherals available include ULAplus and the ZX Printer.  There's also an AY chip, but it sounds a bit crummy.
+Also, timings and contention are somewhat inaccurate.  In particular, the 'split bus' is not properly emulated, chiefly because I don't understand it.  (I need to read csmith's book!)
 
 Command line options:
 	--debug,-d
@@ -13,8 +15,12 @@ Command line options:
 		Start with the emulation paused.
 	--zxprinter[=<file>]
 		Enable the ZX Printer.  If <file> is specified, saves the (NetPBM format) output to <file>, otherwise "zxp.pbm".
+	--zxpfix
+		Apply the ZX Printer Port Decoding fix: make the printer only recognise ports (A6&&!A2) instead of all of !A2.  Useful
 	--ay
-		Enable the AY chip.  Currently, you are likely to encounter bugs in this.
+		Enable the AY chip.
+	--ula+
+		Enable ULAplus emulation.  If using with --zxprinter, you will also need to use --zxpfix.
 	--Tstate,-T
 		Enable single-Tstate stepping in the debugger.
 	--no-Tstate,+T
