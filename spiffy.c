@@ -48,6 +48,10 @@ typedef struct
 	bool memwait;
 	bool iowait;
 	bool t1;
+	bool ulaplus_enabled;
+	unsigned char ulaplus_regsel; // only used when ULAplus enabled
+	unsigned char ulaplus_regs[64]; // only used when ULAplus enabled
+	unsigned char ulaplus_mode; // only used when ULAplus enabled
 }
 ula_t;
 
@@ -56,6 +60,7 @@ unsigned int filt_mask=0; // Which graphics filters to enable (see filters.h)
 
 // helper fns
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
+unsigned char scale38(unsigned char v);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
 void putedge(uint32_t *T_since_tape_edge, unsigned long *trecpuls, FILE *trec);
 void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap);
@@ -84,6 +89,7 @@ int main(int argc, char * argv[])
 	#endif /* AUDIO */
 	const char *fn=NULL;
 	ay_enabled=false;
+	bool ulaplus_enabled=false;
 	const char *zxp_fn="zxp.pbm";
 	bool zxp_fix=false; // change the ZXP address from ¬A2 to A6.¬A2?  For compatibility with ZXI devices
 	js_type keystick=JS_C; // keystick mode: Cursor, Sinclair, Kempston, disabled
@@ -135,6 +141,10 @@ int main(int argc, char * argv[])
 		else if(strcmp(argv[arg], "--ay") == 0)
 		{ // enable AY chip
 			ay_enabled=true;
+		}
+		else if(strcmp(argv[arg], "--ula+") == 0)
+		{ // enable ULAplus
+			ulaplus_enabled=true;
 		}
 		else if((strcmp(argv[arg], "--Tstate") == 0) || (strcmp(argv[arg], "-T") == 0))
 		{ // activate single-Tstate stepping under debugger
@@ -209,6 +219,13 @@ int main(int argc, char * argv[])
 	{
 		fprintf(stderr, "spiffy: failed to load keymap\n");
 		return(1);
+	}
+	if((ula->ulaplus_enabled=ulaplus_enabled))
+	{
+		ula->ulaplus_regsel=0;
+		for(unsigned int reg=0;reg<64;reg++)
+			ula->ulaplus_regs[reg]=0;
+		ula->ulaplus_mode=0;
 	}
 #ifdef AUDIO
 	if(SDL_InitSubSystem(SDL_INIT_AUDIO))
@@ -414,6 +431,21 @@ int main(int argc, char * argv[])
 					}
 				}
 			}
+			else if(ula->ulaplus_enabled&&(bus->addr==0xbf3b))
+			{
+				ula->ulaplus_regsel=bus->data;
+			}
+			else if(ula->ulaplus_enabled&&(bus->addr==0xff3b))
+			{
+				if(!(ula->ulaplus_regsel&0xC0))
+				{
+					ula->ulaplus_regs[ula->ulaplus_regsel]=bus->data;
+				}
+				else if(ula->ulaplus_regsel==0x40)
+				{
+					ula->ulaplus_mode=bus->data;
+				}
+			}
 		}
 		
 		if(unlikely(bus->iorq&&(bus->tris==TRIS_IN)))
@@ -441,6 +473,17 @@ int main(int argc, char * argv[])
 				if(bus->addr&0x4000)
 				{
 					bus->data=ay.reg[ay.regsel];
+				}
+			}
+			else if(ula->ulaplus_enabled&&(bus->addr==0xff3b))
+			{
+				if(!(ula->ulaplus_regsel&0xC0))
+				{
+					bus->data=ula->ulaplus_regs[ula->ulaplus_regsel];
+				}
+				else if(ula->ulaplus_regsel==0x40)
+				{
+					bus->data=ula->ulaplus_mode;
 				}
 			}
 			else
@@ -2260,7 +2303,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 		bool contend=false;
 		if((col>=0) && (col<screen->w))
 		{
-			unsigned char uladb=0xff, ulaab=bus->portfe&0x07;
+			unsigned char uladb=0, ulaab=(bus->portfe&0x07)<<3;
 			int ccol=(col>>3)-4;
 			int crow=(line>>3)-6;
 			if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
@@ -2294,23 +2337,67 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 			{
 				int ink=ulaab&0x07;
 				int paper=(ulaab&0x38)>>3;
-				bool flash=ulaab&0x80;
-				bool bright=ulaab&0x40;
-				unsigned char r,g,b; // blue1 red2 green4
+				unsigned char r,g,b;
 				unsigned char s=0x80>>(((Tstates+12)%4)<<1);
 				bool d=uladb&s;
-				if(flash && (Fstate&0x10))
-					d=!d;
-				filter_pix(filt_mask, col, line, d?ink:paper, bright, &r, &g, &b);
-				pset(screen, col, line, r, g, b);
-				d=uladb&(s>>1);
-				if(flash && (Fstate&0x10))
-					d=!d;
-				filter_pix(filt_mask, col+1, line, d?ink:paper, bright, &r, &g, &b);
-				pset(screen, col+1, line, r, g, b);
+				if(ula->ulaplus_enabled&&(ula->ulaplus_mode&1))
+				{
+					unsigned char clut=ulaab>>6;
+					unsigned char pix=d?ula->ulaplus_regs[(clut<<4)+ink]:ula->ulaplus_regs[(clut<<4)+paper+8];
+					unsigned char pr=(pix>>2)&7,pg=(pix>>5)&7,pb=pix&3;
+					pb=(pb<<1)|(pb&1);
+					r=scale38(pr);
+					g=scale38(pg);
+					b=scale38(pb);
+					filter_pix(filt_mask, col, line, &r, &g, &b);
+					pset(screen, col, line, r, g, b);
+					d=uladb&(s>>1);
+					pix=d?ula->ulaplus_regs[(clut<<4)+ink]:ula->ulaplus_regs[(clut<<4)+paper+8];
+					pr=(pix>>2)&7;pg=(pix>>5)&7;pb=pix&3;
+					pb=(pb<<1)|(pb&1);
+					r=scale38(pr);
+					g=scale38(pg);
+					b=scale38(pb);
+					filter_pix(filt_mask, col+1, line, &r, &g, &b);
+					pset(screen, col+1, line, r, g, b);
+				}
+				else
+				{
+					bool flash=ulaab&0x80;
+					bool bright=ulaab&0x40;
+					unsigned char t=bright?240:200;
+					if(flash && (Fstate&0x10))
+						d=!d;
+					unsigned char pix=d?ink:paper;
+					r=(pix&2)?t:0;
+					g=(pix&4)?t:0;
+					b=(pix&1)?t:0;
+					if(pix==1) b+=15;
+					filter_pix(filt_mask, col, line, &r, &g, &b);
+					pset(screen, col, line, r, g, b);
+					d=uladb&(s>>1);
+					if(flash && (Fstate&0x10))
+						d=!d;
+					pix=d?ink:paper;
+					r=(pix&2)?t:0;
+					g=(pix&4)?t:0;
+					b=(pix&1)?t:0;
+					if(pix==1) b+=15;
+					filter_pix(filt_mask, col+1, line, &r, &g, &b);
+					pset(screen, col+1, line, r, g, b);
+				}
 			}
 		}
 	}
+}
+
+unsigned char scale38(unsigned char v)
+{
+	unsigned char rv=0;
+	if(v&4) rv|=0x90;
+	if(v&2) rv|=0x4A;
+	if(v&1) rv|=0x25;
+	return(rv);
 }
 
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen)

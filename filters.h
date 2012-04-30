@@ -14,4 +14,4 @@
 #define FILT_MISG	0x10
 
 const char *filter_name(unsigned int filt_id);
-void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char pix, bool bright, unsigned char *r, unsigned char *g, unsigned char *b);
+void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char *r, unsigned char *g, unsigned char *b);

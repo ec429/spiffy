@@ -19,19 +19,14 @@ const char *filter_name(unsigned int filt_id)
 	else return("Error");
 }
 
-void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char pix, bool bright, unsigned char *r, unsigned char *g, unsigned char *b)
+void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char *r, unsigned char *g, unsigned char *b)
 {
 	static unsigned char lastr, lastg, lastb, misg;
 	static unsigned char rowr[320], rowg[320], rowb[320];
-	unsigned char t=bright?240:200;
-	*r=(pix&2)?t:0;
-	*g=(pix&4)?t:0;
-	*b=(pix&1)?t:0;
-	if(pix==1) *b+=15;
 	
 	if(filt_mask&FILT_BW)
 	{
-		*r=*g=*b=(pix*25)+((pix&&bright)?80:0);
+		*r=*g=*b=((*r*2)+(*g*3)+*b)/6;//(pix*25)+((pix&&bright)?80:0);
 	}
 	
 	if(filt_mask&FILT_SCAN)
