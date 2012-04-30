@@ -215,6 +215,6 @@ void ay_tstep(ay_t *ay, unsigned int steps)
 		if(!(ay->reg[7]&(1<<i)))
 			ay->out[i]=ay->bit[i]?ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env&0x0f:(ay->reg[8+i]&0xf)]:0;
 		if((ay->noise&1)&&!(ay->reg[7]&(8<<i)))
-			ay->out[i]^=0xff;
+			ay->out[i]^=0x40;
 	}
 }
