@@ -502,7 +502,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 					}
 				break;
 				case 3: // OTxx M2: PW(4)
-					STEP_PW(*HL, cpu->internal[1]);
+					STEP_PW(*BC, cpu->internal[1]);
 					if(cpu->M>2)
 					{
 						*HL=(cpu->ods.y&1)?(*HL)-1:(*HL)+1;
