@@ -757,21 +757,8 @@ int main(int argc, char * argv[])
 						else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
 						{
 							unsigned short int sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_vars, l;
-							char *what=drgv[1], *rest=NULL;
-							unsigned int wlen=0;
-							if(what)
-							{
-								rest=strchr(what, '(');
-								if(rest)
-								{
-									char *nrest=strdup(rest);
-									*rest=0;
-									rest=nrest;
-								}
-								wlen=strlen(what);
-								while(wlen&&isspace(what[wlen-1]))
-									what[--wlen]=0;
-							}
+							char *what=drgv[1];
+							size_t wlen=what?strlen(what):0;
 							double num;
 							bool match=!what;
 							while(i&&(RAM[i]!=0x80))
@@ -788,10 +775,10 @@ int main(int argc, char * argv[])
 										i+=2;
 										if(match)
 										{
-											if(rest)
+											if(drgc>2)
 											{
 												unsigned int j;
-												if(sscanf(rest, "(%u)", &j)!=1)
+												if(sscanf(drgv[2], "%u", &j)!=1)
 													fprintf(stderr, "3 Subscript wrong, 0:1\n");
 												else if((j<1)||(j>l))
 													fprintf(stderr, "3 Subscript wrong, 0:1\n");
@@ -837,7 +824,7 @@ int main(int argc, char * argv[])
 									case 3: // Number whose name is one letter
 										// 011aaaaa Value[5]
 										if(what) match=((wlen==1)&&(*what==name));
-										if(rest) match=false;
+										if(drgc>2) match=false;
 										if(match)
 										{
 											fprintf(stderr, "%04x # ", addr+1);
@@ -849,7 +836,7 @@ int main(int argc, char * argv[])
 									break;
 									case 4: // Array of numbers
 										// 100aaaaa TotalLength[2] DimensionsAndValues[]
-										if(what) match=((wlen==1)&&(*what==name)&&rest);
+										if(what) match=((wlen==1)&&(*what==name)&&(drgc>2));
 										if(!what) fprintf(stderr, "%04x # %c (array)\n", addr, name);
 										i++;
 										l=peek16(i);
@@ -861,25 +848,19 @@ int main(int argc, char * argv[])
 											for(unsigned char dim=0;dim<ndim;dim++)
 												dims[dim]=peek16(i+1+dim*2);
 											unsigned int subs[ndim];
-											const char *p=rest;
-											while(p&&*p&&(sub<ndim))
+											if((drgc>2)&&(strcmp(drgv[2], "()")!=0))
 											{
-												if(strchr("(,) \t", *p)) { p++; continue; }
-												int l;
-												if(sscanf(p, "%u%n", subs+sub, &l)!=1)
-													break;
-												p+=l;
-												if(subs[sub]<1)
+												int drg=2;
+												while((drg<drgc)&&(sub<ndim))
 												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
+													if((sscanf(drgv[drg], "%u", subs+sub)!=1)||(subs[sub]<1)||(subs[sub]>dims[sub]))
+													{
+														fprintf(stderr, "3 Subscript wrong, 0:%u\n", drg);
+														break;
+													}
+													sub++;
+													drg++;
 												}
-												if(subs[sub]>dims[sub])
-												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
-												}
-												sub++;
 											}
 											addr=i+1+ndim*2;
 											if(sub<ndim)
@@ -947,25 +928,19 @@ int main(int argc, char * argv[])
 											for(unsigned char dim=0;dim<ndim;dim++)
 												dims[dim]=peek16(i+1+dim*2);
 											unsigned int subs[ndim];
-											const char *p=rest;
-											while(p&&*p&&(sub<ndim))
+											if((drgc>2)&&(strcmp(drgv[2], "()")!=0))
 											{
-												if(strchr("(,) \t", *p)) { p++; continue; }
-												int l;
-												if(sscanf(p, "%u%n", subs+sub, &l)!=1)
-													break;
-												p+=l;
-												if(subs[sub]<1)
+												int drg=2;
+												while((drg<drgc)&&(sub<ndim))
 												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
+													if((sscanf(drgv[drg], "%u", subs+sub)!=1)||(subs[sub]<1)||(subs[sub]>dims[sub]))
+													{
+														fprintf(stderr, "3 Subscript wrong, 0:%u\n", drg);
+														break;
+													}
+													sub++;
+													drg++;
 												}
-												if(subs[sub]>dims[sub])
-												{
-													fprintf(stderr, "3 Subscript wrong, 0:%u\n", sub+1);
-													break;
-												}
-												sub++;
 											}
 											addr=i+1+ndim*2;
 											if(sub<ndim)
@@ -1057,7 +1032,6 @@ int main(int argc, char * argv[])
 								}
 								if(what&&match) break;
 							}
-							free(rest);
 							if(what&&!match) fprintf(stderr, "No such variable '%s'\n", what);
 						}
 						else if((strcmp(cmd, "k")==0)||(strcmp(cmd, "kn")==0))

@@ -50,8 +50,9 @@ m Rr xxxx      read 16 bytes from xxxx, display as hex\n"
 v              list all variables\n\
 v foo          examine (numeric) foo\n\
 v a$           examine (string) a$\n\
-v a(1,2,3)     examine numeric array a\n\
-v a$(4)        examine character array a$\n\
+v a 1 2 3      examine numeric array a\n\
+v a$ 4         examine character array a$\n\
+v a ()         examine array a rather than variable a\n\
     If the variable is numeric, the listed address is that of the 5-byte float\n\
     value; if string, the listed address is the start of the variable's\n\
     metadata (the string data starts 3 bytes later).  If it's an array, the\n\

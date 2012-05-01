@@ -78,13 +78,13 @@ You can get rudimentary help from within the debugger by entering "h" (for a com
 =Examining BASIC variables=
 	The BASIC variables can be listed, with their values, with "vars" or "v".
 	A specific variable can be examined, by passing it as an argument to "vars"; eg. "v mynumber".
-	You can examine arrays similarly, like "v a(1,2)" or "v a(1)(2)".
+	You can examine arrays similarly, like "v a 1 2".  If you don't want to subscript a numeric array, you have to use a subscript of "()", like "v a ()", to indicate that you want the array a() and not the variable a.  This is because Sinclair BASIC allows both to exist concurrently.
 	The address displayed for a BASIC variable depends on its type, as follows:
 		Numeric single: Address is that of the 5-byte float
 		String  single: Address is that of the variable name.  The string data starts 3 bytes later
 		Numeric array : Address is that of the 5-byte float of the first element of the array
 		Char    array : Address is that of the first element of the array
-	So for instance if a$ is an array[5][3], "v a$(2)" will give the address of a$(2)(1), while if b$ is a string, "v b$" will give the address of the metadata for b$, whereas "v b$(1)" will give the address of b$(1), the first character of the string.  Numeric variables always give the address of a 5-byte float, allowing you to modify the variable directly with "m fw".
+	So for instance if a$ is an array[5][3], "v a$ 2" will give the address of a$(2)(1), while if b$ is a string, "v b$" will give the address of the metadata for b$, whereas "v b$ 1" will give the address of b$(1), the first character of the string.  Numeric variables always give the address of a 5-byte float, allowing you to modify the variable directly with "m fw".
 
 =Examining the BASIC program=
 	The BASIC program can be listed with "k" (the name was chosen because "k" is the key for LIST on the Spectrum).
