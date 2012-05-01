@@ -21,22 +21,24 @@ Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
 
 DPRINT:
 Examples:
-	[8ccc]              - byte at 0x8ccc.  Byte is assumed in the absence of type information.
-	[dead.f]            - 5-byte float at 0xdead.
-	[@VARS]             - word at VARS.  It knows it's a word because it gets a hint to that effect from the sysvar lookup.
-	[[@CHARS]+280.8]    - 8 bytes from 280 bytes after the address pointed to by CHARS (0x5c36).
-	[#IX+25.b]          - byte at IX+25.
-	[#DE++.b]=[*HL++.b] - copies a byte from [HL] to [DE], then increments both HL and DE, and prints the byte copied.
-	[:AY:5]             - byte from AY register 5.  (However, the 'a' (and 'u') commands will be kept as they perform decoding of these values).
+	.b,8ccc            - byte at 0x8ccc.
+	.f,dead            - 5-byte float at 0xdead.
+	.w,@VARS           - word at VARS.
+	.8,+,.w,@CHARS,118 - 8 bytes from 280 bytes after the address pointed to by CHARS (0x5c36).
+	.b,+,#IX,25        - byte at IX+0x25.
+	=,.b,#DE,.b,#HL    - copies a byte from [HL] to [DE], and prints the byte copied.
+	.b,:AY:5           - byte from AY register 5.  (However, the 'a' (and 'u') commands will be kept as they perform decoding of these values).
+	>>,#A,1            - value of A, shifted right once (logical shift, not arithmetic shift)
+	<<<,#A,3           - value of A, rotated left three times
 Syntax:
-<expression> ::= <expression><binop><expression> | <preop><expression> | <expression><postop> | <indirection> | <sysvar> | <register> | <literal>
-<binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<<' | '>>' | '=' | '+=' | '-='
-<preop>      ::= '++' | '--'
-<postop>     ::= '++' | '--'
-<indirection>::= '['<exp-w-type>']' | '[:'<far>':'<exp-w-type>']'
-<exp-w-type> ::= <expression> | <expression>'.'<type>
+<expression> ::= <unop>','<expression> | <binop>','<expression>','<expression> | <sysvar> | <register> | <literal> | <indirection>
+<unop>       ::= '~'
+<binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<<' | '>>' | '<<<' | '>>>' | '='
+<indirection>::= '.'<type>','<expression> | '.'<type>','':'<far>':'<expression>
 <type>       ::= 'b' | 'w' | 'f' | '8' | 'R'
 <far>        ::= 'AY' | 'ULAPLUS'
-<sysvar>     ::= '%'<sysvarname>
+<sysvar>     ::= '@'<sysvarname>
 <register>   ::= '#'<registername>
-<literal>    ::= <xdigit> | <xdigit><literal>
+<literal>    ::= <hex-literal> | <float-lit>
+<hex-literal>::= <xdigit>*{1,4}
+<float-lit>  ::= '_'<float-val>'_'

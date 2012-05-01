@@ -8,6 +8,7 @@
 #include "debug.h"
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "bits.h"
 #include "basic.h"
 
@@ -28,6 +29,103 @@ void debugger_tokenise(char *line, int *drgc, char *drgv[256])
 		}
 		drgv[*drgc]=NULL;
 	}
+}
+
+void comma_tokenise(char *expr, int *ec, const char *ev[256])
+{
+	*ec=0;
+	if(!expr)
+	{
+		ev[0]=NULL;
+	}
+	else
+	{
+		const char *p=strtok(expr, ",");
+		while(p)
+		{
+			ev[(*ec)++]=p;
+			p=strtok(NULL, ",");
+		}
+		ev[*ec]=NULL;
+	}
+}
+
+debugval de_recursive(FILE *f, int *e, int ec, const char *ev[256], unsigned char *RAM)
+{
+	if((*e>=ec)||(!ev[*e]))
+	{
+		fprintf(f, "error: Stack underflow\n");
+		return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+	}
+	if(isxdigit(ev[*e][0]))
+	{
+		size_t l=0;
+		while(isxdigit(ev[*e][++l]));
+		unsigned int v;
+		sscanf(ev[*e], "%x", &v);
+		(*e)++;
+		if(l<=2)
+			return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=v}, NULL});
+		if(l<=4)
+			return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=v}, NULL});
+		fprintf(f, "error: Hex literal exceeds 2 bytes: %s\n", ev[*e]);
+		return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+	}
+	else if(ev[*e][0]=='.')
+	{
+		char type=ev[*e][1];
+		(*e)++;
+		debugval addr=de_recursive(f, e, ec, ev, RAM);
+		if(addr.type==DEBUGTYPE_BYTE)
+		{
+			addr.type=DEBUGTYPE_WORD;
+			addr.val.w=addr.val.b; // extend it
+		}
+		if(addr.type==DEBUGTYPE_WORD)
+		{
+			switch(type)
+			{
+				case 'b':
+					return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=RAM[addr.val.w]}, RAM+addr.val.w});
+				case 'w':
+					return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=peek16(addr.val.w)}, RAM+addr.val.w});
+				case 'f':
+					return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=float_decode(RAM, addr.val.w)}, RAM+addr.val.w});
+				case '8':
+				{
+					debugval rv;
+					rv.type=DEBUGTYPE_GRID;
+					rv.p=RAM+addr.val.w;
+					memcpy(rv.val.r, rv.p, 8);
+					return(rv);
+				}
+				case 'R':
+				{
+					debugval rv;
+					rv.type=DEBUGTYPE_ROW;
+					rv.p=RAM+addr.val.w;
+					memcpy(rv.val.r, rv.p, 16);
+					return(rv);
+				}
+				default:
+					fprintf(f, "error: Unrecognised type %s\n", ev[*e]);
+					return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+		}
+		else
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+	}
+	fprintf(f, "error: Unrecognised item %s\n", ev[*e]);
+	(*e)++;
+	return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+}
+
+debugval debugger_expr(FILE *f, int ec, const char *ev[256], unsigned char *RAM)
+{
+	int e=0;
+	debugval rv=de_recursive(f, &e, ec, ev, RAM);
+	if(e<ec) fprintf(f, "warning: %d input items were not consumed\n", ec-e);
+	return(rv);
 }
 
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus)
@@ -74,63 +172,44 @@ void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bu
 	printf("Bus: A=%04x\tD=%02x\t%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n", bus->addr, bus->data, bus->tris==TRIS_OUT?"WR":"wr", bus->tris==TRIS_IN?"RD":"rd", bus->mreq?"MREQ":"mreq", bus->iorq?"IORQ":"iorq", bus->m1?"M1":"m1", bus->rfsh?"RFSH":"rfsh", bus->waitline?"WAIT":"wait", bus->irq?"INT":"int", bus->nmi?"NMI":"nmi", bus->reset?"RESET":"reset", bus->halt?"HALT":"halt");
 }
 
-void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest)
+void debugval_display(FILE *f, debugval val)
 {
-	if(strcmp(what, "r")==0)
-		fprintf(stderr, "[%04x.b] = %02x\n", addr, RAM[addr]);
-	else if(strcmp(what, "w")==0)
+	switch(val.type)
 	{
-		unsigned int val;
-		if(!(rest&&(sscanf(rest, "%x", &val)==1)))
-			val=0;
-		RAM[addr]=val;
+		case DEBUGTYPE_BYTE:
+			fprintf(f, "%02x\n", val.val.b);
+		break;
+		case DEBUGTYPE_WORD:
+			fprintf(f, "%04x\n", val.val.w);
+		break;
+		case DEBUGTYPE_FLOAT:
+			fprintf(f, "%g\n", val.val.f);
+		break;
+		case DEBUGTYPE_GRID:
+			for(unsigned int i=0;i<8;i++)
+			{
+				fprintf(f, "grid:\n");
+				fprintf(f, "%02x = ", val.val.r[i]);
+				for(unsigned int b=0;b<8;b++)
+					fputc(((val.val.r[i]<<b)&0x80)?'1':'0', f);
+				fprintf(f, "b\n");
+			}
+		break;
+		case DEBUGTYPE_ROW:
+			for(unsigned int i=0;i<16;i++)
+			{
+				if(i)
+					fputc(' ', f);
+				if(!(i&3))
+					fputc(' ', f);
+				fprintf(f, "%02x", val.val.r[i]);
+			}
+			fputc('\n', f);
+		break;
+		case DEBUGTYPE_ERR:
+			fprintf(f, "(Error)\n");
+		break;
 	}
-	else if(strcmp(what, "lr")==0)
-		fprintf(stderr, "[%04x.w] = %04x\n", addr, peek16(addr));
-	else if(strcmp(what, "lw")==0)
-	{
-		unsigned int val;
-		if(!(rest&&(sscanf(rest, "%x", &val)==1)))
-			val=0;
-		poke16(addr, val);
-	}
-	else if(strcmp(what, "fr")==0)
-		fprintf(stderr, "[%04x.f] = %g\n", addr, float_decode(RAM, addr));
-	else if(strcmp(what, "fw")==0)
-	{
-		double val;
-		if(!(rest&&(sscanf(rest, "%lg", &val)==1)))
-			fprintf(stderr, "memory: missing value\n");
-		else
-			float_encode(RAM, addr, val);
-	}
-	else if(strcmp(what, "8r")==0)
-	{
-		for(unsigned int i=0;i<8;i++)
-		{
-			unsigned char c=RAM[addr+i];
-			fprintf(stderr, "[%04x.b] = %02x = ", addr+i, c);
-			for(unsigned int b=0;b<8;b++)
-				fputc(((c<<b)&0x80)?'1':'0', stderr);
-			fprintf(stderr, "b\n");
-		}
-	}
-	else if(strcmp(what, "Rr")==0)
-	{
-		fprintf(stderr, "[%04x.R] =", addr);
-		for(unsigned int i=0;i<16;i++)
-		{
-			if(i)
-				fputc(' ', stderr);
-			if(!(i&3))
-				fputc(' ', stderr);
-			unsigned char c=RAM[addr+i];
-			fprintf(stderr, "%02x", c);
-		}
-		fputc('\n', stderr);
-	}
-	else
-		fprintf(stderr, "memory: bad mode (see 'h m')\n");
 }
 
 int reg16(const char *name)

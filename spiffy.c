@@ -618,71 +618,18 @@ int main(int argc, char * argv[])
 								}
 							}
 						}
-						else if((strcmp(cmd, "m")==0)||(strcmp(cmd, "memory")==0))
+						else if((strcmp(cmd, "p")==0)||(strcmp(cmd, "print")==0))
 						{
-							const char *what=drgv[1];
-							if(what)
+							for(int drg=1;drg<drgc;drg++)
 							{
-								char *a=drgv[2];
-								const char *rest=drgv[3];
-								unsigned int addr;
-								if(a)
-								{
-									if(sscanf(a, "%x", &addr)==1) mdisplay(RAM, addr, what, rest);
-									else if(*a=='%')
-									{
-										size_t plus=strcspn(a, "+-");
-										signed int offset=0;
-										if(a[plus]) sscanf(a+plus, "%d", &offset);
-										a[plus]=0;
-										const struct sysvar *sv=sysvarbyname(a+1);
-										if(sv)
-											mdisplay(RAM, sv->addr+offset, what, rest);
-										else
-											fprintf(stderr, "memory: no such sysvar `%s'\n", a+1);
-									}
-									else if(*a=='(')
-									{
-										char *brack=strchr(a, ')');
-										if(brack)
-										{
-											*brack++=0;
-											signed int offset=0;
-											if(*brack) sscanf(brack, "%d", &offset);
-											const struct sysvar *sv=sysvarbyname(a+2);
-											if(sv)
-											{
-												if(sv->type==SVT_ADDR)
-													mdisplay(RAM, peek16(sv->addr)+offset, what, rest);
-												else
-													fprintf(stderr, "memory: sysvar `%s' is not of type SVT_ADDR\n", sv->name);
-											}
-											else
-												fprintf(stderr, "memory: no such sysvar `%s'\n", a+2);
-										}
-										else
-											fprintf(stderr, "memory: unmatched `('\n");
-									}
-									else if(*a=='*')
-									{
-										size_t plus=strcspn(a, "+-");
-										signed int offset=0;
-										if(a[plus]) sscanf(a+plus, "%d", &offset);
-										a[plus]=0;
-										int reg=reg16(a+1);
-										if(reg>=0)
-											mdisplay(RAM, (*(unsigned short int *)(cpu->regs+reg))+offset, what, rest);
-										else
-											fprintf(stderr, "memory: `%s' is not a 16-bit register\n", a+1);
-									}
-									else
-										fprintf(stderr, "memory: missing address\n");
-								}
-								else
-									fprintf(stderr, "memory: missing address\n");
+								char *what=drgv[drg];
+								if(!what) continue;
+								int ec;
+								const char *ev[256];
+								comma_tokenise(what, &ec, ev);
+								debugval val=debugger_expr(stderr, ec, ev, RAM);
+								debugval_display(stderr, val);
 							}
-							else
-								fprintf(stderr, "memory: missing mode (see 'h m')\n");
 						}
 						else if((strcmp(cmd, "b")==0)||(strcmp(cmd, "break")==0))
 						{

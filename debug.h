@@ -5,12 +5,45 @@
 	debug.h - debugger functions
 */
 
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include "z80.h"
 #include "ops.h"
 
+typedef enum
+{
+	DEBUGTYPE_BYTE, // b
+	DEBUGTYPE_WORD, // w
+	DEBUGTYPE_FLOAT, // f
+	DEBUGTYPE_GRID, // 8
+	DEBUGTYPE_ROW, // R
+	DEBUGTYPE_ERR, // used to signal a syntax error
+}
+debugtype;
+
+typedef union
+{
+	unsigned char b;
+	uint16_t w;
+	double f;
+	unsigned char r[16]; // used by 8 and R
+}
+debugval_val;
+
+typedef struct
+{
+	debugtype type;
+	debugval_val val;
+	unsigned char *p; // NULL if it's not an lvalue
+}
+debugval;
+
 void debugger_tokenise(char *line, int *drgc, char *drgv[256]);
+void comma_tokenise(char *expr, int *ec, const char *ev[256]);
+debugval debugger_expr(FILE *f, int ec, const char *ev[256], unsigned char *RAM);
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
-void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest);
+void debugval_display(FILE *f, debugval val);
 int reg16(const char *name);
 
 /* debugger help text */
