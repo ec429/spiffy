@@ -2,7 +2,6 @@ Spiffy: Yet another ZX Spectrum emulator
 Ideas & Future Plans
 
 CORE:
-Check INI[R]; it may have similar bugs to the ones that OUTI/OTIR had.
 
 DEBUGGER:
 Rewrite debugger internals to first parse the command into tokens.

@@ -394,12 +394,9 @@ void op_bli(z80 *cpu, bus_t *bus)
 		case 1: // bli M1
 			switch(cpu->ods.z)
 			{
-				case 3: // OTxx M1: MR(3)
-					if(cpu->dT==0)
-						cpu->regs[5]--;
-				/* fallthrough */
 				case 0: // LDxx M1: MR(3)
 				case 1: // CPxx M1: MR(3)
+				case 3: // OTxx M1: MR(3)
 					STEP_MR(*HL, &cpu->internal[1]);
 				break;
 				case 2: // INxx M1: PR(4)
@@ -505,7 +502,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 					}
 				break;
 				case 3: // OTxx M2: PW(4)
-					STEP_PW(*BC, cpu->internal[1]);
+					STEP_PW((*BC)-0x100, cpu->internal[1]); // because B is decremented first
 					if(cpu->M>2)
 					{
 						*HL=(cpu->ods.y&1)?(*HL)-1:(*HL)+1;
