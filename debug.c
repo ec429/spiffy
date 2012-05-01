@@ -31,26 +31,7 @@ void debugger_tokenise(char *line, int *drgc, char *drgv[256])
 	}
 }
 
-void comma_tokenise(char *expr, int *ec, const char *ev[256])
-{
-	*ec=0;
-	if(!expr)
-	{
-		ev[0]=NULL;
-	}
-	else
-	{
-		const char *p=strtok(expr, ",");
-		while(p)
-		{
-			ev[(*ec)++]=p;
-			p=strtok(NULL, ",");
-		}
-		ev[*ec]=NULL;
-	}
-}
-
-debugval de_recursive(FILE *f, int *e, int ec, const char *ev[256], unsigned char *RAM)
+debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsigned char *RAM)
 {
 	if((*e>=ec)||(!ev[*e]))
 	{
@@ -71,56 +52,94 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *ev[256], unsigned cha
 		fprintf(f, "error: Hex literal exceeds 2 bytes: %s\n", ev[*e]);
 		return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 	}
-	else if(ev[*e][0]=='.')
+	else switch(ev[*e][0])
 	{
-		char type=ev[*e][1];
-		(*e)++;
-		debugval addr=de_recursive(f, e, ec, ev, RAM);
-		if(addr.type==DEBUGTYPE_BYTE)
+		case '~':
 		{
-			addr.type=DEBUGTYPE_WORD;
-			addr.val.w=addr.val.b; // extend it
-		}
-		if(addr.type==DEBUGTYPE_WORD)
-		{
-			switch(type)
+			(*e)++;
+			debugval val=de_recursive(f, e, ec, ev, RAM);
+			switch(val.type)
 			{
-				case 'b':
-					return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=RAM[addr.val.w]}, RAM+addr.val.w});
-				case 'w':
-					return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=peek16(addr.val.w)}, RAM+addr.val.w});
-				case 'f':
-					return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=float_decode(RAM, addr.val.w)}, RAM+addr.val.w});
-				case '8':
+				case DEBUGTYPE_BYTE:
+					return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=val.val.b^0xFF}, NULL});
+				case DEBUGTYPE_WORD:
+					return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=val.val.w^0xFFFF}, NULL});
+				case DEBUGTYPE_GRID:
 				{
 					debugval rv;
 					rv.type=DEBUGTYPE_GRID;
-					rv.p=RAM+addr.val.w;
-					memcpy(rv.val.r, rv.p, 8);
+					rv.p=NULL;
+					for(unsigned int i=0;i<8;i++)
+						rv.val.r[i]=val.val.r[i]^0xFF;
 					return(rv);
 				}
-				case 'R':
+				case DEBUGTYPE_ROW:
 				{
 					debugval rv;
 					rv.type=DEBUGTYPE_ROW;
-					rv.p=RAM+addr.val.w;
-					memcpy(rv.val.r, rv.p, 16);
+					rv.p=NULL;
+					for(unsigned int i=0;i<16;i++)
+						rv.val.r[i]=val.val.r[i]^0xFF;
 					return(rv);
 				}
+				case DEBUGTYPE_FLOAT:
+					fprintf(f, "error: Can't ~ a float\n");
+					/* fallthrough */
 				default:
-					fprintf(f, "error: Unrecognised type %s\n", ev[*e]);
 					return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			}
 		}
-		else
-			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		break;
+		case '.':
+		{
+			char type=ev[*e][1];
+			(*e)++;
+			debugval addr=de_recursive(f, e, ec, ev, RAM);
+			if(addr.type==DEBUGTYPE_BYTE)
+			{
+				addr.type=DEBUGTYPE_WORD;
+				addr.val.w=addr.val.b; // extend it
+			}
+			if(addr.type==DEBUGTYPE_WORD)
+			{
+				switch(type)
+				{
+					case 'b':
+						return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=RAM[addr.val.w]}, RAM+addr.val.w});
+					case 'w':
+						return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=peek16(addr.val.w)}, RAM+addr.val.w});
+					case 'f':
+						return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=float_decode(RAM, addr.val.w)}, RAM+addr.val.w});
+					case '8':
+					{
+						debugval rv;
+						rv.type=DEBUGTYPE_GRID;
+						rv.p=RAM+addr.val.w;
+						memcpy(rv.val.r, rv.p, 8);
+						return(rv);
+					}
+					case 'R':
+					{
+						debugval rv;
+						rv.type=DEBUGTYPE_ROW;
+						rv.p=RAM+addr.val.w;
+						memcpy(rv.val.r, rv.p, 16);
+						return(rv);
+					}
+					default:
+						fprintf(f, "error: Unrecognised type %s\n", ev[*e]);
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+				}
+			}
+		}
+		break;
 	}
 	fprintf(f, "error: Unrecognised item %s\n", ev[*e]);
 	(*e)++;
 	return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 }
 
-debugval debugger_expr(FILE *f, int ec, const char *ev[256], unsigned char *RAM)
+debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM)
 {
 	int e=0;
 	debugval rv=de_recursive(f, &e, ec, ev, RAM);

@@ -40,8 +40,7 @@ typedef struct
 debugval;
 
 void debugger_tokenise(char *line, int *drgc, char *drgv[256]);
-void comma_tokenise(char *expr, int *ec, const char *ev[256]);
-debugval debugger_expr(FILE *f, int ec, const char *ev[256], unsigned char *RAM);
+debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM);
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
 void debugval_display(FILE *f, debugval val);
 int reg16(const char *name);

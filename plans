@@ -21,20 +21,20 @@ Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
 
 DPRINT:
 Examples:
-	.b,8ccc            - byte at 0x8ccc.
-	.f,dead            - 5-byte float at 0xdead.
-	.w,@VARS           - word at VARS.
-	.8,+,.w,@CHARS,118 - 8 bytes from 280 bytes after the address pointed to by CHARS (0x5c36).
-	.b,+,#IX,25        - byte at IX+0x25.
-	=,.b,#DE,.b,#HL    - copies a byte from [HL] to [DE], and prints the byte copied.
-	.b,:AY:5           - byte from AY register 5.  (However, the 'a' (and 'u') commands will be kept as they perform decoding of these values).
-	>>,#A,1            - value of A, shifted right once (logical shift, not arithmetic shift)
-	<<<,#A,3           - value of A, rotated left three times
+	.b 8ccc            - byte at 0x8ccc.
+	.f dead            - 5-byte float at 0xdead.
+	.w @VARS           - word at VARS.
+	.8 + .w @CHARS 118 - 8 bytes from 280 bytes after the address pointed to by CHARS (0x5c36).
+	.b + #IX 25        - byte at IX+0x25.
+	= .b #DE .b #HL    - copies a byte from [HL] to [DE], and prints the byte copied.
+	.b :AY:5           - byte from AY register 5.  (However, the 'a' (and 'u') commands will be kept as they perform decoding of these values).
+	>> #A 1            - value of A, shifted right once (logical shift, not arithmetic shift)
+	<<< #A 3           - value of A, rotated left three times
 Syntax:
-<expression> ::= <unop>','<expression> | <binop>','<expression>','<expression> | <sysvar> | <register> | <literal> | <indirection>
+<expression> ::= <unop> <expression> | <binop> <expression> <expression> | <sysvar> | <register> | <literal> | <indirection>
 <unop>       ::= '~'
 <binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<<' | '>>' | '<<<' | '>>>' | '='
-<indirection>::= '.'<type>','<expression> | '.'<type>','':'<far>':'<expression>
+<indirection>::= '.'<type> <expression> | '.'<type> ':'<far>':'<expression>
 <type>       ::= 'b' | 'w' | 'f' | '8' | 'R'
 <far>        ::= 'AY' | 'ULAPLUS'
 <sysvar>     ::= '@'<sysvarname>

@@ -620,14 +620,11 @@ int main(int argc, char * argv[])
 						}
 						else if((strcmp(cmd, "p")==0)||(strcmp(cmd, "print")==0))
 						{
-							for(int drg=1;drg<drgc;drg++)
+							if(drgc<2)
+								fprintf(stderr, "print: But what do you want to print?\n");
+							else
 							{
-								char *what=drgv[drg];
-								if(!what) continue;
-								int ec;
-								const char *ev[256];
-								comma_tokenise(what, &ec, ev);
-								debugval val=debugger_expr(stderr, ec, ev, RAM);
+								debugval val=debugger_expr(stderr, drgc-1, (const char *const *)drgv+1, RAM);
 								debugval_display(stderr, val);
 							}
 						}
