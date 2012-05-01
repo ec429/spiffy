@@ -12,6 +12,9 @@ Arguments to t[race] interpreted like m r, with the semantics of gdb 'display'.
 Command to refresh (ie. SDL_Flip()) the screen.
 Macros.
 Attaching macros (and single commands?) to breakpoints (on this breakpoint, run that macro).
+Search for JP/CALL/JR to an address.
+Search for literal NN in LD.
+Search for [NN] in LD.
 
 UI:
 Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
