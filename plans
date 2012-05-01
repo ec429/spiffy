@@ -1,0 +1,16 @@
+Spiffy: Yet another ZX Spectrum emulator
+Ideas & Future Plans
+
+CORE:
+Check INI[R]; it may have similar bugs to the ones that OUTI/OTIR had.
+
+DEBUGGER:
+Rewrite debugger internals to first parse the command into tokens.
+Disabled & single-shot breakpoints.
+Funky breakpoints in debugger: break on memory read/write in range, port read/write in range (or matching bits), execution of RET, RETurn from current function (effectively just single-shot (SP) read trap).
+Breakpoint conditions, like Tstate count, register-has-value, memory-location-has-value.  Allow conditions to be ANDed together (eg. Break on port read !A0 while Tstate between foo and bar and regB nonzero).
+Make memory addresses in debugger allow an extended format that handles eg. locations in peripheral memory, computed addresses, &c.
+Arguments to t[race] interpreted like m r, with the semantics of gdb 'display'
+
+UI:
+Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
