@@ -4,11 +4,36 @@ Ideas & Future Plans
 CORE:
 
 DEBUGGER:
-Make memory addresses, literals in debugger allow an extended format that handles eg. locations in peripheral memory, computed addresses, sysvars, &c.
+Make memory addresses, literals in debugger allow an extended format that handles eg. locations in peripheral memory, computed addresses, sysvars, &c.  See under `DPRINT'.
 Disabled & single-shot breakpoints.
 Funky breakpoints in debugger: break on memory read/write in range, port read/write in range (or matching bits), execution of RET, RETurn from current function (effectively just single-shot (SP) read trap).
 Breakpoint conditions, like Tstate count, register-has-value, memory-location-has-value.  Allow conditions to be ANDed together (eg. Break on port read !A0 while Tstate between foo and bar and regB nonzero).
-Arguments to t[race] interpreted like m r, with the semantics of gdb 'display'
+Arguments to t[race] interpreted like m r, with the semantics of gdb 'display'.
+Command to refresh (ie. SDL_Flip()) the screen.
+Macros.
+Attaching macros (and single commands?) to breakpoints (on this breakpoint, run that macro).
 
 UI:
 Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
+
+DPRINT:
+Examples:
+	[8ccc]              - byte at 0x8ccc.  Byte is assumed in the absence of type information.
+	[dead.f]            - 5-byte float at 0xdead.
+	[@VARS]             - word at VARS.  It knows it's a word because it gets a hint to that effect from the sysvar lookup.
+	[[@CHARS]+280.8]    - 8 bytes from 280 bytes after the address pointed to by CHARS (0x5c36).
+	[#IX+25.b]          - byte at IX+25.
+	[#DE++.b]=[*HL++.b] - copies a byte from [HL] to [DE], then increments both HL and DE, and prints the byte copied.
+	[:AY:5]             - byte from AY register 5.  (However, the 'a' (and 'u') commands will be kept as they perform decoding of these values).
+Syntax:
+<expression> ::= <expression><binop><expression> | <preop><expression> | <expression><postop> | <indirection> | <sysvar> | <register> | <literal>
+<binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<<' | '>>' | '=' | '+=' | '-='
+<preop>      ::= '++' | '--'
+<postop>     ::= '++' | '--'
+<indirection>::= '['<exp-w-type>']' | '[:'<far>':'<exp-w-type>']'
+<exp-w-type> ::= <expression> | <expression>'.'<type>
+<type>       ::= 'b' | 'w' | 'f' | '8' | 'R'
+<far>        ::= 'AY' | 'ULAPLUS'
+<sysvar>     ::= '%'<sysvarname>
+<register>   ::= '#'<registername>
+<literal>    ::= <xdigit> | <xdigit><literal>
