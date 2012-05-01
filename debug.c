@@ -11,6 +11,25 @@
 #include "bits.h"
 #include "basic.h"
 
+void debugger_tokenise(char *line, int *drgc, char *drgv[256])
+{
+	*drgc=0;
+	if(!line)
+	{
+		drgv[0]=NULL;
+	}
+	else
+	{
+		char *p=strtok(line, " ");
+		while(p)
+		{
+			drgv[(*drgc)++]=p;
+			p=strtok(NULL, " ");
+		}
+		drgv[*drgc]=NULL;
+	}
+}
+
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus)
 {
 	int i;

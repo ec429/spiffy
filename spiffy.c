@@ -514,33 +514,36 @@ int main(int argc, char * argv[])
 				if(line)
 				{
 					static char *oldline=NULL;
-					char *thisline=strdup(line);
-					char *cmd=strtok(line, " ");
-					if(!cmd)
-					{
-						if(oldline) cmd=strtok(oldline, " ");
-						free(thisline);
-					}
+					if(!line) line=oldline;
 					else
 					{
 						free(oldline);
-						oldline=thisline;
+						oldline=strdup(line);
 					}
-					if(!cmd)
+					if(!line)
 					{
 						if(!blanks++) fprintf(stderr, "This is the spiffy debugger.\nType `h' for a list of commands, or `help h' for a list of help sections\n");
 						if(blanks>4) goto nodebug;
 					}
 					else
 					{
-						if((strcmp(cmd, "c")==0)||(strcmp(cmd, "cont")==0))
+						int drgc;
+						char *drgv[256];
+						debugger_tokenise(line, &drgc, drgv);
+						const char *cmd=drgv[0];
+						if(!cmd)
+						{
+							if(!blanks++) fprintf(stderr, "This is the spiffy debugger.\nType `h' for a list of commands, or `help h' for a list of help sections\n");
+							if(blanks>4) goto nodebug;
+						}
+						else if((strcmp(cmd, "c")==0)||(strcmp(cmd, "cont")==0))
 						{
 							debug=false;
 							derrupt++;
 						}
 						else if((strcmp(cmd, "h")==0)||(strcmp(cmd, "help")==0))
 						{
-							const char *what=strtok(NULL, " ");
+							const char *what=drgv[1];
 							if(!what) what="";
 							if(strcmp(what, "h")==0)
 								fprintf(stderr, h_h);
@@ -571,10 +574,10 @@ int main(int argc, char * argv[])
 							derrupt++;
 						else if((strcmp(cmd, "=")==0)||(strcmp(cmd, "assign")==0))
 						{
-							char *what=strtok(NULL, " ");
+							const char *what=drgv[1];
 							if(what)
 							{
-								char *rest=strtok(NULL, "");
+								char *rest=drgv[2];
 								const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
 								int reg=reg16(what);
 								bool is16=(reg>=0);
@@ -617,11 +620,11 @@ int main(int argc, char * argv[])
 						}
 						else if((strcmp(cmd, "m")==0)||(strcmp(cmd, "memory")==0))
 						{
-							char *what=strtok(NULL, " ");
+							const char *what=drgv[1];
 							if(what)
 							{
-								char *a=strtok(NULL, " ");
-								char *rest=strtok(NULL, "");
+								char *a=drgv[2];
+								const char *rest=drgv[3];
 								unsigned int addr;
 								if(a)
 								{
@@ -683,7 +686,7 @@ int main(int argc, char * argv[])
 						}
 						else if((strcmp(cmd, "b")==0)||(strcmp(cmd, "break")==0))
 						{
-							char *rest=strtok(NULL, "");
+							const char *rest=drgv[1];
 							unsigned int bp=0;
 							if(rest&&(sscanf(rest, "%x", &bp)==1))
 							{
@@ -706,7 +709,7 @@ int main(int argc, char * argv[])
 						}
 						else if((strcmp(cmd, "!b")==0)||(strcmp(cmd, "!break")==0))
 						{
-							char *rest=strtok(NULL, "");
+							const char *rest=drgv[1];
 							unsigned int bp=0;
 							if(rest&&(sscanf(rest, "%x", &bp)==1))
 							{
@@ -754,7 +757,7 @@ int main(int argc, char * argv[])
 						else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
 						{
 							unsigned short int sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_vars, l;
-							char *what=strtok(NULL, ""), *rest=NULL;
+							char *what=drgv[1], *rest=NULL;
 							unsigned int wlen=0;
 							if(what)
 							{
@@ -1061,7 +1064,7 @@ int main(int argc, char * argv[])
 						{
 							unsigned short int sv_prog=peek16(sysvarbyname("PROG")->addr), sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_prog;
 							bool shownums=!strcmp(cmd, "kn");
-							char *what=strtok(NULL, "");
+							const char *what=drgv[1];
 							signed int lnum=-1;
 							if(what) sscanf(what, "%d", &lnum);
 							unsigned int nlines=0;
@@ -1116,7 +1119,7 @@ int main(int argc, char * argv[])
 						}
 						else if((strcmp(cmd, "y")==0)||(strcmp(cmd, "sysvars")==0))
 						{
-							char *what=strtok(NULL, "");
+							const char *what=drgv[1];
 							bool match=!what;
 							unsigned int i=0;
 							const struct sysvar *sv=sysvars();
@@ -1197,8 +1200,7 @@ int main(int argc, char * argv[])
 						{
 							if(ula->ulaplus_enabled)
 							{
-								char *what=strtok(NULL, " ");
-								char *rest=what?strtok(NULL, ""):NULL;
+								const char *what=drgv[1], *rest=drgv[2];
 								if(what) // [reg] or val
 								{
 									unsigned int reg, val;

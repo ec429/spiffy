@@ -8,6 +8,7 @@
 #include "z80.h"
 #include "ops.h"
 
+void debugger_tokenise(char *line, int *drgc, char *drgv[256]);
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
 void mdisplay(unsigned char *RAM, unsigned int addr, const char *what, const char *rest);
 int reg16(const char *name);

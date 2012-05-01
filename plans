@@ -4,11 +4,11 @@ Ideas & Future Plans
 CORE:
 
 DEBUGGER:
-Rewrite debugger internals to first parse the command into tokens.
+Make 'v' of arrays just use "v n 3 1" instead of "v n(3)(1)".
+Make memory addresses, literals in debugger allow an extended format that handles eg. locations in peripheral memory, computed addresses, sysvars, basic variables?, &c.
 Disabled & single-shot breakpoints.
 Funky breakpoints in debugger: break on memory read/write in range, port read/write in range (or matching bits), execution of RET, RETurn from current function (effectively just single-shot (SP) read trap).
 Breakpoint conditions, like Tstate count, register-has-value, memory-location-has-value.  Allow conditions to be ANDed together (eg. Break on port read !A0 while Tstate between foo and bar and regB nonzero).
-Make memory addresses in debugger allow an extended format that handles eg. locations in peripheral memory, computed addresses, &c.
 Arguments to t[race] interpreted like m r, with the semantics of gdb 'display'
 
 UI:
