@@ -9,8 +9,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 #include "bits.h"
 #include "basic.h"
+
+char typename(debugtype type)
+{
+	switch(type)
+	{
+		case(DEBUGTYPE_BYTE): return('b');
+		case(DEBUGTYPE_WORD): return('w');
+		case(DEBUGTYPE_FLOAT): return('f');
+		case(DEBUGTYPE_GRID): return('8');
+		case(DEBUGTYPE_ROW): return('R');
+		case(DEBUGTYPE_ERR): return('E');
+		default: return(0);
+	}
+}
 
 void debugger_tokenise(char *line, int *drgc, char *drgv[256])
 {
@@ -29,6 +44,90 @@ void debugger_tokenise(char *line, int *drgc, char *drgv[256])
 		}
 		drgv[*drgc]=NULL;
 	}
+}
+
+double de_float(debugval d)
+{
+	switch(d.type)
+	{
+		case(DEBUGTYPE_BYTE): return(d.val.b);
+		case(DEBUGTYPE_WORD): return(d.val.w);
+		case(DEBUGTYPE_FLOAT): return(d.val.f);
+		case(DEBUGTYPE_GRID): /* fallthrough */
+		case(DEBUGTYPE_ROW): /* fallthrough */
+		case(DEBUGTYPE_ERR): /* fallthrough */
+		default: return(nan(""));
+	}
+}
+
+uint16_t de_word(debugval d)
+{
+	switch(d.type)
+	{
+		case(DEBUGTYPE_BYTE): return(d.val.b);
+		case(DEBUGTYPE_WORD): return(d.val.w);
+		case(DEBUGTYPE_FLOAT): /* fallthrough */
+		case(DEBUGTYPE_GRID): /* fallthrough */
+		case(DEBUGTYPE_ROW): /* fallthrough */
+		case(DEBUGTYPE_ERR): /* fallthrough */
+		default: return(0);
+	}
+}
+
+bool de_isn(debugtype type)
+{
+	switch(type)
+	{
+		case(DEBUGTYPE_BYTE): return(true);
+		case(DEBUGTYPE_WORD): return(true);
+		case(DEBUGTYPE_FLOAT): return(true);
+		case(DEBUGTYPE_GRID): /* fallthrough */
+		case(DEBUGTYPE_ROW): /* fallthrough */
+		case(DEBUGTYPE_ERR): /* fallthrough */
+		default: return(false);
+	}
+}
+
+bool de_isi(debugtype type)
+{
+	switch(type)
+	{
+		case(DEBUGTYPE_BYTE): return(true);
+		case(DEBUGTYPE_WORD): return(true);
+		case(DEBUGTYPE_FLOAT): /* fallthrough */
+		case(DEBUGTYPE_GRID): /* fallthrough */
+		case(DEBUGTYPE_ROW): /* fallthrough */
+		case(DEBUGTYPE_ERR): /* fallthrough */
+		default: return(false);
+	}
+}
+
+int de_cn(debugval *left, debugval *right)
+{
+	if(!de_isn(left->type)) return(1);
+	if(!de_isn(right->type)) return(1);
+	if((left->type==DEBUGTYPE_FLOAT)||(right->type==DEBUGTYPE_FLOAT))
+	{
+		left->val.f=de_float(*left);
+		left->type=DEBUGTYPE_FLOAT;
+		right->val.f=de_float(*right);
+		right->type=DEBUGTYPE_FLOAT;
+		return(0);
+	}
+	else if((left->type==DEBUGTYPE_WORD)||(right->type==DEBUGTYPE_WORD))
+	{
+		left->val.w=de_word(*left);
+		left->type=DEBUGTYPE_WORD;
+		right->val.w=de_word(*right);
+		right->type=DEBUGTYPE_WORD;
+		return(0);
+	}
+	else if((left->type==DEBUGTYPE_BYTE)&&(right->type==DEBUGTYPE_BYTE))
+	{
+		return(0);
+	}
+	else
+		return(1);
 }
 
 debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsigned char *RAM)
@@ -83,11 +182,226 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 					return(rv);
 				}
 				case DEBUGTYPE_FLOAT:
-					fprintf(f, "error: Can't ~ a float\n");
-					/* fallthrough */
+					fprintf(f, "error: ~: invalid type %c\n", typename(val.type));
+					return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+				case DEBUGTYPE_ERR:
+					return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 				default:
+					fprintf(f, "error: ~: unrecognised type %c\n", typename(val.type));
 					return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			}
+		}
+		break;
+		case '+':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(de_cn(&left, &right))
+			{
+				fprintf(f, "error: +: could not find common numeric type for %c,%c\n", typename(left.type), typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(left.type==DEBUGTYPE_FLOAT)
+			{
+				return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=de_float(left)+de_float(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_WORD)
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)+de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b+right.val.b}, NULL});
+			fprintf(f, "error: +: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
+		case '-':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(de_cn(&left, &right))
+			{
+				fprintf(f, "error: -: could not find common numeric type for %c,%c\n", typename(left.type), typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(left.type==DEBUGTYPE_FLOAT)
+			{
+				return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=de_float(left)-de_float(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_WORD)
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)-de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b-right.val.b}, NULL});
+			fprintf(f, "error: -: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
+		case '*':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(de_cn(&left, &right))
+			{
+				fprintf(f, "error: *: could not find common numeric type for %c,%c\n", typename(left.type), typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(left.type==DEBUGTYPE_FLOAT)
+			{
+				return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=de_float(left)*de_float(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_WORD)
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)*de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b*right.val.b}, NULL});
+			fprintf(f, "error: *: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
+		case '/':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(de_cn(&left, &right))
+			{
+				fprintf(f, "error: /: could not find common numeric type for %c,%c\n", typename(left.type), typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(left.type==DEBUGTYPE_FLOAT)
+			{
+				return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=de_float(left)/de_float(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_WORD)
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)/de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b/right.val.b}, NULL});
+			fprintf(f, "error: /: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
+		case '%':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(!de_isi(left.type))
+			{
+				fprintf(f, "error: %%: first operand has invalid type %c\n", typename(left.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(!de_isi(right.type))
+			{
+				fprintf(f, "error: %%: second operand has invalid type %c\n", typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if((left.type==DEBUGTYPE_WORD)||(right.type==DEBUGTYPE_WORD))
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)%de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b%right.val.b}, NULL});
+			fprintf(f, "error: %%: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
+		case '&':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(!de_isi(left.type))
+			{
+				fprintf(f, "error: &: first operand has invalid type %c\n", typename(left.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(!de_isi(right.type))
+			{
+				fprintf(f, "error: &: second operand has invalid type %c\n", typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if((left.type==DEBUGTYPE_WORD)||(right.type==DEBUGTYPE_WORD))
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)&de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b&right.val.b}, NULL});
+			fprintf(f, "error: &: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
+		case '|':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(!de_isi(left.type))
+			{
+				fprintf(f, "error: |: first operand has invalid type %c\n", typename(left.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(!de_isi(right.type))
+			{
+				fprintf(f, "error: |: second operand has invalid type %c\n", typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if((left.type==DEBUGTYPE_WORD)||(right.type==DEBUGTYPE_WORD))
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)|de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b|right.val.b}, NULL});
+			fprintf(f, "error: |: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
+		case '^':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM);
+			debugval right=de_recursive(f, e, ec, ev, RAM);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(!de_isi(left.type))
+			{
+				fprintf(f, "error: ^: first operand has invalid type %c\n", typename(left.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(!de_isi(right.type))
+			{
+				fprintf(f, "error: ^: second operand has invalid type %c\n", typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if((left.type==DEBUGTYPE_WORD)||(right.type==DEBUGTYPE_WORD))
+			{
+				return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=de_word(left)^de_word(right)}, NULL});
+			}
+			if(left.type==DEBUGTYPE_BYTE)
+				return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=left.val.b^right.val.b}, NULL});
+			fprintf(f, "error: ^: Unrecognised types %c,%c\n", typename(left.type), typename(right.type)); // should be impossible
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 		}
 		break;
 		case '.':
@@ -127,9 +441,14 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 						return(rv);
 					}
 					default:
-						fprintf(f, "error: Unrecognised type %s\n", ev[*e]);
+						fprintf(f, "error: .: Unrecognised type %c\n", type);
 						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 				}
+			}
+			else
+			{
+				fprintf(f, "error: .: Address is not of word (or byte) type, is %c\n", typename(addr.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			}
 		}
 		break;

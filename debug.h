@@ -39,6 +39,7 @@ typedef struct
 }
 debugval;
 
+char typename(debugtype type);
 void debugger_tokenise(char *line, int *drgc, char *drgv[256]);
 debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM);
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
