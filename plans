@@ -32,8 +32,9 @@ Examples:
 	<<< #A 3           - value of A, rotated left three times
 Syntax:
 <expression> ::= <unop> <expression> | <binop> <expression> <expression> | <sysvar> | <register> | <literal> | <indirection> <expression>
-<unop>       ::= '~'
+<unop>       ::= '~' | <cast>
 <binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<<' | '>>' | '<<<' | '>>>' | '<<|' | '>>|' | '='
+<cast>       ::= '\'' <type>
 <indirection>::= '.'<type> | '.'<type>':'<far>
 <type>       ::= 'b' | 'w' | 'f' | '8' | 'R'
 <far>        ::= 'AY' | 'ULAPLUS'

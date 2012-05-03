@@ -404,6 +404,73 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 		}
 		break;
+		case '\'':
+		{
+			char type=ev[*e][1];
+			(*e)++;
+			debugval val=de_recursive(f, e, ec, ev, RAM);
+			if(val.type==DEBUGTYPE_ERR)
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			switch(type)
+			{
+				case 'b':
+					if(de_isn(val.type))
+						return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=floor(de_float(val))}, NULL});
+					else if((val.type==DEBUGTYPE_GRID)||(val.type==DEBUGTYPE_ROW))
+						return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=val.val.r[0]}, val.p});
+				break;
+				case 'w':
+					if(de_isn(val.type))
+						return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=floor(de_float(val))}, NULL});
+					else if((val.type==DEBUGTYPE_GRID)||(val.type==DEBUGTYPE_ROW))
+						return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=val.val.r[0]|(val.val.r[1]<<8)}, val.p});
+				break;
+				case 'f':
+					if(de_isn(val.type))
+						return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=de_float(val)}, NULL});
+					else if((val.type==DEBUGTYPE_GRID)||(val.type==DEBUGTYPE_ROW))
+					{
+						fprintf(f, "error: ': cannot cast %c to f\n", typename(val.type));
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+					}
+				break;
+				case '8':
+					if(val.type==DEBUGTYPE_GRID) return(val);
+					else if(val.type==DEBUGTYPE_ROW)
+					{
+						debugval rv;
+						rv.type=DEBUGTYPE_GRID;
+						memcpy(rv.val.r, val.val.r, 8);
+						rv.p=val.p;
+						return(rv);
+					}
+					else if(de_isn(val.type))
+					{
+						fprintf(f, "error: ': cannot cast %c to 8\n", typename(val.type));
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+					}
+				break;
+				case 'R':
+					if(val.type==DEBUGTYPE_ROW) return(val);
+					else if(val.type==DEBUGTYPE_GRID)
+					{
+						debugval rv;
+						rv.type=DEBUGTYPE_ROW;
+						memcpy(rv.val.r, val.val.r, 8);
+						memset(rv.val.r+8, 0, 8);
+						rv.p=NULL;
+						return(rv);
+					}
+				break;
+				default:
+					fprintf(f, "error: ': unrecognised type %c\n", type);
+					return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+				break;
+			}
+			fprintf(f, "error: ': unrecognised operand type %c\n", typename(val.type));
+			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+		}
+		break;
 		case '.':
 		{
 			char type=ev[*e][1];
