@@ -8,7 +8,7 @@ Make memory addresses, literals in debugger allow an extended format that handle
 Disabled & single-shot breakpoints.
 Funky breakpoints in debugger: break on memory read/write in range, port read/write in range (or matching bits), execution of RET, RETurn from current function (effectively just single-shot (SP) read trap).
 Breakpoint conditions, like Tstate count, register-has-value, memory-location-has-value.  Allow conditions to be ANDed together (eg. Break on port read !A0 while Tstate between foo and bar and regB nonzero).
-Arguments to t[race] interpreted like m r, with the semantics of gdb 'display'.
+Arguments to t[race] interpreted like p, with the semantics of gdb 'display'.
 Command to refresh (ie. SDL_Flip()) the screen.
 Macros.
 Attaching macros (and single commands?) to breakpoints (on this breakpoint, run that macro).
@@ -20,6 +20,8 @@ UI:
 Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
 
 DPRINT:
+	Stuff still todo: .T:far, =, shifts/rotates, _, @, #
+	Stuff still to document: casting rules, lvalue casting (or just remove it?)
 Examples:
 	.b 8ccc            - byte at 0x8ccc.
 	.f dead            - 5-byte float at 0xdead.
@@ -61,10 +63,9 @@ Semantics:
 	<<|	As <<		Left shift set (ie. left shift, then set the lsb).  Return type as <<.
 	>>|	As <<		Right shift arithmetic.  Return type as <<.
 	=	assignable	Assignment.  First operand must be an lvalue.  Second operand must be castable to type of first operand.  Returns first operand.
-	.T	bw			Indirection.  Return type given by T.
+	'T	T-castable	Typecast.  Return type given by T; if operand was an lvalue, return will be for certain combinations of types.
+	.T	bw			Indirection.  Return type given by T, and is an lvalue.
 	@				Return type is w, and is the address of the sysvar.
 	#				Return type is b for 8-bit registers, w for 16-bit.
 	hex-literal		Return type is b if <=2 xdigits, else w.
 	_float-lit		Return type is f.
-Todo:
-	Need some form of typecast operator, to eg. widen bytes to words, or truncate floats to integers

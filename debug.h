@@ -50,6 +50,7 @@ int reg16(const char *name);
 #define h_h	"spiffy debugger: help sections\n\
 h              commands list\n\
 h h            this section list\n\
+h p            expression evaluation\n\
 h m            memory commands\n\
 h v            BASIC variables\n\
 h k            BASIC listing\n\
@@ -63,21 +64,33 @@ u [xx]         decode xxth ULAplus palette entry\n\
 u [xx] yy      write yy to xxth ULAplus palette entry\n\
 u m xx         write xx to ULAplus mode register\n"
 
+#define h_p "spiffy debugger: expression evaluation\n\
+\tp-expressions are given in Polish Notation; that is, every operator\n\
+\tis a prefix operator.  So to read a byte from IX+0x25, use\n\
+\t\t.b + #IX 25\n\
+\tFor full details see the debugger manual.\n\
+\tSome more examples:\n\
+Examples:\n\
+.b 8ccc            - byte at 0x8ccc\n\
+.f dead            - 5-byte float at 0xdead\n\
+.w @VARS           - word at VARS\n\
+.8 + .w @CHARS 118 - 8 bytes from [[CHARS]+280]\n\
+= .b #DE .b #HL    - copies a byte from [HL] to [DE]\n\
+.b:AY 5            - byte from AY register 5\n\
+>> #A 1            - value of A, shifted right once\n\
+<<< #A 3           - value of A, rotated left three times\n"
+
 #define h_m	"spiffy debugger: memory commands\n\
-\tValues xxxx and yy[yy] are hex\n\
-\tYou can also use %%sysvar[+x] instead of xxxx,\n\
-\t or (%%sysvar)[+x] if the sysvar is of address type\n\
-\t where sysvar is any of the sysvar names from the 'y' listing\n\
-\t and x is a (decimal) offset.\n\
-\tYou can use *reg[+x] as well, where reg is a 16-bit register\n\
-m r xxxx       read byte from memory at address xxxx\n\
-m w xxxx [yy]  write byte yy or 0 to address xxxx\n\
-m lr xxxx      read word from memory at address xxxx\n\
-m lw xxxx yyyy write word yyyy or 0 to address xxxx\n\
-m fr xxxx      read 5-byte float from address xxxx\n\
-m fw xxxx d    write 5-byte float d (decimal) to address xxxx\n\
-m 8r xxxx      read 8 bytes from xxxx, display as binary grid\n\
-m Rr xxxx      read 16 bytes from xxxx, display as hex\n"
+\tThe m[emory] command has been superseded by p[rint], see help p\n\
+\tHere are p versions of the old m commands\n\
+m r xxxx       p .b xxxx\n\
+m w xxxx yy    p = .b xxxx yy\n\
+m lr xxxx      p .w xxxx\n\
+m lw xxxx yyyy p = .w xxxx yyyy\n\
+m fr xxxx      p .f xxxx\n\
+m fw xxxx d    p = .f xxxx _d\n\
+m 8r xxxx      p .8 xxxx\n\
+m Rr xxxx      p .R xxxx\n"
 
 #define h_v "spiffy debugger: BASIC variables\n\
 v              list all variables\n\
@@ -128,8 +141,9 @@ t[race]        trace Z80 state\n\
 b[reak] xxxx   set a breakpoint\n\
 !b[reak] xxxx  delete a breakpoint\n\
 l[ist]         list breakpoints\n\
+p[rint] ...    evaluate & print expression (see 'h p')\n\
 = reg [val]    read/write a register (see 'h =')\n\
-m[emory] ...   read/write memory (see 'h m')\n\
+m[emory] ...   superseded by 'p' (see 'h m')\n\
 ei             enable interrupts\n\
 di             disable interrupts\n\
 r[eset]        reset the Z80\n\
