@@ -86,7 +86,7 @@ const struct sysvar *sysvarbyname(const char *name)
 	unsigned int i=0;
 	while(sysvartbl[i].name)
 	{
-		if(strcmp(sysvartbl[i].name, name)==0) return(sysvartbl+i);
+		if(strcasecmp(sysvartbl[i].name, name)==0) return(sysvartbl+i);
 		i++;
 	}
 	return(NULL);
