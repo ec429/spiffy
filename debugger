@@ -27,6 +27,12 @@ You can get rudimentary help from within the debugger by entering "h" (for a com
 =Expressions ('p' command)=
 	p-expressions are given in Polish Notation; that is, every operator is a prefix operator.  So, instead of writing "2+3", you write "+ 2 3"; instead of "[[STRMS+2.w]+8.b]", you write ".b + .w + @STRMS 2 8".
 	Going the other way, you would read that last expression as "The byte at (The sum of (The word at (The sum of STRMS and 2)) and 8)".
+Types:
+	b	Byte
+	w	Word (16 bits, little endian)
+	f	Float (Sinclair 5-byte format)
+	8	8-byte grid (good for characters of fonts)
+	R	16-byte row
 Examples:
 	.b 8ccc            - byte at 0x8ccc.
 	.f dead            - 5-byte float at 0xdead.
@@ -35,12 +41,10 @@ Examples:
 	.b + #IX 25        - byte at IX+0x25.
 	= .b #DE .b #HL    - copies a byte from [HL] to [DE], and prints the byte copied.
 	.b:AY 5            - byte from AY register 5.
-	>> #A 1            - value of A, shifted right once (logical shift, not arithmetic shift)
-	<<< #A 3           - value of A, rotated left three times
 Syntax:
-	<expression> ::= <unop> <expression> | <binop> <expression> <expression> | <sysvar> | <register> | <literal> | <indirection> <expression>
-	<unop>       ::= '~' | <cast>
-	<binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<<' | '>>' | '<<<' | '>>>' | '<<|' | '>>|' | '='
+	<expression> ::= <unop> <expression> | <binop> <expression> <expression> | <sysvar> | <register> | <literal>
+	<unop>       ::= '~' | <indirection> | <cast>
+	<binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '='
 	<cast>       ::= '\'' <type>
 	<indirection>::= '.'<type> | '.'<type>':'<far>
 	<type>       ::= 'b' | 'w' | 'f' | '8' | 'R'
@@ -65,7 +69,7 @@ Semantics:
 	'T	T-castable	Typecast.  Return type given by T.
 	.T	bw			Indirection.  Return type given by T, and is an lvalue.
 	@				Return type is w, and is the address of the sysvar.
-	#				Return type is b for 8-bit registers, w for 16-bit.
+	#				Return type is b for 8-bit registers, w for 16-bit.  Note that the 8-bit register names are *case sensitive*, because eg. "a" is the high byte of AF'.
 	hex-literal		Return type is b if <=2 xdigits, else w.
 	_float-lit		Return type is f.
 

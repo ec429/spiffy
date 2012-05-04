@@ -154,6 +154,19 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 	}
 	else switch(ev[*e][0])
 	{
+		case '_':
+		{
+			const char *v=ev[*e]+1;
+			(*e)++;
+			double d;
+			if(sscanf(v, "%lf", &d)!=1)
+			{
+				fprintf(f, "error: _: Value is not float literal: %s\n", v);
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=d}, NULL});
+		}
+		break;
 		case '~':
 		{
 			(*e)++;

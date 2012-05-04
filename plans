@@ -4,7 +4,6 @@ Ideas & Future Plans
 CORE:
 
 DEBUGGER:
-Make memory addresses, literals in debugger allow an extended format that handles eg. locations in peripheral memory, computed addresses, sysvars, &c.  See under `DPRINT'.
 Disabled & single-shot breakpoints.
 Funky breakpoints in debugger: break on memory read/write in range, port read/write in range (or matching bits), execution of RET, RETurn from current function (effectively just single-shot (SP) read trap).
 Breakpoint conditions, like Tstate count, register-has-value, memory-location-has-value.  Allow conditions to be ANDed together (eg. Break on port read !A0 while Tstate between foo and bar and regB nonzero).
@@ -20,8 +19,8 @@ UI:
 Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
 
 DPRINT:
-	Stuff still todo: autocast in =, shifts/rotates, _
-	Stuff still to document: casting rules
+	Stuff still todo: autocast in =, shifts/rotates
+	Stuff still to document: casting rules, common {integer, numeric} type rules
 Examples:
 	.b 8ccc            - byte at 0x8ccc.
 	.f dead            - 5-byte float at 0xdead.
@@ -33,8 +32,8 @@ Examples:
 	>> #A 1            - value of A, shifted right once (logical shift, not arithmetic shift)
 	<<< #A 3           - value of A, rotated left three times
 Syntax:
-<expression> ::= <unop> <expression> | <binop> <expression> <expression> | <sysvar> | <register> | <literal> | <indirection> <expression>
-<unop>       ::= '~' | <cast>
+<expression> ::= <unop> <expression> | <binop> <expression> <expression> | <sysvar> | <register> | <literal>
+<unop>       ::= '~' | <indirection> | <cast>
 <binop>      ::= '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '<<' | '>>' | '<<<' | '>>>' | '<<|' | '>>|' | '='
 <cast>       ::= '\'' <type>
 <indirection>::= '.'<type> | '.'<type>':'<far>

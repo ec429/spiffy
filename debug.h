@@ -77,9 +77,9 @@ u m xx         write xx to ULAplus mode register\n"
 .w @VARS           - word at VARS\n\
 .8 + .w @CHARS 118 - 8 bytes from [[CHARS]+280]\n\
 = .b #DE .b #HL    - copies a byte from [HL] to [DE]\n\
-.b:AY 5            - byte from AY register 5\n\
+.b:AY 5            - byte from AY register 5\n"/*\
 >> #A 1            - value of A, shifted right once\n\
-<<< #A 3           - value of A, rotated left three times\n"
+<<< #A 3           - value of A, rotated left three times\n"*/
 
 #define h_m	"spiffy debugger: memory commands\n\
 \tThe m[emory] command has been superseded by p[rint], see help p\n\
