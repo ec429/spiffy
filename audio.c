@@ -104,7 +104,17 @@ void wavheader(FILE *a)
 
 void ay_init(ay_t *ay)
 {
+	for(unsigned int r=0;r<16;r++)
+		ay->reg[r]=0;
 	ay->reg[7]=0xff;
+	ay->regsel=0;
+	ay->bit[0]=ay->bit[1]=ay->bit[2]=false;
+	ay->count[0]=ay->count[1]=ay->count[2]=0;
+	ay->envcount=0;
+	ay->env=0;
+	ay->envstop=ay->envrev=false;
+	ay->out[0]=ay->out[1]=ay->out[2]=0;
+	ay->noise=ay->noisecount=0;
 }
 
 unsigned char ay_vol_tbl[16]={0, 2, 5, 7, 10, 14, 19, 29, 40, 56, 80, 103, 131, 161, 197, 236};

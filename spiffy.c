@@ -1043,17 +1043,23 @@ int main(int argc, char * argv[])
 						{
 							if(ay_enabled)
 							{
-								fprintf(stderr, "Regs: AF AC BF BC CF CC NO MI AV BV CV EF EC ES IA IB\n     ");
-								for(unsigned int i=0;i<16;i++)
-									fprintf(stderr, " %02x", ay.reg[i]);
-								fprintf(stderr, "\n\n");
-								fprintf(stderr, "regsel: %u\t\tnoise: %u\n", ay.regsel, ay.noise);
-								fprintf(stderr, "env: %u\t\tenvcount: %u\n", ay.env, ay.envcount);
-								fprintf(stderr, "envstop: %s\t\tenvrev: %s\n", ay.envstop?"true ":"false", ay.envrev?"true":"false");
-								fprintf(stderr, "chans     A      B      C\n");
-								fprintf(stderr, "bit:      %c      %c      %c\n", ay.bit[0]?'1':'0', ay.bit[1]?'1':'0', ay.bit[2]?'1':'0');
-								fprintf(stderr, "count: %06u %06u %06u\n", ay.count[0], ay.count[1], ay.count[2]);
-								fprintf(stderr, "out:    %04u   %04u   %04u\n", ay.out[0], ay.out[1], ay.out[2]);
+								if(drgv[1]&&((strcmp(drgv[1], "r")==0)||(strcmp(drgv[1], "reset")==0)))
+									ay_init(&ay);
+								else
+								{
+									fprintf(stderr, "Regs: AF AC BF BC CF CC NO MI AV BV CV EF EC ES IA IB\n     ");
+									for(unsigned int i=0;i<16;i++)
+										fprintf(stderr, " %02x", ay.reg[i]);
+									fprintf(stderr, "\n\n");
+									fprintf(stderr, "regsel: %u\t\tnoise: %u\n", ay.regsel, ay.noise);
+									fprintf(stderr, "env: %u\t\tenvcount: %u\n", ay.env, ay.envcount);
+									fprintf(stderr, "envstop: %s\t\tenvrev: %s\n", ay.envstop?"true ":"false", ay.envrev?"true":"false");
+									fprintf(stderr, "chans     A      B      C\n");
+									fprintf(stderr, "tone:     %c      %c      %c\n", ay.bit[0]?'1':'0', ay.bit[1]?'1':'0', ay.bit[2]?'1':'0');
+									fprintf(stderr, "noise:    %c      %c      %c\n", (ay.reg[7]&8)?'1':'0', (ay.reg[7]&0x10)?'1':'0', (ay.reg[7]&0x20)?'1':'0');
+									fprintf(stderr, "count: %06u %06u %06u\n", ay.count[0], ay.count[1], ay.count[2]);
+									fprintf(stderr, "out:    %04u   %04u   %04u\n", ay.out[0], ay.out[1], ay.out[2]);
+								}
 							}
 							else
 								fprintf(stderr, "AY chip not enabled!\n");

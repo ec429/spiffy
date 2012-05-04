@@ -101,3 +101,22 @@ Semantics:
 	The BASIC program can be listed with "k" (the name was chosen because "k" is the key for LIST on the Spectrum).
 	Using "kn" instead causes the embedded floating-point numbers in the source to be displayed.
 	You can list a specific line by passing it as an argument to "k" or "kn".  For example "k 20" will display line 20.
+
+=Inspecting peripherals=
+	AY:
+		If enabled, the AY chip can be inspected with "aystate" or "a".  Its 16 registers can also be accessed with far-pointers (.T:AY) in the p[rint] command.
+		The 16 AY registers are:
+		AF,AC	Fine & Coarse pitch for channel A
+		BF,BC	 ,,      ,,     ,,   ,,    ,,   B
+		CF,CC	 ,,      ,,     ,,   ,,    ,,   C
+		NO		Noise pitch
+		MI		Mixer (IOB IOA NC NB NA TC TB TA) active low
+		AV		Volume for channel A (low 4 bits; 0x10 = Envelope flag)
+		BV		  ,,    ,,    ,,   B
+		CV		  ,,    ,,    ,,   C
+		EF,EC	Fine & Coarse envelope duration
+		ES		Envelope shape
+		IA,IB	I/O ports A and B (not used in Spiffy)
+	ULA+:
+		If enabled, the ULAplus can be inspected with "ulaplus" or "u".  Its palette registers can also be accessed with far-pointers (.T:ULAPLUS) in the p[rint] command.
+		For details on the semantics of ULAplus palette registers, see <http://www.zxshed.co.uk/sinclairfaq/index.php5?title=ZX_Spectrum_64_Colour_Mode>.
