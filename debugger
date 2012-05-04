@@ -16,8 +16,6 @@ You can get rudimentary help from within the debugger by entering "h" (for a com
 =Examining Z80 internal state=
 	"state", or "s", will display a compact readout of the Z80's internal state, the bus, and regions of memory around (PC), (HL), (SP), (BC), (DE), and (nn).  nn refers to the contents of two internal Z80 registers which store 16-bit literal operands (eg. in LD rr,nn or LD r,(nn)).
 	"trace", or "t", will cause this readout to be displayed after each time the Z80 is single-stepped.  "!t" disables.
-	You can read individual registers with the '=' command; for instance "= BC" will display the value in BC, while "= X" will display the high byte of IX.  Type "h =" for a full table.
-	You can write to registers by adding another argument to the '=' command; "= HL 0100" will set HL to 0x0100.
 	You can enable or disable interrupts with "ei" and "di" respectively.
 	You can reset the Z80 with "reset", or "r".
 	To trigger an interrupt or NMI, use "int" or "nmi".  "i" is short for "int".  You can clear the INT/NMI lines with "!int" and "!nmi".

@@ -130,7 +130,7 @@ int de_cn(debugval *left, debugval *right)
 		return(1);
 }
 
-debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsigned char *RAM)
+debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu)
 {
 	if((*e>=ec)||(!ev[*e]))
 	{
@@ -156,7 +156,7 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '~':
 		{
 			(*e)++;
-			debugval val=de_recursive(f, e, ec, ev, RAM);
+			debugval val=de_recursive(f, e, ec, ev, RAM, cpu);
 			switch(val.type)
 			{
 				case DEBUGTYPE_BYTE:
@@ -195,8 +195,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '+':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -221,8 +221,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '-':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -247,8 +247,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '*':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -273,8 +273,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '/':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -299,8 +299,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '%':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -326,8 +326,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '&':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -353,8 +353,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '|':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -380,8 +380,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '^':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM);
-			debugval right=de_recursive(f, e, ec, ev, RAM);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -408,7 +408,7 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		{
 			char type=ev[*e][1];
 			(*e)++;
-			debugval val=de_recursive(f, e, ec, ev, RAM);
+			debugval val=de_recursive(f, e, ec, ev, RAM, cpu);
 			if(val.type==DEBUGTYPE_ERR)
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			switch(type)
@@ -475,7 +475,7 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		{
 			char type=ev[*e][1];
 			(*e)++;
-			debugval addr=de_recursive(f, e, ec, ev, RAM);
+			debugval addr=de_recursive(f, e, ec, ev, RAM, cpu);
 			if(addr.type==DEBUGTYPE_BYTE)
 			{
 				addr.type=DEBUGTYPE_WORD;
@@ -519,16 +519,44 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 			}
 		}
 		break;
+		case '#':
+		{
+			const char *rn=ev[*e]+1;
+			(*e)++;
+			const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
+			int reg=reg16(rn);
+			bool is16=(reg>=0);
+			if(strlen(rn)==1)
+			{
+				const char *p=strchr(reglist, *rn);
+				if(p)
+					reg=(p+2-reglist)^1;
+				is16=false;
+			}
+			if(reg>=0)
+			{
+				if(is16)
+					return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=cpu->regs[reg]|(cpu->regs[reg+1]<<8)}, cpu->regs+reg});
+				else
+					return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=cpu->regs[reg]}, cpu->regs+reg});
+			}
+			else
+			{
+				fprintf(f, "error: #: No such register %s\n", rn);
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+		}
+		break;
 	}
 	fprintf(f, "error: Unrecognised item %s\n", ev[*e]);
 	(*e)++;
 	return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 }
 
-debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM)
+debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu)
 {
 	int e=0;
-	debugval rv=de_recursive(f, &e, ec, ev, RAM);
+	debugval rv=de_recursive(f, &e, ec, ev, RAM, cpu);
 	if(e<ec) fprintf(f, "warning: %d input items were not consumed\n", ec-e);
 	return(rv);
 }

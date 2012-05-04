@@ -549,6 +549,8 @@ int main(int argc, char * argv[])
 								fprintf(stderr, h_h);
 							else if(strcmp(what, "m")==0)
 								fprintf(stderr, h_m);
+							else if(strcmp(what, "p")==0)
+								fprintf(stderr, h_p);
 							else if(strcmp(what, "v")==0)
 								fprintf(stderr, h_v);
 							else if(strcmp(what, "k")==0)
@@ -572,59 +574,13 @@ int main(int argc, char * argv[])
 							debugcycle=false;
 						else if((strcmp(cmd, "n")==0)||(strcmp(cmd, "next")==0))
 							derrupt++;
-						else if((strcmp(cmd, "=")==0)||(strcmp(cmd, "assign")==0))
-						{
-							const char *what=drgv[1];
-							if(what)
-							{
-								char *rest=drgv[2];
-								const char *reglist="AFBCDEHLXxYyIRSPafbcdehl";
-								int reg=reg16(what);
-								bool is16=(reg>=0);
-								if(strlen(what)==1)
-								{
-									const char *p=strchr(reglist, *what);
-									if(p)
-										reg=(p+2-reglist)^1;
-									is16=false;
-								}
-								if(reg>=0)
-								{
-									if(rest)
-									{
-										unsigned int val;
-										if(sscanf(rest, "%x", &val)==1)
-										{
-											cpu->regs[reg]=val;
-											if(is16)
-												cpu->regs[reg+1]=val>>8;
-										}
-										else
-										{
-											fprintf(stderr, "set: bad value `%s'\n", rest);
-										}
-									}
-									else
-									{
-										if(is16)
-											fprintf(stderr, "%s = %04x\n", what, *(unsigned short int *)(cpu->regs+reg));
-										else
-											fprintf(stderr, "%c = %02x\n", reglist[(reg-2)^1], cpu->regs[reg]);
-									}
-								}
-								else
-								{
-									fprintf(stderr, "No such register %s\n", what);
-								}
-							}
-						}
 						else if((strcmp(cmd, "p")==0)||(strcmp(cmd, "print")==0))
 						{
 							if(drgc<2)
 								fprintf(stderr, "print: But what do you want to print?\n");
 							else
 							{
-								debugval val=debugger_expr(stderr, drgc-1, (const char *const *)drgv+1, RAM);
+								debugval val=debugger_expr(stderr, drgc-1, (const char *const *)drgv+1, RAM, cpu);
 								debugval_display(stderr, val);
 							}
 						}

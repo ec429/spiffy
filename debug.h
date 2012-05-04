@@ -41,7 +41,7 @@ debugval;
 
 char typename(debugtype type);
 void debugger_tokenise(char *line, int *drgc, char *drgv[256]);
-debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM);
+debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu);
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
 void debugval_display(FILE *f, debugval val);
 int reg16(const char *name);
@@ -70,7 +70,6 @@ u m xx         write xx to ULAplus mode register\n"
 \t\t.b + #IX 25\n\
 \tFor full details see the debugger manual.\n\
 \tSome more examples:\n\
-Examples:\n\
 .b 8ccc            - byte at 0x8ccc\n\
 .f dead            - 5-byte float at 0xdead\n\
 .w @VARS           - word at VARS\n\
@@ -112,8 +111,8 @@ kn             listing with float numbers\n\
 k 10           display line 10 of the program\n"
 
 #define h_eq "spiffy debugger: registers\n\
-= reg          displays the value of register reg\n\
-= reg val      assigns val (hex) to register reg\n\
+p #reg         displays the value of register reg\n\
+p = #reg val   assigns val (hex) to register reg\n\
 \n\
 The (16-bit) registers are: PC AF BC DE HL IX IY SP AF' BC' DE' HL'\n\
 8-bit reads/writes can be made as follows:\n\
@@ -142,8 +141,6 @@ b[reak] xxxx   set a breakpoint\n\
 !b[reak] xxxx  delete a breakpoint\n\
 l[ist]         list breakpoints\n\
 p[rint] ...    evaluate & print expression (see 'h p')\n\
-= reg [val]    read/write a register (see 'h =')\n\
-m[emory] ...   superseded by 'p' (see 'h m')\n\
 ei             enable interrupts\n\
 di             disable interrupts\n\
 r[eset]        reset the Z80\n\

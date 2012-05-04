@@ -20,7 +20,7 @@ UI:
 Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
 
 DPRINT:
-	Stuff still todo: .T:far, =, shifts/rotates, _, @, #
+	Stuff still todo: .T:far, =, shifts/rotates, _, @
 	Stuff still to document: casting rules, lvalue casting (or just remove it?)
 Examples:
 	.b 8ccc            - byte at 0x8ccc.
