@@ -619,9 +619,9 @@ void debugval_display(FILE *f, debugval val)
 			fprintf(f, "%g\n", val.val.f);
 		break;
 		case DEBUGTYPE_GRID:
+			fprintf(f, "grid:\n");
 			for(unsigned int i=0;i<8;i++)
 			{
-				fprintf(f, "grid:\n");
 				fprintf(f, "%02x = ", val.val.r[i]);
 				for(unsigned int b=0;b<8;b++)
 					fputc(((val.val.r[i]<<b)&0x80)?'1':'0', f);
