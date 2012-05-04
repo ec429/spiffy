@@ -404,6 +404,50 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 			return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 		}
 		break;
+		case '=':
+		{
+			(*e)++;
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			if(!left.p)
+			{
+				fprintf(f, "error: =: first operand is not an lvalue\n");
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			if(left.type!=right.type) // TODO try to cast right operand to left.type
+			{
+				fprintf(f, "error: =: type mismatch %c,%c\n", typename(left.type), typename(right.type));
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			switch(left.type)
+			{
+				case DEBUGTYPE_BYTE:
+					left.val.b=*left.p=right.val.b;
+					return(left);
+				case DEBUGTYPE_WORD:
+					left.val.w=right.val.w;
+					left.p[0]=right.val.w;
+					left.p[1]=right.val.w>>8;
+					return(left);
+				case DEBUGTYPE_FLOAT:
+					float_encode(left.p, 0, left.val.f=right.val.f);
+					return(left);
+				case DEBUGTYPE_GRID:
+					memcpy(left.val.r, right.val.r, 8);
+					memcpy(left.p, right.val.r, 8);
+					return(left);
+				case DEBUGTYPE_ROW:
+					memcpy(left.val.r, right.val.r, 16);
+					memcpy(left.p, right.val.r, 16);
+					return(left);
+				default:
+					fprintf(f, "error: =: first operand has unrecognised type %c\n", typename(left.type));
+					return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+		}
+		break;
 		case '\'':
 		{
 			char type=ev[*e][1];

@@ -67,8 +67,8 @@ Semantics:
 	>>>	As <<		Right rotate.  Return type as <<.
 	<<|	As <<		Left shift set (ie. left shift, then set the lsb).  Return type as <<.
 	>>|	As <<		Right shift arithmetic.  Return type as <<.
-	=	assignable	Assignment.  First operand must be an lvalue.  Second operand must be castable to type of first operand.  Returns first operand.
-	'T	T-castable	Typecast.  Return type given by T; if operand was an lvalue, return will be for certain combinations of types.
+	=	lvalue		Assignment.  First operand must be an lvalue.  Both operands must have same type.  Returns first operand.
+	'T	T-castable	Typecast.  Return type given by T.
 	.T	bw			Indirection.  Return type given by T, and is an lvalue.
 	@				Return type is w, and is the address of the sysvar.
 	#				Return type is b for 8-bit registers, w for 16-bit.
