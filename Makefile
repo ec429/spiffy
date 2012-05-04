@@ -28,7 +28,7 @@ pbm.o: pbm.c pbm.h bits.h
 
 basic.o: basic.c basic.h bits.h
 
-debug.o: debug.c debug.h bits.h basic.h z80.h ops.h audio.h vchips.h
+debug.o: debug.c debug.h bits.h basic.h sysvars.h z80.h ops.h audio.h vchips.h
 
 ui.o: ui.c ui.h bits.h pbm.h
 

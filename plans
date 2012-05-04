@@ -20,7 +20,7 @@ UI:
 Debugger frontend harness: user-friendly debugger frontends (curses?  GUI?)
 
 DPRINT:
-	Stuff still todo: autocast in =, shifts/rotates, _, @
+	Stuff still todo: autocast in =, shifts/rotates, _
 	Stuff still to document: casting rules
 Examples:
 	.b 8ccc            - byte at 0x8ccc.

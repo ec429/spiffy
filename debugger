@@ -61,12 +61,6 @@ Semantics:
 	&	As %		Bitwise AND.  Return type as %.
 	|	As %		Bitwise OR.  Return type as %.
 	^	As %		Bitwise XOR.  Return type as %.
-	<<	(bw)b		Left shift.  Return has type of first operand.
-	>>	As <<		Right shift.  Return type as <<.
-	<<<	As <<		Left rotate.  Return type as <<.
-	>>>	As <<		Right rotate.  Return type as <<.
-	<<|	As <<		Left shift set (ie. left shift, then set the lsb).  Return type as <<.
-	>>|	As <<		Right shift arithmetic.  Return type as <<.
 	=	lvalue		Assignment.  First operand must be an lvalue.  Both operands must have same type.  Returns first operand.
 	'T	T-castable	Typecast.  Return type given by T.
 	.T	bw			Indirection.  Return type given by T, and is an lvalue.

@@ -12,6 +12,7 @@
 #include <math.h>
 #include "bits.h"
 #include "basic.h"
+#include "sysvars.h"
 
 char typename(debugtype type)
 {
@@ -552,6 +553,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 			}
 			(*e)++;
 			debugval addr=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			if(addr.type==DEBUGTYPE_ERR)
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(addr.type==DEBUGTYPE_BYTE)
 			{
 				addr.type=DEBUGTYPE_WORD;
@@ -608,6 +611,19 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 				fprintf(f, "error: .: Address is not of word (or byte) type, is %c\n", typename(addr.type));
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			}
+		}
+		break;
+		case '@':
+		{
+			const char *s=ev[*e]+1;
+			(*e)++;
+			const struct sysvar *var=sysvarbyname(s);
+			if(!var)
+			{
+				fprintf(f, "error: @: Unrecognised sysvar %s\n", s);
+				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+			}
+			return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=var->addr}, NULL});
 		}
 		break;
 		case '#':
