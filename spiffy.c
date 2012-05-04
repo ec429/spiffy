@@ -43,18 +43,6 @@
  This is free software, and you are welcome to redistribute it\n\
  under certain conditions: GPL v3+\n"
 
-typedef struct
-{
-	bool memwait;
-	bool iowait;
-	bool t1;
-	bool ulaplus_enabled;
-	unsigned char ulaplus_regsel; // only used when ULAplus enabled
-	unsigned char ulaplus_regs[64]; // only used when ULAplus enabled
-	unsigned char ulaplus_mode; // only used when ULAplus enabled
-}
-ula_t;
-
 bool zxp_enabled=false; // Emulate a connected ZX Printer?
 unsigned int filt_mask=0; // Which graphics filters to enable (see filters.h)
 
@@ -580,7 +568,7 @@ int main(int argc, char * argv[])
 								fprintf(stderr, "print: But what do you want to print?\n");
 							else
 							{
-								debugval val=debugger_expr(stderr, drgc-1, (const char *const *)drgv+1, RAM, cpu);
+								debugval val=debugger_expr(stderr, drgc-1, (const char *const *)drgv+1, RAM, cpu, ula, &ay);
 								debugval_display(stderr, val);
 							}
 						}

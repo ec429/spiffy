@@ -1,4 +1,17 @@
+#pragma once
 #include "z80.h"
+
+typedef struct
+{
+	bool memwait;
+	bool iowait;
+	bool t1;
+	bool ulaplus_enabled;
+	unsigned char ulaplus_regsel; // only used when ULAplus enabled
+	unsigned char ulaplus_regs[64]; // only used when ULAplus enabled
+	unsigned char ulaplus_mode; // only used when ULAplus enabled
+}
+ula_t;
 
 typedef struct
 {

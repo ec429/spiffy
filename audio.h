@@ -1,3 +1,4 @@
+#pragma once
 /*
 	spiffy - ZX spectrum emulator
 	

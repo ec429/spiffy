@@ -130,7 +130,7 @@ int de_cn(debugval *left, debugval *right)
 		return(1);
 }
 
-debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu)
+debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu, ula_t *ula, ay_t *ay)
 {
 	if((*e>=ec)||(!ev[*e]))
 	{
@@ -156,7 +156,7 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '~':
 		{
 			(*e)++;
-			debugval val=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval val=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			switch(val.type)
 			{
 				case DEBUGTYPE_BYTE:
@@ -195,8 +195,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '+':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -221,8 +221,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '-':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -247,8 +247,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '*':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -273,8 +273,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '/':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(de_cn(&left, &right))
@@ -299,8 +299,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '%':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -326,8 +326,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '&':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -353,8 +353,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '|':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -380,8 +380,8 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '^':
 		{
 			(*e)++;
-			debugval left=de_recursive(f, e, ec, ev, RAM, cpu);
-			debugval right=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval left=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
+			debugval right=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if((left.type==DEBUGTYPE_ERR)||(right.type==DEBUGTYPE_ERR))
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			if(!de_isi(left.type))
@@ -408,7 +408,7 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		{
 			char type=ev[*e][1];
 			(*e)++;
-			debugval val=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval val=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if(val.type==DEBUGTYPE_ERR)
 				return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 			switch(type)
@@ -474,8 +474,35 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 		case '.':
 		{
 			char type=ev[*e][1];
+			const char *far=ev[*e]+2;
+			unsigned char *ptr=RAM;
+			uint32_t space=0x10000;
+			if(*far==':')
+			{
+				far++;
+				if(strcasecmp(far, "AY")==0)
+				{
+					if(!ay_enabled)
+					{
+						fprintf(f, "error: .: AY is not enabled\n");
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+					}
+					ptr=ay->reg;
+					space=16;
+				}
+				else if(strcasecmp(far, "ULAPLUS")==0)
+				{
+					if(!ula->ulaplus_enabled)
+					{
+						fprintf(f, "error: .: ULAPLUS is not enabled\n");
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
+					}
+					ptr=ula->ulaplus_regs;
+					space=64;
+				}
+			}
 			(*e)++;
-			debugval addr=de_recursive(f, e, ec, ev, RAM, cpu);
+			debugval addr=de_recursive(f, e, ec, ev, RAM, cpu, ula, ay);
 			if(addr.type==DEBUGTYPE_BYTE)
 			{
 				addr.type=DEBUGTYPE_WORD;
@@ -486,27 +513,42 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 				switch(type)
 				{
 					case 'b':
-						return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=RAM[addr.val.w]}, RAM+addr.val.w});
+						if(addr.val.w+1u<=space)
+							return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=ptr[addr.val.w]}, ptr+addr.val.w});
+						fprintf(stderr, "error: .: Address %04x out of range\n", addr.val.w);
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 					case 'w':
-						return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=peek16(addr.val.w)}, RAM+addr.val.w});
+						if(addr.val.w+2u<=space)
+							return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=ptr[addr.val.w]|(ptr[addr.val.w+1]<<8)}, ptr+addr.val.w});
+						fprintf(stderr, "error: .: Address %04x out of range\n", addr.val.w);
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 					case 'f':
-						return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=float_decode(RAM, addr.val.w)}, RAM+addr.val.w});
+						if(addr.val.w+5u<=space)
+							return((debugval){DEBUGTYPE_FLOAT, (debugval_val){.f=float_decode(ptr, addr.val.w)}, ptr+addr.val.w});
+						fprintf(stderr, "error: .: Address %04x out of range\n", addr.val.w);
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 					case '8':
-					{
-						debugval rv;
-						rv.type=DEBUGTYPE_GRID;
-						rv.p=RAM+addr.val.w;
-						memcpy(rv.val.r, rv.p, 8);
-						return(rv);
-					}
+						if(addr.val.w+8u<=space)
+						{
+							debugval rv;
+							rv.type=DEBUGTYPE_GRID;
+							rv.p=ptr+addr.val.w;
+							memcpy(rv.val.r, rv.p, 8);
+							return(rv);
+						}
+						fprintf(stderr, "error: .: Address %04x out of range\n", addr.val.w);
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 					case 'R':
-					{
-						debugval rv;
-						rv.type=DEBUGTYPE_ROW;
-						rv.p=RAM+addr.val.w;
-						memcpy(rv.val.r, rv.p, 16);
-						return(rv);
-					}
+						if(addr.val.w+16u<=space)
+						{
+							debugval rv;
+							rv.type=DEBUGTYPE_ROW;
+							rv.p=ptr+addr.val.w;
+							memcpy(rv.val.r, rv.p, 16);
+							return(rv);
+						}
+						fprintf(stderr, "error: .: Address %04x out of range\n", addr.val.w);
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 					default:
 						fprintf(f, "error: .: Unrecognised type %c\n", type);
 						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
@@ -553,10 +595,10 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 	return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 }
 
-debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu)
+debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu, ula_t *ula, ay_t *ay)
 {
 	int e=0;
-	debugval rv=de_recursive(f, &e, ec, ev, RAM, cpu);
+	debugval rv=de_recursive(f, &e, ec, ev, RAM, cpu, ula, ay);
 	if(e<ec) fprintf(f, "warning: %d input items were not consumed\n", ec-e);
 	return(rv);
 }

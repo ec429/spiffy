@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include "z80.h"
 #include "ops.h"
+#include "audio.h"
+#include "vchips.h"
 
 typedef enum
 {
@@ -41,7 +43,7 @@ debugval;
 
 char typename(debugtype type);
 void debugger_tokenise(char *line, int *drgc, char *drgv[256]);
-debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu);
+debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu, ula_t *ula, ay_t *ay);
 void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
 void debugval_display(FILE *f, debugval val);
 int reg16(const char *name);

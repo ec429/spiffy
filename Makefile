@@ -25,24 +25,21 @@ z80.o: z80.c z80.h ops.h
 vchips.o: vchips.c vchips.h z80.h
 
 pbm.o: pbm.c pbm.h bits.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) -o $@ -c $<
 
 basic.o: basic.c basic.h bits.h
 
-debug.o: debug.c debug.h bits.h basic.h z80.h ops.h
+debug.o: debug.c debug.h bits.h basic.h z80.h ops.h audio.h vchips.h
 
 ui.o: ui.c ui.h bits.h pbm.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) -o $@ -c $<
 
 audio.o: audio.c audio.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) -o $@ -c $<
 
 filters.o: filters.c filters.h bits.h
 
 coretest.o: coretest.c coretest.h z80.h ops.h vchips.h
 
 %.o: %.c %.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) -o $@ -c $<
 
 install: spiffy spiffy-filechooser
 	install -D -m0755 spiffy $(PREFIX)/bin/spiffy
