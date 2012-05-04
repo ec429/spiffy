@@ -417,13 +417,13 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 					if(de_isn(val.type))
 						return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=floor(de_float(val))}, NULL});
 					else if((val.type==DEBUGTYPE_GRID)||(val.type==DEBUGTYPE_ROW))
-						return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=val.val.r[0]}, val.p});
+						return((debugval){DEBUGTYPE_BYTE, (debugval_val){.b=val.val.r[0]}, NULL});
 				break;
 				case 'w':
 					if(de_isn(val.type))
 						return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=floor(de_float(val))}, NULL});
 					else if((val.type==DEBUGTYPE_GRID)||(val.type==DEBUGTYPE_ROW))
-						return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=val.val.r[0]|(val.val.r[1]<<8)}, val.p});
+						return((debugval){DEBUGTYPE_WORD, (debugval_val){.w=val.val.r[0]|(val.val.r[1]<<8)}, NULL});
 				break;
 				case 'f':
 					if(de_isn(val.type))
@@ -441,7 +441,7 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 						debugval rv;
 						rv.type=DEBUGTYPE_GRID;
 						memcpy(rv.val.r, val.val.r, 8);
-						rv.p=val.p;
+						rv.p=NULL;
 						return(rv);
 					}
 					else if(de_isn(val.type))
@@ -460,6 +460,11 @@ debugval de_recursive(FILE *f, int *e, int ec, const char *const ev[256], unsign
 						memset(rv.val.r+8, 0, 8);
 						rv.p=NULL;
 						return(rv);
+					}
+					else if(de_isn(val.type))
+					{
+						fprintf(f, "error: ': cannot cast %c to R\n", typename(val.type));
+						return((debugval){DEBUGTYPE_ERR, (debugval_val){.b=0}, NULL});
 					}
 				break;
 				default:
