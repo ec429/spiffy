@@ -14,6 +14,7 @@ typedef struct
 	SDL_Rect posn;
 	SDL_Surface *img;
 	uint32_t col;
+	const char *tooltip;
 }
 button;
 
@@ -31,7 +32,7 @@ void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, 
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
 void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
 void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
-int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b);
+int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b, unsigned char br, unsigned char bg, unsigned char bb);
 bool pos_rect(pos p, SDL_Rect r);
 void drawbutton(SDL_Surface *screen, button b);
 void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b);

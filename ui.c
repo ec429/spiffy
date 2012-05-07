@@ -30,143 +30,149 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 {
 	static button btn[nbuttons];
 	*buttons=btn;
+	for(unsigned int i=0;i<nbuttons;i++)
+	{
+		btn[i].img=NULL;
+		btn[i].tooltip=NULL;
+	}
 	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
 	SDL_EnableUNICODE(1);
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 	SDL_FillRect(screen, &(SDL_Rect){0, 296, screen->w, 1}, SDL_MapRGB(screen->format, 255, 255, 255));
 	SDL_FillRect(screen, &(SDL_Rect){0, 297, screen->w, 63}, SDL_MapRGB(screen->format, 0, 0, 0)); // controls area
+	SDL_FillRect(screen, &(SDL_Rect){0, 360, screen->w, 16}, SDL_MapRGB(screen->format, 63, 63, 63)); // status bar
 	if(printer)
 	{
-		SDL_FillRect(screen, &(SDL_Rect){0, 359, screen->w, 1}, SDL_MapRGB(screen->format, 255, 255, 255));
-		SDL_FillRect(screen, &(SDL_Rect){0, 360, screen->w, 120}, SDL_MapRGB(screen->format, 31, 31, 31)); // printer area
-		SDL_FillRect(screen, &(SDL_Rect){32, 460, 256, 20}, SDL_MapRGB(screen->format, 191, 191, 195)); // printer paper
+		SDL_FillRect(screen, &(SDL_Rect){0, 376, screen->w, 1}, SDL_MapRGB(screen->format, 255, 255, 255));
+		SDL_FillRect(screen, &(SDL_Rect){0, 377, screen->w, 119}, SDL_MapRGB(screen->format, 31, 31, 31)); // printer area
+		SDL_FillRect(screen, &(SDL_Rect){32, 476, 256, 20}, SDL_MapRGB(screen->format, 191, 191, 195)); // printer paper
 	}
 	FILE *fimg;
 	string img;
 	fimg=configopen("buttons/load.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[0]=(button){.img=pbm_string(img), .posn={116, 298, 17, 17}, .col=0x8f8f1f};
+	btn[0]=(button){.img=pbm_string(img), .posn={116, 298, 17, 17}, .col=0x8f8f1f, .tooltip="Load a tape image or snapshot"};
 	free_string(&img);
 	fimg=configopen("buttons/flash.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[1]=(button){.img=pbm_string(img), .posn={136, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f};
+	btn[1]=(button){.img=pbm_string(img), .posn={136, 298, 17, 17}, .col=edgeload?0xffffff:0x1f1f1f, .tooltip=edgeload?"Disable edge-loader":"Enable edge-loader"};
 	free_string(&img);
 	fimg=configopen("buttons/play.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[2]=(button){.img=pbm_string(img), .posn={156, 298, 17, 17}, .col=0x3fbf5f};
+	btn[2]=(button){.img=pbm_string(img), .posn={156, 298, 17, 17}, .col=0x3fbf5f, .tooltip="Play the virtual tape"};
 	free_string(&img);
 	fimg=configopen("buttons/next.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[3]=(button){.img=pbm_string(img), .posn={176, 298, 17, 17}, .col=0x07079f};
+	btn[3]=(button){.img=pbm_string(img), .posn={176, 298, 17, 17}, .col=0x07079f, .tooltip="Skip to the next tape block"};
 	free_string(&img);
 	fimg=configopen("buttons/stop.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[4]=(button){.img=pbm_string(img), .posn={196, 298, 17, 17}, .col=0x3f0707};
+	btn[4]=(button){.img=pbm_string(img), .posn={196, 298, 17, 17}, .col=0x3f0707, .tooltip="Stop the tape at the end of each block"};
 	free_string(&img);
 	fimg=configopen("buttons/rewind.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[5]=(button){.img=pbm_string(img), .posn={216, 298, 17, 17}, .col=0x7f076f};
+	btn[5]=(button){.img=pbm_string(img), .posn={216, 298, 17, 17}, .col=0x7f076f, .tooltip="Rewind to the beginning of the tape"};
 	free_string(&img);
 	fimg=configopen("buttons/pause.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[6]=(button){.img=pbm_string(img), .posn={8, 340, 17, 17}, .col=pause?0xbf6f07:0x7f6f07};
+	btn[6]=(button){.img=pbm_string(img), .posn={8, 340, 17, 17}, .col=pause?0xbf6f07:0x7f6f07, .tooltip=pause?"Unpause the emulation":"Pause the emulation"};
 	free_string(&img);
 	fimg=configopen("buttons/reset.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[7]=(button){.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0xffaf07};
+	btn[7]=(button){.img=pbm_string(img), .posn={28, 340, 17, 17}, .col=0xffaf07, .tooltip="Reset the Spectrum"};
 	free_string(&img);
 	fimg=configopen("buttons/bug.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[8]=(button){.img=pbm_string(img), .posn={48, 340, 17, 17}, .col=0xbfff3f};
+	btn[8]=(button){.img=pbm_string(img), .posn={48, 340, 17, 17}, .col=0xbfff3f, .tooltip="Start the debugger"};
 	free_string(&img);
 #ifdef AUDIO
 	btn[9].posn=(SDL_Rect){76, 321, 7, 6};
 	btn[10].posn=(SDL_Rect){76, 328, 7, 6};
-	btn[11].posn=(SDL_Rect){140, 321, 7, 6};
-	btn[12].posn=(SDL_Rect){140, 328, 7, 6};
+	btn[11].posn=(SDL_Rect){136, 321, 7, 6};
+	btn[12].posn=(SDL_Rect){136, 328, 7, 6};
 	fimg=configopen("buttons/record.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[13]=(button){.img=pbm_string(img), .posn={8, 320, 17, 17}, .col=0x7f0707};
+	btn[13]=(button){.img=pbm_string(img), .posn={8, 320, 17, 17}, .col=0x7f0707, .tooltip="Record audio"};
 	drawbutton(screen, btn[13]);
 	free_string(&img);
 #endif /* AUDIO */
 	fimg=configopen("buttons/snap.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[14]=(button){.img=pbm_string(img), .posn={68, 340, 17, 17}, .col=0xbfbfbf};
+	btn[14]=(button){.img=pbm_string(img), .posn={68, 340, 17, 17}, .col=0xbfbfbf, .tooltip="Save a snapshot"};
 	drawbutton(screen, btn[14]);
 	free_string(&img);
 	fimg=configopen("buttons/trec.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[15]=(button){.img=pbm_string(img), .posn={236, 298, 17, 17}, .col=0x4f0f0f};
+	btn[15]=(button){.img=pbm_string(img), .posn={236, 298, 17, 17}, .col=0x4f0f0f, .tooltip="Record tape"};
 	drawbutton(screen, btn[15]);
 	free_string(&img);
 	fimg=configopen("buttons/feed.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[16]=(button){.img=pbm_string(img), .posn={88, 340, 17, 17}, .col=printer?0x3f276f:0x170f1f};
+	btn[16]=(button){.img=pbm_string(img), .posn={88, 340, 17, 17}, .col=printer?0x3f276f:0x170f1f, .tooltip=printer?"ZX Printer: Paper feed":"ZX Printer is disabled"};
 	drawbutton(screen, btn[16]);
 	free_string(&img);
 	fimg=configopen("buttons/js_c.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[17]=(button){.img=pbm_string(img), .posn={108, 340, 9, 9}, .col=0x3fff3f};
+	btn[17]=(button){.img=pbm_string(img), .posn={108, 340, 9, 9}, .col=0x3fff3f, .tooltip="Select CURSOR keystick"};
 	free_string(&img);
 	fimg=configopen("buttons/js_s.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[18]=(button){.img=pbm_string(img), .posn={116, 340, 9, 9}, .col=0x3f3f3f};
+	btn[18]=(button){.img=pbm_string(img), .posn={116, 340, 9, 9}, .col=0x3f3f3f, .tooltip="Select SINCLAIR keystick"};
 	free_string(&img);
 	fimg=configopen("buttons/js_k.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[19]=(button){.img=pbm_string(img), .posn={108, 348, 9, 9}, .col=0x3f3f3f};
+	btn[19]=(button){.img=pbm_string(img), .posn={108, 348, 9, 9}, .col=0x3f3f3f, .tooltip="Select KEMPSTON keystick"};
 	free_string(&img);
 	fimg=configopen("buttons/js_x.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[20]=(button){.img=pbm_string(img), .posn={116, 348, 9, 9}, .col=0x3f3f3f};
+	btn[20]=(button){.img=pbm_string(img), .posn={116, 348, 9, 9}, .col=0x3f3f3f, .tooltip="Disable keystick"};
 	free_string(&img);
 	ksupdate(screen, *buttons, JS_C);
 	fimg=configopen("buttons/bw.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[21]=(button){.img=pbm_string(img), .posn={128, 340, 17, 17}, .col=0x9f9f9f};
+	btn[21]=(button){.img=pbm_string(img), .posn={128, 340, 17, 17}, .col=0x9f9f9f, .tooltip="Enable Black&White filter"};
 	drawbutton(screen, btn[21]);
 	free_string(&img);
 	fimg=configopen("buttons/scan.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[22]=(button){.img=pbm_string(img), .posn={148, 340, 17, 17}, .col=0x6f6fdf};
+	btn[22]=(button){.img=pbm_string(img), .posn={148, 340, 17, 17}, .col=0x6f6fdf, .tooltip="Enable TV Scanlines filter"};
 	drawbutton(screen, btn[22]);
 	free_string(&img);
 	fimg=configopen("buttons/blur.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[23]=(button){.img=pbm_string(img), .posn={168, 340, 17, 17}, .col=0xbf3f3f};
+	btn[23]=(button){.img=pbm_string(img), .posn={168, 340, 17, 17}, .col=0xbf3f3f, .tooltip="Enable Horizontal Blur filter"};
 	drawbutton(screen, btn[23]);
 	free_string(&img);
 	fimg=configopen("buttons/vblur.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[24]=(button){.img=pbm_string(img), .posn={188, 340, 17, 17}, .col=0xbf3f3f};
+	btn[24]=(button){.img=pbm_string(img), .posn={188, 340, 17, 17}, .col=0xbf3f3f, .tooltip="Enable Vertical Blur filter"};
 	drawbutton(screen, btn[24]);
 	free_string(&img);
 	fimg=configopen("buttons/misg.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[25]=(button){.img=pbm_string(img), .posn={208, 340, 17, 17}, .col=0x1f5f1f};
+	btn[25]=(button){.img=pbm_string(img), .posn={208, 340, 17, 17}, .col=0x1f5f1f, .tooltip="Enable Misaligned Green filter"};
 	drawbutton(screen, btn[25]);
 	free_string(&img);
 	for(unsigned int i=0;i<9;i++)
@@ -266,14 +272,17 @@ void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned
 	pset(screen, where.x+5, where.y+2, col>>16, col>>8, col);
 }
 
-int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b)
+int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b, unsigned char br, unsigned char bg, unsigned char bb)
 {
-	SDL_Color clrFg = {r, g, b,0};
+	SDL_Color clrFg = {r, g, b, 0};
 	SDL_Rect rcDest = {x, y, w, 16};
-	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, 0, 0, 0));
-	SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
-	SDL_BlitSurface(sText, NULL, scrn, &rcDest);
-	SDL_FreeSurface(sText);
+	SDL_FillRect(scrn, &rcDest, SDL_MapRGB(scrn->format, br, bg, bb));
+	if(text&&font)
+	{
+		SDL_Surface *sText = TTF_RenderText_Solid(font, text, clrFg);
+		SDL_BlitSurface(sText, NULL, scrn, &rcDest);
+		SDL_FreeSurface(sText);
+	}
 	return(0);
 }
 

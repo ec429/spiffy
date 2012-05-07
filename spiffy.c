@@ -183,7 +183,7 @@ int main(int argc, char * argv[])
 	bus_t _bus, *bus=&_bus;
 	ula_t _ula, *ula=&_ula;
 	
-	SDL_Surface * screen=gf_init(320, zxp_enabled?480:360);
+	SDL_Surface * screen=gf_init(320, zxp_enabled?496:376);
 	if(!screen)
 	{
 		fprintf(stderr, "Failed to set up video\n");
@@ -271,6 +271,7 @@ int main(int argc, char * argv[])
 	SDL_GetMouseState(&mouse.x, &mouse.y);
 	//SDL_ShowCursor(SDL_DISABLE);
 	char button;
+	unsigned int hover=nbuttons;
 	
 	// Spectrum State
 	FILE *fp = fopen(ROM_FILE, "rb");
@@ -492,7 +493,8 @@ int main(int argc, char * argv[])
 					fprintf(stderr, "EOF on stdin, closing debugger\n");
 					nodebug:
 					debug=false;
-					bugbutton.col=0x4f6f3f;
+					bugbutton.col=0x4f4f4f;
+					bugbutton.tooltip="Debugger is unavailable";
 					drawbutton(screen, bugbutton);
 					break;
 				}
@@ -1518,7 +1520,7 @@ int main(int argc, char * argv[])
 			bus->irq=false;
 		if(zxp_enabled&&!(Tstates%128)) // ZX Printer emulation
 		{
-			if(zxp_stylus_power&&(zxp_stylus_posn>=128)) pset(screen, zxp_stylus_posn-96, 479, 15, 3, 0);
+			if(zxp_stylus_power&&(zxp_stylus_posn>=128)) pset(screen, zxp_stylus_posn-96, 495, 15, 3, 0);
 			if(!(Tstates%256))
 			{
 				if(zxp_feed_button||(!zxp_stop_motor&&!(zxp_slow_motor&&(Tstates%512))))
@@ -1537,15 +1539,15 @@ int main(int argc, char * argv[])
 							{
 								if(x) fprintf(zxp_output, " ");
 								unsigned char r, g, b;
-								pget(screen, x+32, 479, &r, &g, &b);
+								pget(screen, x+32, 495, &r, &g, &b);
 								bool dark=(r+g+b)<384;
 								fprintf(zxp_output, "%c", dark?'1':'0');
 							}
 							fprintf(zxp_output, "\n");
 							fflush(zxp_output);
 						}
-						SDL_BlitSurface(screen, &(SDL_Rect){0, 361, screen->w, 119}, screen, &(SDL_Rect){0, 360, screen->w, 119});
-						SDL_FillRect(screen, &(SDL_Rect){32, 479, 256, 1}, SDL_MapRGB(screen->format, 191, 191, 195));
+						SDL_BlitSurface(screen, &(SDL_Rect){0, 378, screen->w, 118}, screen, &(SDL_Rect){0, 377, screen->w, 118});
+						SDL_FillRect(screen, &(SDL_Rect){32, 495, 256, 1}, SDL_MapRGB(screen->format, 191, 191, 195));
 					}
 					else if(zxp_stylus_posn==128)
 						zxp_d7_latch=true;
@@ -1570,7 +1572,7 @@ int main(int argc, char * argv[])
 					sprintf(text, "Speed: %0.3g%%", spd);
 				else
 					sprintf(text, "Speed: <1%%");
-				dtext(screen, 8, 298, 92, text, font, 255, 255, 0);
+				dtext(screen, 8, 298, 92, text, font, 255, 255, 0, 0, 0, 0);
 				playbutton.col=play?0xbf1f3f:0x3fbf5f;
 				drawbutton(screen, playbutton);
 			}
@@ -1589,14 +1591,14 @@ int main(int argc, char * argv[])
 				{
 					snprintf(text, 32, "T--- [-]");
 				}
-				dtext(screen, 256, 298, 56, text, font, 0xbf, 0xbf, 0xbf);
+				dtext(screen, 256, 298, 56, text, font, 0xbf, 0xbf, 0xbf, 0, 0, 0);
 				#ifdef AUDIO
 				snprintf(text, 32, "BW:%03u", filterfactor);
-				dtext(screen, 28, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
+				dtext(screen, 28, 320, 56, text, font, 0x9f, 0x9f, 0x9f, 15, 15, 15);
 				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
 				snprintf(text, 32, "SR:%03u", *sinc_rate);
-				dtext(screen, 92, 320, 64, text, font, 0x9f, 0x9f, 0x9f);
+				dtext(screen, 88, 320, 56, text, font, 0x9f, 0x9f, 0x9f, 15, 15, 15);
 				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
 				#endif /* AUDIO */
@@ -1946,6 +1948,17 @@ int main(int argc, char * argv[])
 					case SDL_MOUSEMOTION:
 						mouse.x=event.motion.x;
 						mouse.y=event.motion.y;
+						for(unsigned int i=0;i<nbuttons;i++)
+						{
+							if(pos_rect(mouse, buttons[i].posn))
+							{
+								if(i!=hover)
+								{
+									hover=i;
+									dtext(screen, 8, 360, screen->w-16, buttons[i].tooltip, font, 160, 160, 224, 63, 63, 63);
+								}
+							}
+						}
 					break;
 					case SDL_MOUSEBUTTONDOWN:
 						mouse.x=event.button.x;
@@ -2164,13 +2177,17 @@ int main(int argc, char * argv[])
 									}
 								}
 								recordbutton.col=abuf.record?0xff0707:0x7f0707;
+								recordbutton.tooltip=abuf.record?"Stop recording audio":"Record audio";
 								drawbutton(screen, recordbutton);
 								#endif /* AUDIO */
 								edgebutton.col=edgeload?0xffffff:0x1f1f1f;
+								edgebutton.tooltip=edgeload?"Disable edge-loader":"Enable edge-loader";
 								playbutton.col=play?0xbf1f3f:0x3fbf5f;
 								stopbutton.col=stopper?0x3f07f7:0x3f0707;
 								pausebutton.col=pause?0xbf6f07:0x7f6f07;
+								pausebutton.tooltip=pause?"Unpause the emulation":"Pause the emulation";
 								trecbutton.col=trec?0xcf1717:0x4f0f0f;
+								trecbutton.tooltip=trec?"Stop recording tape":"Record tape";
 								bwbutton.col=(filt_mask&FILT_BW)?0xffffff:0x9f9f9f;
 								scanbutton.col=(filt_mask&FILT_SCAN)?0x7f7fff:0x6f6fdf;
 								blurbutton.col=(filt_mask&FILT_BLUR)?0xff5f5f:0xbf3f3f;
@@ -2216,6 +2233,14 @@ int main(int argc, char * argv[])
 							break;
 							case SDL_BUTTON_WHEELDOWN:
 							break;
+						}
+						for(unsigned int i=0;i<nbuttons;i++)
+						{
+							if(pos_rect(mouse, buttons[i].posn))
+							{
+								hover=i;
+								dtext(screen, 8, 360, screen->w-16, buttons[i].tooltip, font, 160, 160, 224, 63, 63, 63);
+							}
 						}
 					break;
 					case SDL_MOUSEBUTTONUP:
