@@ -16,7 +16,7 @@ Command line options:
 	--zxprinter[=<file>]
 		Enable the ZX Printer.  If <file> is specified, saves the (NetPBM format) output to <file>, otherwise "zxp.pbm".
 	--zxpfix
-		Apply the ZX Printer Port Decoding fix: make the printer only recognise ports (A6&&!A2) instead of all of !A2.  Useful
+		Apply the ZX Printer Port Decoding fix: make the printer only recognise ports (A6&&!A2) instead of all of !A2.  Useful for compatibility with ZXI devices, including ULAplus.
 	--ay
 		Enable the AY chip.
 	--ula+
@@ -29,7 +29,7 @@ Command line options:
 		Run the core tests; produces a load of output on stdout.
 
 UI controls:
-There are three rows of controls: Tape, Audio and Misc.  Each button should have an icon on it; if they're just square boxes of colour, it means Spiffy couldn't find its data files.
+There are three rows of controls: Tape, Audio and Misc.  Each button should have an icon on it; if they're just square boxes of colour, it means Spiffy couldn't find its data files.  You can also get a tooltip by hovering the cursor over a button.
 Tape:
 	Speed readout.  Should hover around 100%.
 	Load (light brown).  Opens a file chooser dialog which you can use to load a tape or a snapshot.
