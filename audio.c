@@ -222,9 +222,10 @@ void ay_tstep(ay_t *ay, unsigned int steps)
 			ay->bit[i]=!ay->bit[i];
 			ay->count[i]=0;
 		}
+		unsigned char vol=ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env&0x0f:(ay->reg[8+i]&0xf)];
 		if(!(ay->reg[7]&(1<<i)))
-			ay->out[i]=ay->bit[i]?ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env&0x0f:(ay->reg[8+i]&0xf)]:0;
+			ay->out[i]=ay->bit[i]?(vol>>1)+(vol>>2):0;
 		if((ay->noise&1)&&!(ay->reg[7]&(8<<i)))
-			ay->out[i]^=0x40;
+			ay->out[i]+=(vol>>2);
 	}
 }
