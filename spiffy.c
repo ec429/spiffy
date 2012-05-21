@@ -152,7 +152,7 @@ int main(int argc, char * argv[])
 		}
 	}
 	
-	printf(GPL_MSG);
+	fprintf(stderr, GPL_MSG);
 	bool ls=!libspectrum_init();
 	
 	if(coretest)
@@ -189,6 +189,11 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "Failed to set up video\n");
 		return(2);
 	}
+	#ifdef WINDOWS
+		// from <http://sdl.beuc.net/sdl.wiki/FAQ_Console>
+		freopen( "CON", "w", stdout );
+		freopen( "CON", "w", stderr );
+	#endif /* WINDOWS */
 	button *buttons;
 	ui_init(screen, &buttons, edgeload, pause, zxp_enabled);
 	int errupt=0;
