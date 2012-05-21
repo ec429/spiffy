@@ -154,7 +154,7 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 	fimg=configopen("buttons/scan.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[22]=(button){.img=pbm_string(img), .posn={148, 340, 17, 17}, .col=0x6f6fdf, .tooltip="Enable TV Scanlines filter"};
+	btn[22]=(button){.img=pbm_string(img), .posn={148, 340, 17, 17}, .col=0x5f5fcf, .tooltip="Enable TV Scanlines filter"};
 	drawbutton(screen, btn[22]);
 	free_string(&img);
 	fimg=configopen("buttons/blur.pbm", "rb");
@@ -174,6 +174,12 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 	if(fimg) fclose(fimg);
 	btn[25]=(button){.img=pbm_string(img), .posn={208, 340, 17, 17}, .col=0x1f5f1f, .tooltip="Enable Misaligned Green filter"};
 	drawbutton(screen, btn[25]);
+	free_string(&img);
+	fimg=configopen("buttons/slow.pbm", "rb");
+	img=sslurp(fimg);
+	if(fimg) fclose(fimg);
+	btn[26]=(button){.img=pbm_string(img), .posn={228, 340, 17, 17}, .col=0x8f8faf, .tooltip="Enable Slow Fade filter"};
+	drawbutton(screen, btn[26]);
 	free_string(&img);
 	for(unsigned int i=0;i<9;i++)
 		drawbutton(screen, btn[i]);

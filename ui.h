@@ -64,4 +64,5 @@ void ksupdate(SDL_Surface * screen, button *buttons, js_type keystick);
 #define blurbutton		buttons[23]
 #define vblurbutton		buttons[24]
 #define misgbutton		buttons[25]
-#define nbuttons		26
+#define slowbutton		buttons[26]
+#define nbuttons		27

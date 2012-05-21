@@ -15,6 +15,7 @@ const char *filter_name(unsigned int filt_id)
 	else if(filt_id==FILT_BLUR) return("Horizontal Blur");
 	else if(filt_id==FILT_VBLUR) return("Vertical Blur");
 	else if(filt_id==FILT_MISG) return("Misaligned Green");
+	else if(filt_id==FILT_SLOW) return("Slow Fade");
 	else if(!filt_id) return("Unfiltered");
 	else return("Error");
 }
@@ -23,6 +24,7 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 {
 	static unsigned char lastr, lastg, lastb, misg;
 	static unsigned char rowr[320], rowg[320], rowb[320];
+	static unsigned char old[320][296][3];
 	
 	if(filt_mask&FILT_BW)
 	{
@@ -77,5 +79,12 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 		if(x)
 			*g=misg;
 		misg=tmp;
+	}
+	
+	if(filt_mask&FILT_SLOW)
+	{
+		*r=old[x][y][0]=max(*r, (old[x][y][0]>>1)+(old[x][y][0]>>2));
+		*g=old[x][y][1]=max(*g, (old[x][y][1]>>1)+(old[x][y][1]>>2));
+		*b=old[x][y][2]=max(*b, (old[x][y][2]>>1)+(old[x][y][2]>>2));
 	}
 }

@@ -56,6 +56,7 @@ Misc:
 	Horizontal Blur (pink).  Toggles the "Horizontal Blur" filter.
 	Vertical Blur (pink).  Toggles the "Vertical Blur" filter.
 	Misaligned Green (olive green).  Toggles the "Misaligned Green" filter.
+	Slow Fade (grey-blue).  Toggles the "Slow Fade" filter.  (Warning: this filter eats up a lot of CPU!)
 
 Notable features of Spiffy's design:
 The Z80 emulation (and main loop) operates at a 1-Tstate resolution, making accurate timing theoretically easy to implement.

@@ -2131,6 +2131,8 @@ int main(int argc, char * argv[])
 									filt_mask^=FILT_VBLUR;
 								else if(pos_rect(mouse, misgbutton.posn))
 									filt_mask^=FILT_MISG;
+								else if(pos_rect(mouse, slowbutton.posn))
+									filt_mask^=FILT_SLOW;
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -2194,10 +2196,11 @@ int main(int argc, char * argv[])
 								trecbutton.col=trec?0xcf1717:0x4f0f0f;
 								trecbutton.tooltip=trec?"Stop recording tape":"Record tape";
 								bwbutton.col=(filt_mask&FILT_BW)?0xffffff:0x9f9f9f;
-								scanbutton.col=(filt_mask&FILT_SCAN)?0x7f7fff:0x6f6fdf;
+								scanbutton.col=(filt_mask&FILT_SCAN)?0x7f7fff:0x5f5fcf;
 								blurbutton.col=(filt_mask&FILT_BLUR)?0xff5f5f:0xbf3f3f;
 								vblurbutton.col=(filt_mask&FILT_VBLUR)?0xff5f5f:0xbf3f3f;
 								misgbutton.col=(filt_mask&FILT_MISG)?0x4f9f4f:0x1f5f1f;
+								slowbutton.col=(filt_mask&FILT_SLOW)?0xbfbfff:0x8f8faf;
 								ksupdate(screen, buttons, keystick);
 								drawbutton(screen, edgebutton);
 								drawbutton(screen, playbutton);
@@ -2209,6 +2212,7 @@ int main(int argc, char * argv[])
 								drawbutton(screen, blurbutton);
 								drawbutton(screen, vblurbutton);
 								drawbutton(screen, misgbutton);
+								drawbutton(screen, slowbutton);
 							break;
 							case SDL_BUTTON_RIGHT:
 								#ifdef AUDIO
