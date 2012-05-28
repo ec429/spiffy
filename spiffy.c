@@ -279,7 +279,12 @@ int main(int argc, char * argv[])
 	unsigned int hover=nbuttons;
 	
 	// Spectrum State
-	FILE *fp = fopen(ROM_FILE, "rb");
+	FILE *fp = configopen(ROM_FILE, "rb");
+	if(!fp)
+	{
+		fprintf(stderr, "Failed to open Spectrum ROM `%s'!\n", ROM_FILE);
+		return(1);
+	}
 	unsigned char RAM[65536];
 	ramtop=65536;
 	unsigned int i;
