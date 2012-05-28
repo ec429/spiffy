@@ -1525,7 +1525,8 @@ int main(int argc, char * argv[])
 				}
 			}
 		}
-		scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
+		if(likely(!pause))
+			scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
 		if(unlikely(Tstates==32))
 			bus->irq=false;
 		if(zxp_enabled&&!(Tstates%128)) // ZX Printer emulation

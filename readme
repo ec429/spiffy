@@ -45,7 +45,7 @@ Audio:
 	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 51 or 76 for most beeper engines.
 	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  12 should be plenty.
 Misc:
-	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.
+	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.  Technically, not everything is paused, so timing-critical code may glitch when resuming.
 	Reset (orange).  Resets the Spectrum.
 	Debug (sickly green).  Activates the debugger.  (Only works if Spiffy was run from a terminal)  See `debugger' for manual.
 	Save Snapshot (grey).  Opens a file chooser dialog to save a .z80 snapshot.
