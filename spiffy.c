@@ -81,6 +81,7 @@ int main(int argc, char * argv[])
 	const char *zxp_fn="zxp.pbm";
 	bool zxp_fix=false; // change the ZXP address from ¬A2 to A6.¬A2?  For compatibility with ZXI devices
 	js_type keystick=JS_C; // keystick mode: Cursor, Sinclair, Kempston, disabled
+	bool showkb=false; // show a keyboard helper?
 	unsigned int nbreaks=0;
 	unsigned int *breakpoints=NULL;
 	int arg;
@@ -134,6 +135,10 @@ int main(int argc, char * argv[])
 		{ // enable ULAplus
 			ulaplus_enabled=true;
 		}
+		else if(strcmp(argv[arg], "--kb") == 0)
+		{ // enable keyboard assistant
+			showkb=true;
+		}
 		else if((strcmp(argv[arg], "--Tstate") == 0) || (strcmp(argv[arg], "-T") == 0))
 		{ // activate single-Tstate stepping under debugger
 			debugcycle=true;
@@ -183,7 +188,8 @@ int main(int argc, char * argv[])
 	bus_t _bus, *bus=&_bus;
 	ula_t _ula, *ula=&_ula;
 	
-	SDL_Surface * screen=gf_init(320, zxp_enabled?496:376);
+	ui_offsets(showkb, zxp_enabled);
+	SDL_Surface * screen=gf_init(320, y_end);
 	if(!screen)
 	{
 		fprintf(stderr, "Failed to set up video\n");
@@ -195,7 +201,7 @@ int main(int argc, char * argv[])
 		freopen( "CON", "w", stderr );
 	#endif /* WINDOWS */
 	button *buttons;
-	ui_init(screen, &buttons, edgeload, pause, zxp_enabled);
+	ui_init(screen, &buttons, edgeload, pause, showkb, zxp_enabled);
 	int errupt=0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
 	bus->kempbyte=0; // used in Kempston keystick mode
@@ -322,6 +328,7 @@ int main(int argc, char * argv[])
 	unsigned long trecpuls=0;
 	uint32_t T_since_tape_edge=0;
 	bool oldmic=false;
+	unsigned int keyb_mode=0;
 	
 	SDL_Flip(screen);
 #ifdef AUDIO
@@ -1531,7 +1538,7 @@ int main(int argc, char * argv[])
 			bus->irq=false;
 		if(zxp_enabled&&!(Tstates%128)) // ZX Printer emulation
 		{
-			if(zxp_stylus_power&&(zxp_stylus_posn>=128)) pset(screen, zxp_stylus_posn-96, 495, 15, 3, 0);
+			if(zxp_stylus_power&&(zxp_stylus_posn>=128)) pset(screen, zxp_stylus_posn-96, y_prnt+119, 15, 3, 0);
 			if(!(Tstates%256))
 			{
 				if(zxp_feed_button||(!zxp_stop_motor&&!(zxp_slow_motor&&(Tstates%512))))
@@ -1550,15 +1557,15 @@ int main(int argc, char * argv[])
 							{
 								if(x) fprintf(zxp_output, " ");
 								unsigned char r, g, b;
-								pget(screen, x+32, 495, &r, &g, &b);
+								pget(screen, x+32, y_prnt+119, &r, &g, &b);
 								bool dark=(r+g+b)<384;
 								fprintf(zxp_output, "%c", dark?'1':'0');
 							}
 							fprintf(zxp_output, "\n");
 							fflush(zxp_output);
 						}
-						SDL_BlitSurface(screen, &(SDL_Rect){0, 378, screen->w, 118}, screen, &(SDL_Rect){0, 377, screen->w, 118});
-						SDL_FillRect(screen, &(SDL_Rect){32, 495, 256, 1}, SDL_MapRGB(screen->format, 191, 191, 195));
+						SDL_BlitSurface(screen, &(SDL_Rect){0, y_prnt+2, screen->w, 118}, screen, &(SDL_Rect){0, y_prnt+1, screen->w, 118});
+						SDL_FillRect(screen, &(SDL_Rect){32, y_prnt+119, 256, 1}, SDL_MapRGB(screen->format, 191, 191, 195));
 					}
 					else if(zxp_stylus_posn==128)
 						zxp_d7_latch=true;
@@ -1567,6 +1574,39 @@ int main(int argc, char * argv[])
 		}
 		if(unlikely(Tstates>=69888)) // Frame
 		{
+			unsigned int new_kmode=0;
+			unsigned char mode=RAM[sysvarbyname("MODE")->addr];
+			unsigned char shifts=0;
+			if(kstate[0][0]) shifts|=1;
+			if(kstate[7][1]) shifts|=2;
+			switch(mode)
+			{
+				case 0:; // K, L, or C
+					unsigned char flags=RAM[sysvarbyname("FLAGS")->addr];
+					if(flags&8) // L or C.  XXX it might be 4, not 8, that we should be testing
+					{
+						new_kmode=(shifts&2)?5:(shifts&1)?4:3;
+					}
+					else // K
+					{
+						new_kmode=(shifts&2)?5:(shifts&1)?2:1;
+					}
+				break;
+				case 1: // E
+					new_kmode=(shifts&2)?8:(shifts&1)?7:6;
+				break;
+				case 2: // G
+					new_kmode=9;
+				break;
+				default:
+					new_kmode=0;
+				break;
+			}
+			if(new_kmode!=keyb_mode)
+			{
+				keyb_mode=new_kmode;
+				keyb_update(screen, keyb_mode);
+			}
 			bus->reset=false;
 			SDL_Flip(screen);
 			Tstates-=69888;
@@ -1583,7 +1623,7 @@ int main(int argc, char * argv[])
 					sprintf(text, "Speed: %0.3g%%", spd);
 				else
 					sprintf(text, "Speed: <1%%");
-				dtext(screen, 8, 298, 92, text, font, 255, 255, 0, 0, 0, 0);
+				dtext(screen, 8, y_cntl+2, 92, text, font, 255, 255, 0, 0, 0, 0);
 				playbutton.col=play?0xbf1f3f:0x3fbf5f;
 				drawbutton(screen, playbutton);
 			}
@@ -1602,14 +1642,14 @@ int main(int argc, char * argv[])
 				{
 					snprintf(text, 32, "T--- [-]");
 				}
-				dtext(screen, 256, 298, 56, text, font, 0xbf, 0xbf, 0xbf, 0, 0, 0);
+				dtext(screen, 256, y_cntl+2, 56, text, font, 0xbf, 0xbf, 0xbf, 0, 0, 0);
 				#ifdef AUDIO
 				snprintf(text, 32, "BW:%03u", filterfactor);
-				dtext(screen, 28, 320, 56, text, font, 0x9f, 0x9f, 0x9f, 15, 15, 15);
+				dtext(screen, 28, y_cntl+24, 56, text, font, 0x9f, 0x9f, 0x9f, 15, 15, 15);
 				uparrow(screen, aw_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, aw_down, 0xdfffff, 0x4f3f3f);
 				snprintf(text, 32, "SR:%03u", *sinc_rate);
-				dtext(screen, 88, 320, 56, text, font, 0x9f, 0x9f, 0x9f, 15, 15, 15);
+				dtext(screen, 88, y_cntl+24, 56, text, font, 0x9f, 0x9f, 0x9f, 15, 15, 15);
 				uparrow(screen, sr_up, 0xffdfff, 0x3f4f3f);
 				downarrow(screen, sr_down, 0xdfffff, 0x4f3f3f);
 				#endif /* AUDIO */

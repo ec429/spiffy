@@ -26,8 +26,12 @@ typedef struct _pos
 
 typedef enum {JS_C, JS_S, JS_K, JS_X} js_type;
 
+unsigned int y_cntl, y_keyb, y_prnt, y_end;
+
 SDL_Surface * gf_init();
-void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, bool printer);
+void ui_offsets(bool keyboard, bool printer);
+void keyb_update(SDL_Surface *screen, unsigned int keyb_mode);
+void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, bool keyboard, bool printer);
 void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
 int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
 void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
