@@ -13,7 +13,7 @@ INCLUDES := ops.h z80.h vchips.h bits.h pbm.h sysvars.h basic.h debug.h ui.h aud
 all: spiffy spiffy-filechooser
 
 spiffy: spiffy.c $(INCLUDES) $(LIBS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) spiffy.c $(LDFLAGS) -o spiffy $(LIBS) -lspectrum $(SDL)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) spiffy.c $(LDFLAGS) -o spiffy $(LIBS) -lm -lspectrum $(SDL)
 
 spiffy-filechooser: filechooser.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(GTKFLAGS) filechooser.c $(LDFLAGS) -o spiffy-filechooser $(GTK)
