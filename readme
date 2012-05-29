@@ -21,6 +21,8 @@ Command line options:
 		Enable the AY chip.
 	--ula+
 		Enable ULAplus emulation.  If using with --zxprinter, you will also need to use --zxpfix.
+	--kb
+		Enable the keyboard assistant.  This appears below the UI controls, and dynamically highlights the key functions corresponding to the current shift state, cursor mode, etc.
 	--Tstate,-T
 		Enable single-Tstate stepping in the debugger.
 	--no-Tstate,+T
