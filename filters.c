@@ -26,7 +26,8 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	static unsigned char lastr, lastg, lastb, misg;
 	static unsigned char rowr[320], rowg[320], rowb[320];
 	static unsigned char old[320][296][3];
-	static signed int palcr, palcb;
+	static unsigned char lumx;
+	static signed int palcr, palcb, palxr, palxb;
 	
 	if(filt_mask&FILT_BW)
 	{
@@ -36,12 +37,15 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	if((filt_mask&FILT_PAL)&&!(filt_mask&FILT_BW)) // PAL doesn't make sense for a BW set
 	{
 		unsigned char luma=(*r+*g+*b)/3;
+		lumx=(lumx>>1)+(luma>>1);
 		signed int cb=*b-luma, cr=*r-luma;
 		unsigned char sc=(x&4)>>1, cc=x&2;
-		palcr=(palcr>>1)+(palcr>>2)+((sc-1)*(luma-127)>>1);
-		palcb=(palcb>>1)+(palcb>>2)+((cc-1)*(luma-127)>>1);
-		*r=min(max(luma+cr+((y&1)?palcr:-palcr), 0), 255);
-		*b=min(max(luma+cb+((y&1)?palcb:-palcb), 0), 255);
+		palcr=(palcr>>1)+((sc-1)*(luma-127));
+		palcb=(palcb>>1)+((cc-1)*(luma-127));
+		palxr=(palxr>>1)+((sc-1)*(lumx-127));
+		palxb=(palxb>>1)+((cc-1)*(lumx-127));
+		*r=min(max(luma+cr+((y&1)?palcr-palxr:palxr-palcr), 0), 255);
+		*b=min(max(luma+cb+((y&1)?palcb-palxb:palxb-palcb), 0), 255);
 		*g=min(max(luma*3-*r-*b, 0), 255);
 	}
 	
