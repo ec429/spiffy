@@ -69,7 +69,7 @@ distw: all
 	cp -r buttons spiffy_w$(VERSION)/
 	cp -r keyb_asst spiffy_w$(VERSION)/
 	-rm spiffy_w$(VERSION)/*.tgz
-	-rm spiffy_$(VERSION)/*.zip
+	-rm spiffy_w$(VERSION)/*.zip
 	rm spiffy_w$(VERSION)/*.o
 	rm spiffy_w$(VERSION)/spiffy
 	rm spiffy_w$(VERSION)/spiffy-filechooser
