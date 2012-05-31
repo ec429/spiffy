@@ -2470,7 +2470,7 @@ void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32
 		libspectrum_tape_get_next_edge(T_to_tape_edge, edgeflags, deck);
 }
 
-inline void putedge(uint32_t *T_since_tape_edge, unsigned long *trecpuls, FILE *trec)
+void putedge(uint32_t *T_since_tape_edge, unsigned long *trecpuls, FILE *trec)
 {
 	if(*T_since_tape_edge>0xFF)
 	{

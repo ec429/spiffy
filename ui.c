@@ -234,7 +234,7 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 		drawbutton(screen, btn[i]);
 }
 
-inline void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b)
+__attribute__((gnu_inline)) inline void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
 	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
@@ -352,7 +352,7 @@ void drawbutton(SDL_Surface *screen, button b)
 	if(b.img) SDL_BlitSurface(b.img, NULL, screen, &b.posn);
 }
 
-inline void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b)
+__attribute__((gnu_inline)) inline void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
 	unsigned long int *pixloc = (unsigned long int *)(((unsigned char *)screen->pixels)+s_off),

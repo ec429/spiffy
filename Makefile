@@ -72,5 +72,5 @@ distw: all
 	rm spiffy_w$(VERSION)/*.o
 	rm spiffy_w$(VERSION)/spiffy
 	rm spiffy_w$(VERSION)/spiffy-filechooser
-	make -C spiffy_w$(VERSION) -fMakefile all
+	make -C spiffy_w$(VERSION) -fMakefile.w32 all
 

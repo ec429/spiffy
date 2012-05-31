@@ -8,6 +8,10 @@
 #include "audio.h"
 #include <unistd.h>
 #include <math.h>
+#ifdef WINDOWS
+#include <windef.h>
+#include <winbase.h>
+#endif
 
 unsigned char internal_sinc_rate=12, *sinc_rate=&internal_sinc_rate;
 
