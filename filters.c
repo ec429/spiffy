@@ -28,6 +28,7 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	static unsigned char old[320][296][3];
 	static unsigned char lumx;
 	static signed int palcr, palcb, palxr, palxb;
+	static signed int oldcr[320], oldcb[320];
 	
 	if(filt_mask&FILT_BW)
 	{
@@ -39,14 +40,16 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 		unsigned char luma=(*r+*g+*b)/3;
 		lumx=(lumx>>1)+(luma>>1);
 		signed int cb=*b-luma, cr=*r-luma;
-		unsigned char sc=(x&4)>>1, cc=x&2;
-		palcr=(palcr>>1)+((sc-1)*(luma-127));
-		palcb=(palcb>>1)+((cc-1)*(luma-127));
-		palxr=(palxr>>1)+((sc-1)*(lumx-127));
-		palxb=(palxb>>1)+((cc-1)*(lumx-127));
-		*r=min(max(luma+cr+((y&1)?palcr-palxr:palxr-palcr), 0), 255);
-		*b=min(max(luma+cb+((y&1)?palcb-palxb:palxb-palcb), 0), 255);
+		unsigned char sc=(x&4)>>1, cc=((x-1)&4)>>1;
+		palcr=(palcr>>1)+((sc-1)*(luma-127)<<1);
+		palcb=(palcb>>1)+((cc-1)*(luma-127)<<1);
+		palxr=(palxr>>1)+((sc-1)*(lumx-127)<<1);
+		palxb=(palxb>>1)+((cc-1)*(lumx-127)<<1);
+		signed int newcr=cr-((y&1)?palxr-palcr:palcr-palxr), newcb=cb+palcb-palxb;
+		*r=min(max(luma+((newcr+oldcr[x])>>1), 0), 255);
+		*b=min(max(luma+((newcb+oldcb[x])>>1), 0), 255);
 		*g=min(max(luma*3-*r-*b, 0), 255);
+		oldcr[x]=newcr;oldcb[x]=newcb;
 	}
 	
 	if(filt_mask&FILT_SCAN)
