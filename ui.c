@@ -51,13 +51,17 @@ void keyb_update(SDL_Surface *screen, unsigned int keyb_mode)
 SDL_Surface *configIMG_Load(const char *name)
 {
 	char *fullname=malloc(strlen(PREFIX)+16+strlen(name));
+	SDL_Surface *img;
 	if(fullname)
 	{
 		sprintf(fullname, PREFIX"/share/spiffy/%s", name);
-		SDL_Surface *fp=IMG_Load(fullname);
-		if(fp) return(fp);
+		img=IMG_Load(fullname);
+		if(img) return(img);
+		else fprintf(stderr, "%s: %s\n", fullname, IMG_GetError());
 	}
-	return(IMG_Load(name));
+	img=IMG_Load(name);
+	if(!img) fprintf(stderr, "%s: %s\n", name, IMG_GetError());
+	return(img);
 }
 
 void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, bool keyboard, bool printer)
