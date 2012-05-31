@@ -13,6 +13,7 @@
 #define FILT_VBLUR	0x08
 #define FILT_MISG	0x10
 #define FILT_SLOW	0x20
+#define FILT_PAL	0x40
 
 const char *filter_name(unsigned int filt_id);
 void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char *r, unsigned char *g, unsigned char *b);

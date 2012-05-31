@@ -2179,6 +2179,8 @@ int main(int argc, char * argv[])
 									filt_mask^=FILT_MISG;
 								else if(pos_rect(mouse, slowbutton.posn))
 									filt_mask^=FILT_SLOW;
+								else if(pos_rect(mouse, palbutton.posn))
+									filt_mask^=FILT_PAL;
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
@@ -2247,6 +2249,7 @@ int main(int argc, char * argv[])
 								vblurbutton.col=(filt_mask&FILT_VBLUR)?0xff5f5f:0xbf3f3f;
 								misgbutton.col=(filt_mask&FILT_MISG)?0x4f9f4f:0x1f5f1f;
 								slowbutton.col=(filt_mask&FILT_SLOW)?0xbfbfff:0x8f8faf;
+								palbutton.col=(filt_mask&FILT_PAL)?0x7f7fbf:0x4f4f4f;
 								ksupdate(screen, buttons, keystick);
 								drawbutton(screen, edgebutton);
 								drawbutton(screen, playbutton);
@@ -2259,6 +2262,7 @@ int main(int argc, char * argv[])
 								drawbutton(screen, vblurbutton);
 								drawbutton(screen, misgbutton);
 								drawbutton(screen, slowbutton);
+								drawbutton(screen, palbutton);
 							break;
 							case SDL_BUTTON_RIGHT:
 								#ifdef AUDIO
