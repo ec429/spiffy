@@ -58,7 +58,7 @@ dist: all
 	cp -r buttons spiffy_$(VERSION)/
 	cp -r keyb_asst spiffy_$(VERSION)/
 	-rm spiffy_$(VERSION)/*.tgz
-	-rm -r spiffy_$(VERSION)/wbits
+	-rm spiffy_$(VERSION)/*.zip
 	tar -czf spiffy_$(VERSION).tgz spiffy_$(VERSION)/
 	rm -r spiffy_$(VERSION)/
 
@@ -69,6 +69,7 @@ distw: all
 	cp -r buttons spiffy_w$(VERSION)/
 	cp -r keyb_asst spiffy_w$(VERSION)/
 	-rm spiffy_w$(VERSION)/*.tgz
+	-rm spiffy_$(VERSION)/*.zip
 	rm spiffy_w$(VERSION)/*.o
 	rm spiffy_w$(VERSION)/spiffy
 	rm spiffy_w$(VERSION)/spiffy-filechooser
