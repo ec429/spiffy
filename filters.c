@@ -27,7 +27,6 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	static unsigned char rowr[320], rowg[320], rowb[320];
 	static unsigned char old[320][296][3];
 	static signed int palcr, palcb;
-	static bool oddfield=false;
 	
 	if(filt_mask&FILT_BW)
 	{
@@ -36,17 +35,14 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	
 	if((filt_mask&FILT_PAL)&&!(filt_mask&FILT_BW)) // PAL doesn't make sense for a BW set
 	{
-		oddfield=!oddfield;
 		unsigned char luma=(*r+*g+*b)/3;
 		signed int cb=*b-luma, cr=*r-luma;
-		unsigned char sc=((x*5)&4)>>1, cc=(((x+2)*5)&4)>>1;
-		palcr=(palcr>>1)+(palcr>>2)+((sc-1)*(luma-127)>>2);
-		palcb=(palcb>>1)+(palcb>>2)+((cc-1)*(luma-127)>>2);
-		*r=min(max(luma+cr+palcr, 0), 255);
-		*b=min(max(luma+cb+((y&1)?-palcb:palcb), 0), 255);
+		unsigned char sc=(x&4)>>1, cc=x&2;
+		palcr=(palcr>>1)+(palcr>>2)+((sc-1)*(luma-127)>>1);
+		palcb=(palcb>>1)+(palcb>>2)+((cc-1)*(luma-127)>>1);
+		*r=min(max(luma+cr+((y&1)?palcr:-palcr), 0), 255);
+		*b=min(max(luma+cb+((y&1)?palcb:-palcb), 0), 255);
 		*g=min(max(luma*3-*r-*b, 0), 255);
-		/*palf=(abs(luma-lumo)>>2)+(palf>>1)+(palf>>2);
-		*r=palf^(((y^x)&1)?0xff:0)^((x&4)<<5); // not anything like what actually happens; just for testing*/
 	}
 	
 	if(filt_mask&FILT_SCAN)
