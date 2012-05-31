@@ -227,7 +227,7 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 	fimg=configopen("buttons/pal.pbm", "rb");
 	img=sslurp(fimg);
 	if(fimg) fclose(fimg);
-	btn[27]=(button){.img=pbm_string(img), .posn={248, y_cntl+44, 17, 17}, .col=0x4f4f4f, .tooltip="Enable PAL distortovision decoder filter"};
+	btn[27]=(button){.img=pbm_string(img), .posn={248, y_cntl+44, 17, 17}, .col=0x4f4f4f, .tooltip="Enable PAL Chroma Distortion filter"};
 	drawbutton(screen, btn[27]);
 	free_string(&img);
 	for(unsigned int i=0;i<9;i++)

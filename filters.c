@@ -16,7 +16,7 @@ const char *filter_name(unsigned int filt_id)
 	else if(filt_id==FILT_VBLUR) return("Vertical Blur");
 	else if(filt_id==FILT_MISG) return("Misaligned Green");
 	else if(filt_id==FILT_SLOW) return("Slow Fade");
-	else if(filt_id==FILT_PAL) return("PAL distortovision decoder");
+	else if(filt_id==FILT_PAL) return("PAL Chroma Distortion");
 	else if(!filt_id) return("Unfiltered");
 	else return("Error");
 }
