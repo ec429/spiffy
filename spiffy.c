@@ -376,7 +376,7 @@ int main(int argc, char * argv[])
 				while(newwp==abuf.rp) usleep(5e3);
 			abuf.bits[abuf.wp]=(bus->portfe&PORTFE_SPEAKER)?0x80:0;
 			if(ear) abuf.bits[abuf.wp]^=0x20;
-			if(bus->portfe&PORTFE_MIC) abuf.bits[abuf.wp]^=0x20;
+			if((bus->portfe&PORTFE_MIC)&&(bus->portfe&PORTFE_SPEAKER)) abuf.bits[abuf.wp]^=0x08;
 			if(ay_enabled)
 			{
 				abuf.bits[abuf.wp]+=(ay.out[0]+ay.out[1]+ay.out[2])/8;
