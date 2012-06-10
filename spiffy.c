@@ -2324,7 +2324,6 @@ int main(int argc, char * argv[])
 		}
 	}
 	
-	//show_state(RAM, cpu, Tstates, bus);
 #ifdef AUDIO
 	abuf.play=true; // let the audio thread run free and finish
 #endif

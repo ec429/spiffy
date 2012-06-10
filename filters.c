@@ -34,7 +34,7 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	
 	if(filt_mask&FILT_BW)
 	{
-		*r=*g=*b=((*r*2)+(*g*3)+*b)/6;//(pix*25)+((pix&&bright)?80:0);
+		*r=*g=*b=((*r*2)+(*g*3)+*b)/6;
 	}
 	
 	if((filt_mask&FILT_PAL)&&!(filt_mask&FILT_BW)) // PAL doesn't make sense for a BW set
