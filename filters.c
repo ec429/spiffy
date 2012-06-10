@@ -23,6 +23,7 @@ const char *filter_name(unsigned int filt_id)
 
 void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char *r, unsigned char *g, unsigned char *b)
 {
+	if(!filt_mask) return;
 	static unsigned char lastr, lastg, lastb, misg;
 	static unsigned char rowr[320], rowg[320], rowb[320];
 	static unsigned char old[320][296][3];

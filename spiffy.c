@@ -384,7 +384,7 @@ int main(int argc, char * argv[])
 			abuf.wp=newwp;
 		}
 		#endif /* AUDIO */
-		if(likely(play&&!pause))
+		if(play&&!pause)
 		{
 			if(unlikely(!deck))
 				play=false;
@@ -1176,10 +1176,10 @@ int main(int argc, char * argv[])
 				cpu->steps--;
 			cpu->dT++;
 		}
-		else if(!pause)
+		else if(likely(!pause))
 		{
 			errupt=z80_tstep(cpu, bus, errupt);
-			if(!(Tstates&0xf))
+			if(ay_enabled&&!(Tstates&0xf))
 			{
 				ay_tstep(&ay, (Tstates&0xff));
 			}
