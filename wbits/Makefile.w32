@@ -11,7 +11,7 @@ VERSION := `git describe --tags`
 LIBS := ops.o z80.o vchips.o bits.o pbm.o sysvars.o basic.o debug.o ui.o audio.o filters.o coretest.o
 INCLUDES := ops.h z80.h vchips.h bits.h pbm.h sysvars.h basic.h debug.h ui.h audio.h filters.h coretest.h
 
-all: spiffy.exe spiffy-filechooser.exe
+all: spiffy.exe # spiffy-filechooser.exe
 
 spiffy.exe: spiffy.c $(INCLUDES) $(LIBS)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) spiffy.c $(LDFLAGS) -o $@ $(LIBS) -lm -lspectrum $(SDL)
