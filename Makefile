@@ -41,6 +41,9 @@ coretest.o: coretest.c coretest.h z80.h ops.h vchips.h
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) -o $@ -c $<
 
+clean:
+	-rm spiffy spiffy-filechooser *.o
+
 install: spiffy spiffy-filechooser
 	install -D -m0755 spiffy $(PREFIX)/bin/spiffy
 	install -D -m0755 spiffy-filechooser $(PREFIX)/bin/spiffy-filechooser
@@ -51,6 +54,17 @@ install: spiffy spiffy-filechooser
 	install -D -m0644 buttons/* -t $(PREFIX)/share/spiffy/buttons
 	install -d -m0755 keyb_asst $(PREFIX)/share/spiffy/keyb_asst
 	install -D -m0644 keyb_asst/* -t $(PREFIX)/share/spiffy/keyb_asst
+
+dists:
+	mkdir spiffy_$(VERSION)_src
+	for p in $$(ls); do cp $$p spiffy_$(VERSION)_src/$$p; done;
+	cp -r buttons spiffy_$(VERSION)_src/
+	cp -r keyb_asst spiffy_$(VERSION)_src/
+	-rm spiffy_$(VERSION)_src/*.tgz
+	-rm spiffy_$(VERSION)_src/*.zip
+	make -C spiffy_$(VERSION)_src clean
+	tar -czf spiffy_$(VERSION)_src.tgz spiffy_$(VERSION)_src/
+	rm -r spiffy_$(VERSION)_src/
 
 dist: all
 	mkdir spiffy_$(VERSION)
