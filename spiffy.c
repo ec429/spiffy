@@ -1583,7 +1583,7 @@ int main(int argc, char * argv[])
 			{
 				case 0:; // K, L, or C
 					unsigned char flags=RAM[sysvarbyname("FLAGS")->addr];
-					if(flags&8) // L or C.  XXX it might be 4, not 8, that we should be testing
+					if(flags&8) // L or C
 					{
 						new_kmode=(shifts&2)?5:(shifts&1)?4:3;
 					}
