@@ -13,7 +13,7 @@
 #include <winbase.h>
 #endif
 
-unsigned char internal_sinc_rate=12, *sinc_rate=&internal_sinc_rate;
+unsigned char internal_sinc_rate=6, *sinc_rate=&internal_sinc_rate;
 
 unsigned char *get_sinc_rate(void)
 {
@@ -30,17 +30,22 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 			unsigned int waits=0;
 			while(!a->play&&(a->rp==a->wp))
 			{
-				usleep(5e3);
-				if(waits++>40) break;
+				usleep(AUDIO_WAIT);
+				if(waits++>AUDIO_MAXWAITS)
+				{
+					fprintf(stderr, "Audio underrun!  waits %u\n", waits);
+					break;
+				}
 			}
-			a->cbuf[a->rp]=a->bits[a->rp];
-			a->rp=(a->rp+1)%SINCBUFLEN;
+			a->cbuf[a->crp]=a->bits[a->rp];
+			a->rp=(a->rp+1)%AUDIOBITLEN;
+			a->crp=(a->crp+1)%SINCBUFLEN;
 		}
 		unsigned int l=a->play?SINCBUFLEN>>2:SINCBUFLEN;
 		double v=0;
 		for(unsigned int j=0;j<l;j++)
 		{
-			signed int d=a->cbuf[(a->rp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->rp+SINCBUFLEN-j-1)%SINCBUFLEN];
+			signed int d=a->cbuf[(a->crp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->crp+SINCBUFLEN-j-1)%SINCBUFLEN];
 			if(d)
 				v+=d*sincgroups[*sinc_rate-(j%*sinc_rate)-1][j/(*sinc_rate)];
 		}
@@ -61,17 +66,17 @@ void update_sinc(unsigned char filterfactor)
 	double sinc[SINCBUFLEN];
 	for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
 	{
-		double v=filterfactor*(i/(double)SINCBUFLEN-0.5);
+		double v=filterfactor*4.0*(i/(double)SINCBUFLEN-0.5);
 		sinc[i]=(v?sin(v)/v:1)*16.0/(double)*sinc_rate;
 	}
 	for(unsigned int g=0;g<*sinc_rate;g++)
 	{
-		for(unsigned int j=0;j<AUDIOBUFLEN;j++)
+		for(unsigned int j=0;j<AUDIOSYNCLEN;j++)
 			sincgroups[g][j]=0;
 		for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
 		{
 			unsigned int j=(i+g)/(*sinc_rate);
-			if(j<AUDIOBUFLEN)
+			if(j<AUDIOSYNCLEN)
 				sincgroups[g][j]+=sinc[i];
 		}
 	}

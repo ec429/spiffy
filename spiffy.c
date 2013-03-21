@@ -237,7 +237,7 @@ int main(int argc, char * argv[])
 	fmt.freq = SAMPLE_RATE;
 	fmt.format = AUDIO_S16;
 	fmt.channels = 1;
-	fmt.samples = AUDIOBUFLEN*4;
+	fmt.samples = AUDIOBUFLEN*2;
 	fmt.callback = mixaudio;
 	audiobuf abuf = {.rp=0, .wp=0, .record=NULL};
 	fmt.userdata = &abuf;
@@ -371,9 +371,20 @@ int main(int argc, char * argv[])
 		if(!(Tstates%(69888*50/(SAMPLE_RATE**sinc_rate))))
 		{
 			abuf.play=play||trec;
-			unsigned int newwp=(abuf.wp+1)%SINCBUFLEN;
+			unsigned int newwp=(abuf.wp+1)%AUDIOBITLEN;
 			if(delay&&!(play||trec))
-				while(newwp==abuf.rp) usleep(5e3);
+			{
+				unsigned int waits=0;
+				while(newwp==abuf.rp)
+				{
+					if(waits++>AUDIO_MAXWAITS)
+					{
+						fprintf(stderr, "Audio overrun!  waits %u\n", waits);
+						break;
+					}
+					usleep(AUDIO_WAIT);
+				}
+			}
 			abuf.bits[abuf.wp]=(bus->portfe&PORTFE_SPEAKER)?0x80:0;
 			if(ear) abuf.bits[abuf.wp]^=0x20;
 			if((bus->portfe&PORTFE_MIC)&&(bus->portfe&PORTFE_SPEAKER)) abuf.bits[abuf.wp]^=0x08;
