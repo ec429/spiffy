@@ -241,8 +241,8 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 __attribute__((gnu_inline)) inline void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
-	unsigned long int pixval = SDL_MapRGB(screen->format, r, g, b),
-		* pixloc = (unsigned long int *)(((unsigned char *)screen->pixels)+s_off);
+	Uint32 pixval = SDL_MapRGB(screen->format, r, g, b),
+		* pixloc = (Uint32 *)(((unsigned char *)screen->pixels)+s_off);
 	*pixloc = pixval;
 }
 
@@ -359,7 +359,7 @@ void drawbutton(SDL_Surface *screen, button b)
 __attribute__((gnu_inline)) inline void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
-	unsigned long int *pixloc = (unsigned long int *)(((unsigned char *)screen->pixels)+s_off),
+	Uint32 *pixloc = (Uint32 *)(((unsigned char *)screen->pixels)+s_off),
 		pixval = *pixloc;
 	SDL_GetRGB(pixval, screen->format, r, g, b);
 }
