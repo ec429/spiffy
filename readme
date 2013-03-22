@@ -56,7 +56,7 @@ Tape:
 	Tape counter.  Only really useful when tape traps are disabled, in which case it displays the number of seconds remaining in the current block.
 Audio:
 	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to a WAV file.  (Note: you can't use this to save tapes.  Use the CSW record on the Tape row, above).
-	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 51 or 76 for most beeper engines.
+	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 52 or 76 for most beeper engines.
 	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  6 should be plenty.
 Misc:
 	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.  Technically, not everything is paused, so timing-critical code may glitch when resuming.

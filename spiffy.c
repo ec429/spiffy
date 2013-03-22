@@ -77,7 +77,7 @@ int main(int argc, char * argv[])
 	bool edgeload=true; // edge loader enabled
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
-	unsigned char filterfactor=51; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
+	unsigned char filterfactor=52; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
 	const char *fn=NULL;
