@@ -2,7 +2,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010-12
+	Copyright Edward Cree, 2010-13
 	ops - Z80 core operations
 */
 

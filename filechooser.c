@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010-12
+	Copyright Edward Cree, 2010-13
 	filechooser - shellout GTK filechooser
 	
 	Acknowledgements: Guesser (Alistair Cree) rewrote this to use gtk_file_chooser_dialog instead of _widget

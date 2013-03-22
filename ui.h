@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010-12
+	Copyright Edward Cree, 2010-13
 	ui.h - User Interface
 */
 

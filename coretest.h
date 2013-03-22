@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010-12
+	Copyright Edward Cree, 2010-13
 	coretest.h - Z80 core tests
 	
 	Acknowledgements: Based on the FUSE coretests by Phil Kendall <philip@shadowmagic.org.uk>

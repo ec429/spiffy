@@ -1,7 +1,7 @@
 /*
 	spiffy - ZX spectrum emulator
 	
-	Copyright Edward Cree, 2010-12
+	Copyright Edward Cree, 2010-13
 	License: GNU GPL v3+
 	
 	Acknowledgements (Heavily used references)
@@ -38,7 +38,7 @@
 
 #define ROM_FILE "48.rom" // Spectrum ROM file (TODO: make configable)
 
-#define GPL_MSG "spiffy Copyright (C) 2010-12 Edward Cree.\n\
+#define GPL_MSG "spiffy Copyright (C) 2010-13 Edward Cree.\n\
  This program comes with ABSOLUTELY NO WARRANTY; for details see the GPL v3.\n\
  This is free software, and you are welcome to redistribute it\n\
  under certain conditions: GPL v3+\n"
