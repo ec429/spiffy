@@ -386,7 +386,7 @@ int main(int argc, char * argv[])
 				}
 			}
 			abuf.bits[abuf.wp]=(bus->portfe&PORTFE_SPEAKER)?0x80:0;
-			if(ear) abuf.bits[abuf.wp]^=0x20;
+			if(ear) abuf.bits[abuf.wp]^=0x40;
 			if((bus->portfe&PORTFE_MIC)&&(bus->portfe&PORTFE_SPEAKER)) abuf.bits[abuf.wp]^=0x08;
 			if(ay_enabled)
 			{

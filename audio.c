@@ -43,14 +43,14 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 		}
 		unsigned int l=a->play?SINCBUFLEN>>2:SINCBUFLEN;
 		double v=0;
-		for(unsigned int j=0;j<l;j++)
+		for(unsigned int j=1;j<l;j++)
 		{
 			signed int d=a->cbuf[(a->crp+SINCBUFLEN-j)%SINCBUFLEN]-a->cbuf[(a->crp+SINCBUFLEN-j-1)%SINCBUFLEN];
 			if(d)
 				v+=d*sincgroups[*sinc_rate-(j%*sinc_rate)-1][j/(*sinc_rate)];
 		}
-		if(a->play) v*=0.6;
-		Uint16 samp=floor(v*4.0);
+		//if(a->play) v*=0.6;
+		Uint16 samp=floor(v*2.0);
 		stream[i]=samp;
 		stream[i+1]=samp>>8;
 		if(a->record)
@@ -66,7 +66,7 @@ void update_sinc(unsigned char filterfactor)
 	double sinc[SINCBUFLEN];
 	for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
 	{
-		double v=filterfactor*4.0*(i/(double)SINCBUFLEN-0.5);
+		double v=filterfactor*M_PI*(i/(double)SINCBUFLEN-0.5);
 		sinc[i]=(v?sin(v)/v:1)*16.0/(double)*sinc_rate;
 	}
 	for(unsigned int g=0;g<*sinc_rate;g++)
