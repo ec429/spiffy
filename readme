@@ -3,8 +3,20 @@ Readme.
 
 Spiffy is currently in a fairly early stage of development.
 The Z80 core works (and passes the Fuse coretests).  The debugger works but it's not the friendliest of interfaces.
-Peripherals available include ULAplus and the ZX Printer.  There's also an AY chip, but it sounds a bit crummy.
+Peripherals available include ULAplus and the ZX Printer.  There's also an AY chip, which (along with the beeper) is run through a low-pass filter / downsample to prevent aliasing, which can sometimes create bassy and semi-muffled audio (known to fans and detractors alike as the 'drainpipe-O-matic').
 Also, timings and contention are somewhat inaccurate.  In particular, the 'split bus' is not properly emulated, chiefly because I don't understand it.  (I need to read csmith's book!)
+
+Installation (Dependencies):
+	You will need runtime and development packages for the following libraries:
+		* SDL, SDL_image, SDL_ttf
+		* GTK+2
+		* libspectrum
+	On debian systems, just run:
+		sudo apt-get install libsdl1.2debian libsdl1.2-dev libsdl-image1.2 libsdl-image1.2-dev libsdl-ttf2.0-0 libsdl-ttf2.0-dev libgtk2.0-0 libgtk2.0-dev libspectrum8 libspectrum-dev
+	Now compile & install spiffy, with:
+		make
+		sudo make install
+	Spiffy will be installed to /usr/local.  If this is not on your $PATH you may want to change that, or change the installation prefix which is defined at the top of the Makefile.
 
 Command line options:
 	--debug,-d
@@ -45,7 +57,7 @@ Tape:
 Audio:
 	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to a WAV file.  (Note: you can't use this to save tapes.  Use the CSW record on the Tape row, above).
 	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 51 or 76 for most beeper engines.
-	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  12 should be plenty.
+	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  6 should be plenty.
 Misc:
 	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.  Technically, not everything is paused, so timing-critical code may glitch when resuming.
 	Reset (orange).  Resets the Spectrum.
