@@ -12,6 +12,7 @@
 #include <windef.h>
 #include <winbase.h>
 #endif
+#include "bits.h"
 
 unsigned char internal_sinc_rate=6, *sinc_rate=&internal_sinc_rate;
 
@@ -22,7 +23,32 @@ unsigned char *get_sinc_rate(void)
 
 void mixaudio(void *abuf, Uint8 *stream, int len)
 {
+	static bool abusy=true;
+	if(unlikely(!(abuf&&abusy)))
+	{
+		abusy=false;
+		for(int i=0;i<len;i+=2)
+		{
+			Uint16 samp=0;
+			stream[i]=samp;
+			stream[i+1]=samp>>8;
+		}
+		return;
+	}
 	audiobuf *a=abuf;
+	if(unlikely(!a->busy[0]))
+	{
+		fprintf(stderr, "Audio shutdown in progress\n");
+		abusy=false;
+		for(int i=0;i<len;i+=2)
+		{
+			Uint16 samp=0;
+			stream[i]=samp;
+			stream[i+1]=samp>>8;
+		}
+		a->busy[1]=false;
+		return;
+	}
 	for(int i=0;i<len;i+=2)
 	{
 		for(unsigned int g=0;g<*sinc_rate;g++)

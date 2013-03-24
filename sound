@@ -12,3 +12,11 @@ offset 2/4:         3       3
 offset 3/4:   0       3       3
 
 Then we just have to keep live a record of all the currently active steps.
+
+Shutdown sequence (needed because abuf is shared):
+While running we have                                  [1, 1]
+Core wants to exit, sets !C                         -> [0, 1]
+Core spins on !A
+Audio sees !C, fills audio with silence and sets !A -> [0, 0]
+Core sees !A, exits (and abuf is destroyed)
+Audio continues writing silence and thread eventually exits

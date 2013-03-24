@@ -19,6 +19,10 @@ string;
 #define max(a,b)	((a)>(b)?(a):(b))
 #endif /* max */
 
+/* branch predictor hints - GCC specific */
+#define likely(x)       __builtin_expect((x),1)
+#define unlikely(x)     __builtin_expect((x),0)
+
 #define peek16(a)	(RAM[(a)]|(RAM[((a)+1)&0xffff]<<8))
 #define poke16(a,v)	(RAM[(a)]=(v),RAM[((a)+1)&0xffff]=((v)>>8))
 

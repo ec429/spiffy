@@ -239,7 +239,7 @@ int main(int argc, char * argv[])
 	fmt.channels = 1;
 	fmt.samples = AUDIOBUFLEN*2;
 	fmt.callback = mixaudio;
-	audiobuf abuf = {.rp=0, .wp=0, .record=NULL};
+	audiobuf abuf = {.rp=0, .wp=0, .record=NULL, .busy={true, true}};
 	fmt.userdata = &abuf;
 
 	/* Open the audio device */
@@ -2336,7 +2336,11 @@ int main(int argc, char * argv[])
 	}
 	
 #ifdef AUDIO
-	abuf.play=true; // let the audio thread run free and finish
+	abuf.play=true; // let the audio thread run free
+	abuf.busy[0]=false; // and finish
+	SDL_PauseAudio(0);
+	while(abuf.busy[1]); // wait for it to finish
+	fprintf(stderr, "Audio thread shutdown OK.\n");
 #endif
 	return(0);
 }

@@ -18,11 +18,11 @@ spiffy: spiffy.c $(INCLUDES) $(LIBS)
 spiffy-filechooser: filechooser.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(GTKFLAGS) filechooser.c $(LDFLAGS) -o spiffy-filechooser $(GTK)
 
-ops.o: ops.c ops.h z80.h
+ops.o: ops.c ops.h z80.h bits.h
 
-z80.o: z80.c z80.h ops.h
+z80.o: z80.c z80.h ops.h bits.h
 
-vchips.o: vchips.c vchips.h z80.h
+vchips.o: vchips.c vchips.h z80.h bits.h
 
 pbm.o: pbm.c pbm.h bits.h
 
@@ -36,7 +36,7 @@ audio.o: audio.c audio.h
 
 filters.o: filters.c filters.h bits.h
 
-coretest.o: coretest.c coretest.h z80.h ops.h vchips.h
+coretest.o: coretest.c coretest.h z80.h ops.h vchips.h bits.h
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(SDLFLAGS) -o $@ -c $<

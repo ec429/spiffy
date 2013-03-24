@@ -7,8 +7,7 @@
 */
 
 #include <stdbool.h>
-#define likely(x)       __builtin_expect((x),1)
-#define unlikely(x)     __builtin_expect((x),0)
+#include "bits.h"
 
 typedef enum {TRIS_OFF,TRIS_IN,TRIS_OUT} tristate;
 

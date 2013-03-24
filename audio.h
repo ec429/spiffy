@@ -31,6 +31,7 @@ typedef struct
 	unsigned int crp, cwp; // read & write pointers for 'cbuf' circular buffer
 	bool play; // true if tape is playing (we mute and allow skipping)
 	FILE *record;
+	bool busy[2]; // true if [core, audio] thread is using.  see file 'sound' for shutdown sequence
 }
 audiobuf;
 

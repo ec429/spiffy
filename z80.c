@@ -10,9 +10,6 @@
 #include "z80.h"
 #include "ops.h"
 
-#define max(a,b)	((a)>(b)?(a):(b))
-#define min(a,b)	((a)>(b)?(b):(a))
-
 // z80 core error messages
 #define ZERR0	"spiffy: encountered bad shift state %u (x%u z%u y%u M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->ods.z, cpu->ods.y, cpu->M
 #define ZERR1	"spiffy: encountered bad opcode s%u x%u (M%u) in z80 core\n", cpu->shiftstate, cpu->ods.x, cpu->M
