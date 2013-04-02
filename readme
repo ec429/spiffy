@@ -33,6 +33,8 @@ Command line options:
 		Enable the AY chip.
 	--ula+
 		Enable ULAplus emulation.  If using with --zxprinter, you will also need to use --zxpfix.
+	--timex
+		Enable 8x1 attribute mode (Timex hi-colour).  This is rampantly inaccurate, and doesn't even load a different ROM so anything in ZX Basic will just leave you with a black screen.  This feature was added in order to try out an 8x1 HAM256 slideshow by Chev.
 	--kb
 		Enable the keyboard assistant.  This appears below the UI controls, and dynamically highlights the key functions corresponding to the current shift state, cursor mode, etc.
 	--Tstate,-T

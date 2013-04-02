@@ -83,6 +83,7 @@ int main(int argc, char * argv[])
 	const char *fn=NULL;
 	ay_enabled=false;
 	bool ulaplus_enabled=false;
+	bool timex_enabled=false;
 	const char *zxp_fn="zxp.pbm";
 	bool zxp_fix=false; // change the ZXP address from ¬A2 to A6.¬A2?  For compatibility with ZXI devices
 	js_type keystick=JS_C; // keystick mode: Cursor, Sinclair, Kempston, disabled
@@ -139,6 +140,10 @@ int main(int argc, char * argv[])
 		else if(strcmp(argv[arg], "--ula+") == 0)
 		{ // enable ULAplus
 			ulaplus_enabled=true;
+		}
+		else if(strcmp(argv[arg], "--timex") == 0)
+		{ // enable 8x1 attribute mode
+			timex_enabled=true;
 		}
 		else if(strcmp(argv[arg], "--kb") == 0)
 		{ // enable keyboard assistant
@@ -226,6 +231,7 @@ int main(int argc, char * argv[])
 			ula->ulaplus_regs[reg]=0;
 		ula->ulaplus_mode=0;
 	}
+	ula->timex_enabled=timex_enabled;
 #ifdef AUDIO
 	if(SDL_InitSubSystem(SDL_INIT_AUDIO))
 	{
@@ -2361,7 +2367,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 			{
 				unsigned short int	dbh=0x40|(crow&0x18)|(line%8),
 									dbl=((crow&0x7)<<5)|ccol,
-									abh=0x58|(crow>>3),
+									abh=ula->timex_enabled?dbh+0x20:0x58|(crow>>3),
 									abl=dbl;
 				uladb=RAM[(dbh<<8)+dbl];
 				ulaab=RAM[(abh<<8)+abl];

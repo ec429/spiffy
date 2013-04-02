@@ -10,6 +10,7 @@ typedef struct
 	unsigned char ulaplus_regsel; // only used when ULAplus enabled
 	unsigned char ulaplus_regs[64]; // only used when ULAplus enabled
 	unsigned char ulaplus_mode; // only used when ULAplus enabled
+	bool timex_enabled; // 8x1 attribute mode, *rampantly* inaccurate no doubt
 }
 ula_t;
 
