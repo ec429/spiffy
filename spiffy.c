@@ -224,6 +224,9 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "spiffy: failed to load keymap\n");
 		return(1);
 	}
+	ula->t1=false;
+	ula->memwait=false;
+	ula->iowait=false;
 	if((ula->ulaplus_enabled=ulaplus_enabled))
 	{
 		ula->ulaplus_regsel=0;
@@ -2350,6 +2353,8 @@ int main(int argc, char * argv[])
 	while(abuf.busy[1]); // wait for it to finish
 	fprintf(stderr, "Audio thread shutdown OK.\n");
 #endif
+	TTF_CloseFont(font);
+	TTF_Quit();
 	return(0);
 }
 

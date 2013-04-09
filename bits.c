@@ -161,6 +161,7 @@ FILE *configopen(const char *name, const char *mode)
 	{
 		sprintf(fullname, PREFIX"/share/spiffy/%s", name);
 		FILE *fp=fopen(fullname, mode);
+		free(fullname);
 		if(fp) return(fp);
 	}
 	return(fopen(name, mode));
