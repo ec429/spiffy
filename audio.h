@@ -6,9 +6,9 @@
 	audio.h - audio functions
 */
 
-#ifdef AUDIO
 #include <stdio.h>
 #include <stdbool.h>
+#ifdef AUDIO
 #include <SDL.h>
 #define MAX_SINC_RATE	32
 #define SAMPLE_RATE		8000 // Audio sample rate, Hz

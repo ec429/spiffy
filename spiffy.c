@@ -318,12 +318,14 @@ int main(int argc, char * argv[])
 	z80_reset(cpu, bus);
 	bus_reset(bus);
 	ay_init(&ay);
+	#ifdef AUDIO
 	if(ay_enabled)
 	{
 		*sinc_rate=2;
 		filterfactor=128;
 		update_sinc(filterfactor);
 	}
+	#endif /* AUDIO */
 	
 	libspectrum_tape *deck=NULL;
 	bool play=false;

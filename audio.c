@@ -6,12 +6,13 @@
 */
 
 #include "audio.h"
+#ifdef AUDIO
 #include <unistd.h>
 #include <math.h>
 #ifdef WINDOWS
 #include <windef.h>
 #include <winbase.h>
-#endif
+#endif /* WINDOWS */
 #include "bits.h"
 
 unsigned char internal_sinc_rate=6, *sinc_rate=&internal_sinc_rate;
@@ -136,6 +137,7 @@ void wavheader(FILE *a)
 	fwrite("data", 1, 4, a);
 	fwrite("\377\377\377\377", 1, 4, a);
 }
+#endif /* AUDIO */
 
 void ay_init(ay_t *ay)
 {
