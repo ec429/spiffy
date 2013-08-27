@@ -27,6 +27,7 @@
 #include "ops.h"
 #include "z80.h"
 #include "vchips.h"
+#include "machine.h"
 #include "pbm.h"
 #include "sysvars.h"
 #include "basic.h"
@@ -36,14 +37,13 @@
 #include "filters.h"
 #include "coretest.h"
 
-#define ROM_FILE "48.rom" // Spectrum ROM file (TODO: make configable)
-
 #define GPL_MSG "spiffy Copyright (C) 2010-13 Edward Cree.\n\
  This program comes with ABSOLUTELY NO WARRANTY; for details see the GPL v3.\n\
  This is free software, and you are welcome to redistribute it\n\
  under certain conditions: GPL v3+\n"
 
 bool zxp_enabled=false; // Emulate a connected ZX Printer?
+machine zx_machine=MACHINE_48;
 unsigned int filt_mask=0; // Which graphics filters to enable (see filters.h)
 
 // helper fns
@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
 			return(1);
 		}
 	}
-	if(!libspectrum_init())
+	if(libspectrum_init())
 	{
 		fprintf(stderr, "Failed to initialise libspectrum\n");
 		return(1);
@@ -96,7 +96,19 @@ int main(int argc, char * argv[])
 	unsigned int nbreaks=0;
 	unsigned int *breakpoints=NULL;
 	int arg;
-	for (arg=1; arg<argc; arg++)
+	/* First, look for a machine type, to get defaults */
+	for(arg=1;arg<argc;arg++)
+	{
+		if(strncmp(argv[arg], "-m", 2)==0)
+		{
+			machine m=machine_from_name(argv[arg]+2);
+			if(m<_MACHINES) zx_machine=m;
+		}
+	}
+	/* Now we apply those defaults */
+	ay_enabled=cap_ay(zx_machine);
+	/* Then process normal args */
+	for(arg=1;arg<argc;arg++)
 	{
 		if((strcmp(argv[arg], "--debug") == 0) || (strcmp(argv[arg], "-d") == 0))
 		{ // activate debugging mode
@@ -142,9 +154,17 @@ int main(int argc, char * argv[])
 		{ // enable AY chip
 			ay_enabled=true;
 		}
+		else if(strcmp(argv[arg], "--no-ay") == 0)
+		{ // disable AY chip
+			ay_enabled=false;
+		}
 		else if(strcmp(argv[arg], "--ula+") == 0)
 		{ // enable ULAplus
 			ulaplus_enabled=true;
+		}
+		else if(strcmp(argv[arg], "--no-ula+") == 0)
+		{ // disable ULAplus
+			ulaplus_enabled=false;
 		}
 		else if(strcmp(argv[arg], "--timex") == 0)
 		{ // enable 8x1 attribute mode
@@ -165,6 +185,9 @@ int main(int argc, char * argv[])
 		else if((strcmp(argv[arg], "--coretest") == 0) || (strcmp(argv[arg], "-c") == 0))
 		{ // run the core tests
 			coretest=true;
+		}
+		else if(strncmp(argv[arg], "-m", 2)==0)
+		{ // ignore it; we handled -mMachine in the first pass
 		}
 		else
 		{ // unrecognised option, assume it's a filename
@@ -299,13 +322,14 @@ int main(int argc, char * argv[])
 	unsigned int hover=nbuttons;
 	
 	// Spectrum State
-	FILE *fp = configopen(ROM_FILE, "rb");
+	const char *rom_file=default_rom(zx_machine);
+	FILE *fp = configopen(rom_file, "rb");
 	if(!fp)
 	{
-		fprintf(stderr, "Failed to open Spectrum ROM `%s'!\n", ROM_FILE);
+		fprintf(stderr, "Failed to open Spectrum ROM `%s'!\n", rom_file);
 		return(1);
 	}
-	if(ram_init(ram, fp))
+	if(ram_init(ram, fp, zx_machine))
 	{
 		fprintf(stderr, "Failed to set up RAM\n");
 		return(1);

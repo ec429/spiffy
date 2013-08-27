@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include "z80.h"
+#include "machine.h"
 
 typedef struct
 {
@@ -21,6 +22,7 @@ typedef struct
 	bool *write;
 	uint8_t (*bank)[0x4000]; // 16384 bytes per bank
 	unsigned int paged[4];
+	bool plock; // paging locked out?
 }
 ram_t;
 
@@ -35,7 +37,7 @@ keymap;
 unsigned int nkmaps;
 keymap *kmap;
 
-int ram_init(ram_t *ram, FILE *rom);
+int ram_init(ram_t *ram, FILE *rom, machine m);
 // for use by eg. debugger
 uint8_t ram_read(const ram_t *ram, uint16_t addr);
 void ram_write(ram_t *ram, uint16_t addr, uint8_t val);

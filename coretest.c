@@ -125,7 +125,7 @@ int run_test(FILE *f)
 	bus_t _bus, *bus=&_bus;
 	ram_t _ram, *ram=&_ram;
 	z80_reset(cpu, bus);
-	ram_init(ram, NULL);
+	ram_init(ram, NULL, MACHINE_48);
 	unsigned int end_tstates;
 	if( read_test( f, &end_tstates, cpu, memory ) ) return 0;
 	/* fill in the ram_t */

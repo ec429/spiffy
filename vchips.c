@@ -3,10 +3,12 @@
 #include <math.h>
 #include "bits.h"
 
-int ram_init(ram_t *ram, FILE *rom)
+int ram_init(ram_t *ram, FILE *rom, machine m)
 {
 	if(!ram) return(1);
-	ram->banks=4;
+	ram->plock=false;
+	bool p128=cap_128_paging(m);
+	ram->banks=p128?10:4;
 	if(!(ram->write=malloc(ram->banks*sizeof(bool))))
 	{
 		perror("malloc");
@@ -18,7 +20,10 @@ int ram_init(ram_t *ram, FILE *rom)
 		return(1);
 	}
 	for(unsigned int i=0;i<ram->banks;i++)
-		ram->write[i]=!!i;
+		if(p128)
+			ram->write[i]=i>1;
+		else
+			ram->write[i]=!!i;
 	if(rom)
 	{
 		if(fread(ram->bank[0], 1, 0x4000, rom)!=0x4000)
@@ -26,9 +31,22 @@ int ram_init(ram_t *ram, FILE *rom)
 			fprintf(stderr, "Failed to read in ROM file\n");
 			return(1);
 		}
+		if(p128&&(fread(ram->bank[1], 1, 0x4000, rom)!=0x4000))
+		{
+			fprintf(stderr, "Failed to read in ROM file\n");
+			return(1);
+		}
 	}
-	for(unsigned int i=0;i<4;i++)
-		ram->paged[i]=i;
+	if(p128)
+	{
+		ram->paged[0]=0; // ROM0
+		ram->paged[1]=7; // RAM5
+		ram->paged[2]=4; // RAM2
+		ram->paged[3]=2; // RAM0
+	}
+	else
+		for(unsigned int i=0;i<4;i++)
+			ram->paged[i]=i;
 	return(0);
 }
 

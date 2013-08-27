@@ -8,7 +8,10 @@
 #include "ui.h"
 #include "bits.h"
 #include "pbm.h"
+#include "machine.h"
 #include <SDL_image.h>
+
+extern machine zx_machine;
 
 SDL_Surface * gf_init(unsigned int x, unsigned int y)
 {
@@ -73,7 +76,9 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 		btn[i].img=NULL;
 		btn[i].tooltip=NULL;
 	}
-	SDL_WM_SetCaption("Spiffy - ZX Spectrum 48k", "Spiffy");
+	char title[64];
+	snprintf(title, 64, "Spiffy - ZX Spectrum %s", name_from_machine(zx_machine));
+	SDL_WM_SetCaption(title, "Spiffy");
 	SDL_EnableUNICODE(1);
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 	SDL_FillRect(screen, &(SDL_Rect){0, y_cntl, screen->w, 1}, SDL_MapRGB(screen->format, 255, 255, 255));
