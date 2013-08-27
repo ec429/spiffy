@@ -68,6 +68,11 @@ int main(int argc, char * argv[])
 			return(1);
 		}
 	}
+	if(!libspectrum_init())
+	{
+		fprintf(stderr, "Failed to initialise libspectrum\n");
+		return(1);
+	}
 	bool debug=false; // Generate debugging info?
 	bool debugcycle=false; // Single-Tstate stepping?
 	bool trace=false; // execution tracing in debugger?
@@ -168,7 +173,6 @@ int main(int argc, char * argv[])
 	}
 	
 	fprintf(stderr, GPL_MSG);
-	bool ls=!libspectrum_init();
 	
 	if(coretest)
 	{
@@ -344,7 +348,7 @@ int main(int argc, char * argv[])
 	uint32_t T_to_tape_edge=0;
 	int edgeflags=0;
 	
-	if(ls&&fn)
+	if(fn)
 	{
 		loadfile(fn, &deck, &snap);
 		if(snap)
