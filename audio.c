@@ -15,9 +15,9 @@
 #endif /* WINDOWS */
 #include "bits.h"
 
-unsigned char internal_sinc_rate=6, *sinc_rate=&internal_sinc_rate;
+uint8_t internal_sinc_rate=6, *sinc_rate=&internal_sinc_rate;
 
-unsigned char *get_sinc_rate(void)
+uint8_t *get_sinc_rate(void)
 {
 	return(sinc_rate);
 }
@@ -88,7 +88,7 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 	}
 }
 
-void update_sinc(unsigned char filterfactor)
+void update_sinc(uint8_t filterfactor)
 {
 	double sinc[SINCBUFLEN];
 	for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)
@@ -154,7 +154,7 @@ void ay_init(ay_t *ay)
 	ay->noise=ay->noisecount=0;
 }
 
-unsigned char ay_vol_tbl[16]={0, 2, 5, 7, 10, 14, 19, 29, 40, 56, 80, 103, 131, 161, 197, 236};
+uint8_t ay_vol_tbl[16]={0, 2, 5, 7, 10, 14, 19, 29, 40, 56, 80, 103, 131, 161, 197, 236};
 
 void ay_tstep(ay_t *ay, unsigned int steps)
 {
@@ -259,7 +259,7 @@ void ay_tstep(ay_t *ay, unsigned int steps)
 			ay->bit[i]=!ay->bit[i];
 			ay->count[i]=0;
 		}
-		unsigned char vol=ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env&0x0f:(ay->reg[8+i]&0xf)];
+		uint8_t vol=ay_vol_tbl[(ay->reg[8+i]&0x10)?ay->env&0x0f:(ay->reg[8+i]&0xf)];
 		if(!(ay->reg[7]&(1<<i)))
 			ay->out[i]=ay->bit[i]?(vol>>1)+(vol>>2):0;
 		if((ay->noise&1)&&!(ay->reg[7]&(8<<i)))

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 typedef struct
@@ -22,9 +23,6 @@ string;
 /* branch predictor hints - GCC specific */
 #define likely(x)       __builtin_expect((x),1)
 #define unlikely(x)     __builtin_expect((x),0)
-
-#define peek16(a)	(RAM[(a)]|(RAM[((a)+1)&0xffff]<<8))
-#define poke16(a,v)	(RAM[(a)]=(v),RAM[((a)+1)&0xffff]=((v)>>8))
 
 char *fgetl(FILE *); // gets a line of string data; returns a malloc-like pointer
 char *finpl(FILE *); // gets a line of string data; returns a malloc-like pointer

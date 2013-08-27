@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include "z80.h"
 
-int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory);
+int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, uint8_t *memory);
 void dump_z80_state( z80 *cpu, unsigned int tstates );
-void dump_memory_state( unsigned char *memory, unsigned char *initial_memory );
+void dump_memory_state( uint8_t *memory, uint8_t *initial_memory );
 int run_test( FILE *f );

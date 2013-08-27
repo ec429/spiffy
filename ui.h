@@ -32,14 +32,14 @@ SDL_Surface * gf_init();
 void ui_offsets(bool keyboard, bool printer);
 void keyb_update(SDL_Surface *screen, unsigned int keyb_mode);
 void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, bool keyboard, bool printer);
-void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b);
-int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b);
+void pset(SDL_Surface * screen, int x, int y, uint8_t r, uint8_t g, uint8_t b);
+int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, uint8_t r, uint8_t g, uint8_t b);
 void uparrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
 void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned long bcol);
-int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b, unsigned char br, unsigned char bg, unsigned char bb);
+int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, uint8_t r, uint8_t g, uint8_t b, uint8_t br, uint8_t bg, uint8_t bb);
 bool pos_rect(pos p, SDL_Rect r);
 void drawbutton(SDL_Surface *screen, button b);
-void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b);
+void pget(SDL_Surface * screen, int x, int y, uint8_t *r, uint8_t *g, uint8_t *b);
 void ksupdate(SDL_Surface * screen, button *buttons, js_type keystick);
 
 #define loadbutton		buttons[0]

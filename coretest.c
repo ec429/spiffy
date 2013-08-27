@@ -14,7 +14,7 @@
 #include "ops.h"
 #include "vchips.h"
 
-int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, unsigned char *memory )
+int read_test( FILE *f, unsigned int *end_tstates, z80 *cpu, uint8_t *memory )
 {
 	const char *progname="spiffy";
 	unsigned af, bc, de, hl, af_, bc_, de_, hl_, ix, iy, sp, pc;
@@ -94,7 +94,7 @@ void dump_z80_state( z80 *cpu, unsigned int tstates )
 		cpu->IFF[0], cpu->IFF[1], cpu->intmode, cpu->halt, tstates );
 }
 
-void dump_memory_state( unsigned char *memory, unsigned char *initial_memory )
+void dump_memory_state( uint8_t *memory, uint8_t *initial_memory )
 {
 	size_t i;
 
@@ -115,8 +115,7 @@ int run_test(FILE *f)
 {
 	size_t i;
 	unsigned int tstates=0;
-	unsigned char memory[0x10000], initial_memory[0x10000];
-	ramtop=0x10000;
+	uint8_t memory[0x10000], initial_memory[0x10000];
 	for( i = 0; i < 0x10000; i += 4 ) {
 		memory[ i     ] = 0xde; memory[ i + 1 ] = 0xad;
 		memory[ i + 2 ] = 0xbe; memory[ i + 3 ] = 0xef;
@@ -124,9 +123,14 @@ int run_test(FILE *f)
 
 	z80 _cpu, *cpu=&_cpu;
 	bus_t _bus, *bus=&_bus;
+	ram_t _ram, *ram=&_ram;
 	z80_reset(cpu, bus);
+	ram_init(ram, NULL);
 	unsigned int end_tstates;
 	if( read_test( f, &end_tstates, cpu, memory ) ) return 0;
+	/* fill in the ram_t */
+	for(unsigned int i=0;i<0x10000;i++)
+		ram->bank[i>>14][i&0x3fff]=memory[i];
 
 	/* Grab a copy of the memory for comparison at the end */
 	memcpy( initial_memory, memory, 0x10000 );
@@ -134,7 +138,7 @@ int run_test(FILE *f)
 	int errupt=0;
 	while(!errupt)
 	{
-		do_ram(memory, bus, true);
+		do_ram(ram, bus);
 		fflush(stdout);
 		if(cpu->nothing)
 		{
@@ -152,6 +156,9 @@ int run_test(FILE *f)
 				errupt++;
 		}
 	}
+	/* copy memory back out of the ram_t */
+	for(unsigned int i=0;i<0x10000;i++)
+		memory[i]=ram->bank[i>>14][i&0x3fff];
 
 	/* And dump our final state */
 	dump_z80_state(cpu, tstates);

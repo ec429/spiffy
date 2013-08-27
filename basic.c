@@ -105,7 +105,7 @@ const char *toktbl[]={
 NULL
 };
 
-const char *baschar(unsigned char c)
+const char *baschar(uint8_t c)
 {
 	static char buf[5];
 	if(c>=0xA5) return(toktbl[c-0xA5]);
@@ -147,40 +147,42 @@ const char *baschar(unsigned char c)
 	return(buf);
 }
 
-double float_decode(const unsigned char *RAM, unsigned int addr)
+double float_decode(const uint8_t *buf)
 {
-	if(!RAM[addr])
+	if(!buf[0])
 	{
-		if((!RAM[addr+1])||(RAM[addr+1]==0xFF))
+		if((!buf[1])||(buf[1]==0xFF))
 		{
-			if(!RAM[addr+4])
+			if(!buf[4])
 			{
-				unsigned short int val=peek16(addr+2);
-				if(RAM[addr+1]) return(val-131072);
+				uint16_t val=buf[2]|(buf[3]<<8);
+				if(buf[1]) return(val-131072);
 				return(val);
 			}
 		}
 	}
-	signed char exponent=RAM[addr]-128;
-	unsigned long mantissa=((RAM[addr+1]|0x80)<<24)|(RAM[addr+2]<<16)|(RAM[addr+3]<<8)|RAM[addr+4];
-	bool minus=RAM[addr+1]&0x80;
+	signed char exponent=buf[0]-128;
+	unsigned long mantissa=((buf[1]|0x80)<<24)|(buf[2]<<16)|(buf[3]<<8)|buf[4];
+	bool minus=buf[1]&0x80;
 	return((minus?-1.0:1.0)*mantissa*exp2(exponent-32));
 }
 
-void float_encode(unsigned char *RAM, unsigned int addr, double val)
+void float_encode(uint8_t *buf, double val)
 {
 	if((fabs(val)<65536)&&(ceil(val)==val))
 	{
-		RAM[addr]=RAM[addr+4]=0;
+		buf[0]=buf[4]=0;
 		signed int ival=ceil(val);
 		if(signbit(val))
 		{
-			RAM[addr+1]=0xFF;
+			buf[1]=0xFF;
 			ival+=131072;
 		}
 		else
-			RAM[addr+1]=0;
-		poke16(addr+2, (unsigned int)ival);
+			buf[1]=0;
+		unsigned int uval=ival;
+		buf[2]=uval&0xff;
+		buf[3]=(uval>>8)&0xff;
 	}
 	else if(isfinite(val))
 	{
@@ -192,11 +194,11 @@ void float_encode(unsigned char *RAM, unsigned int addr, double val)
 			return;
 		}
 		unsigned long mi=mantissa;
-		RAM[addr]=exponent+128;
-		RAM[addr+1]=((mi>>24)&0x7F)|(signbit(val)?0x80:0);
-		RAM[addr+2]=mi>>16;
-		RAM[addr+3]=mi>>8;
-		RAM[addr+4]=mi;
+		buf[0]=exponent+128;
+		buf[1]=((mi>>24)&0x7F)|(signbit(val)?0x80:0);
+		buf[2]=mi>>16;
+		buf[3]=mi>>8;
+		buf[4]=mi;
 	}
 	else
 	{
@@ -206,7 +208,7 @@ void float_encode(unsigned char *RAM, unsigned int addr, double val)
 
 int compare_bas_line(const void *a, const void *b)
 {
-	unsigned short int na=((bas_line *)a)->number, nb=((bas_line *)b)->number;
+	uint16_t na=((bas_line *)a)->number, nb=((bas_line *)b)->number;
 	if(na<nb) return(-1);
 	if(na>nb) return(1);
 	return(0);

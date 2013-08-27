@@ -13,11 +13,11 @@ typedef enum {TRIS_OFF,TRIS_IN,TRIS_OUT} tristate;
 
 typedef struct
 {
-	unsigned char x;
-	unsigned char y;
-	unsigned char z;
-	unsigned char p;
-	unsigned char q;
+	uint8_t x;
+	uint8_t y;
+	uint8_t z;
+	uint8_t p;
+	uint8_t q;
 }
 od;
 
@@ -32,7 +32,7 @@ stepper;
 
 typedef struct
 {
-	unsigned char regs[26]; // Registers (in little-endian pairs); see helper_notes for details
+	uint8_t regs[26]; // Registers (in little-endian pairs); see helper_notes for details
 	bool IFF[2]; // Interrupts Flip Flops
 	bool block_ints; // was the last opcode an EI or other INT-blocking opcode?
 	int intmode; // Interrupt Mode
@@ -40,7 +40,7 @@ typedef struct
 	bool halt; // are we HALTed?
 	int dT; // T-state within M-cycle
 	int M; // note: my M-cycles do not correspond to official labelling
-	unsigned char internal[3]; // Internal Z80 registers
+	uint8_t internal[3]; // Internal Z80 registers
 	od ods;
 	int shiftstate;	// The 'shift state' resulting from prefixes.  bits as follows: 1=CB 2=ED 4=DD 8=FD.  Valid states: CBh/1, EDh/2. DDh/4. FDh/8. DDCBh/5 and FDCBh/9.
 	bool intacc; // accepted an INTerrupt?
@@ -49,28 +49,28 @@ typedef struct
 	int steps; // number of Tstates running a step_ and doing nothing else
 	stepper ste; // which step_?
 	int sta;
-	unsigned char stv, *stp;
+	uint8_t stv, *stp;
 }
 z80;
 
 typedef struct
 {
-	unsigned short int addr; // Address bus (A0-A15)
-	unsigned char data; // Data bus (D0-D7)
-	tristate tris; // encapsulates the ¬RD and ¬WR lines
-	bool iorq; // ¬IORQ line
-	bool mreq; // ¬MREQ line
-	bool m1; // ¬M1 line
-	bool rfsh; // ¬RFSH line
-	bool waitline; // ¬WAIT line
+	uint16_t addr; // Address bus (A0-A15)
+	uint8_t data; // Data bus (D0-D7)
+	tristate tris; // encapsulates the !RD and !WR lines
+	bool iorq; // !IORQ line
+	bool mreq; // !MREQ line
+	bool m1; // !M1 line
+	bool rfsh; // !RFSH line
+	bool waitline; // !WAIT line
 	bool clk_inhibit; // when true, hold the CLK line low (used by ULA)
-	bool reset; // ¬RESET line
-	bool irq; // ¬INT line
-	bool nmi; // ¬NMI line
-	bool halt; // ¬HALT line
+	bool reset; // !RESET line
+	bool irq; // !INT line
+	bool nmi; // !NMI line
+	bool halt; // !HALT line
 	bool reti; // was the last opcode RETI?	(some hardware detects this, eg. PIO)
-	unsigned char portfe; // last byte written to port 0xFE (used by ULA; should really be part of ULA internal data)
-	unsigned char kempbyte; // byte presented by Kempston joystick
+	uint8_t portfe; // last byte written to port 0xFE (used by ULA; should really be part of ULA internal data)
+	uint8_t kempbyte; // byte presented by Kempston joystick
 }
 bus_t;
 

@@ -26,25 +26,58 @@ debugtype;
 
 typedef union
 {
-	unsigned char b;
+	uint8_t b;
 	uint16_t w;
 	double f;
-	unsigned char r[16]; // used by 8 and R
+	uint8_t r[16]; // used by 8 and R
 }
 debugval_val;
+
+typedef enum
+{
+	DEBUGADDR_NULL,		// NULL pointer
+	DEBUGADDR_MAIN,		// RAM as seen by the CPU
+	DEBUGADDR_PAGE,		// RAM as a linear page array
+	DEBUGADDR_CPU,		// CPU registers (nonlinear; access is 8-bit, unless debugaddr.page in which case it's 16-bit)
+	DEBUGADDR_ULAPLUS,	// ULA+ registers
+	DEBUGADDR_AY,		// AY registers
+}
+debugaddrtype;
+
+typedef struct
+{
+	debugaddrtype type;
+	uint16_t addr;
+	unsigned int page;
+}
+debugaddr;
 
 typedef struct
 {
 	debugtype type;
 	debugval_val val;
-	unsigned char *p; // NULL if it's not an lvalue
+	debugaddr addr; // NULL if it's not an lvalue
 }
 debugval;
 
+typedef struct
+{
+	int Tstates;
+	z80 *cpu;
+	bus_t *bus;
+	ram_t *ram;
+	ula_t *ula;
+	ay_t *ay;
+}
+debugctx;
+
 char typename(debugtype type);
+size_t typelength(debugtype type);
+void dwrite(debugaddr addr, debugval val, debugctx ctx);
+debugval dread(debugaddr addr, debugtype type, debugctx ctx);
 void debugger_tokenise(char *line, int *drgc, char *drgv[256]);
-debugval debugger_expr(FILE *f, int ec, const char *const ev[256], unsigned char *RAM, z80 *cpu, ula_t *ula, ay_t *ay);
-void show_state(const unsigned char * RAM, const z80 *cpu, int Tstates, const bus_t *bus);
+debugval debugger_expr(FILE *f, int ec, const char *const ev[256], debugctx ctx);
+void show_state(debugctx);
 void debugval_display(FILE *f, debugval val);
 int reg16(const char *name);
 

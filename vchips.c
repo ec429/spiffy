@@ -1,26 +1,105 @@
 #include "vchips.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include "bits.h"
 
-void do_ram(unsigned char RAM[65536], bus_t *bus, bool wrom)
+int ram_init(ram_t *ram, FILE *rom)
 {
-	if(bus->mreq&&(bus->tris==TRIS_IN))
+	if(!ram) return(1);
+	ram->banks=4;
+	if(!(ram->write=malloc(ram->banks*sizeof(bool))))
 	{
-		if(likely(bus->addr<ramtop))
+		perror("malloc");
+		return(1);
+	}
+	if(!(ram->bank=malloc(ram->banks*sizeof(*ram->bank))))
+	{
+		perror("malloc");
+		return(1);
+	}
+	for(unsigned int i=0;i<ram->banks;i++)
+		ram->write[i]=!!i;
+	if(rom)
+	{
+		if(fread(ram->bank[0], 1, 0x4000, rom)!=0x4000)
 		{
-			bus->data=RAM[bus->addr];
-		}
-		else
-		{
-			bus->data=floor(rand()*256.0/RAND_MAX);
+			fprintf(stderr, "Failed to read in ROM file\n");
+			return(1);
 		}
 	}
-	else if(bus->mreq&&(bus->tris==TRIS_OUT))
+	for(unsigned int i=0;i<4;i++)
+		ram->paged[i]=i;
+	return(0);
+}
+
+uint8_t ram_read(const ram_t *ram, uint16_t addr)
+{
+	bus_t bus;
+	bus.mreq=true;
+	bus.tris=TRIS_IN;
+	bus.addr=addr;
+	do_ram(ram, &bus);
+	return(bus.data);
+}
+
+void ram_write(ram_t *ram, uint16_t addr, uint8_t val)
+{
+	bus_t bus;
+	bus.mreq=true;
+	bus.tris=TRIS_OUT;
+	bus.addr=addr;
+	bus.data=val;
+	do_ram(ram, &bus);
+}
+
+uint16_t ram_read_word(const ram_t *ram, uint16_t addr)
+{
+	uint8_t l=ram_read(ram, addr),
+	        h=ram_read(ram, addr+1);
+	return(l|(h<<8));
+}
+
+void ram_write_word(ram_t *ram, uint16_t addr, uint16_t val)
+{
+	uint8_t l=val&0xff, h=val>>8;
+	ram_write(ram, addr, l);
+	ram_write(ram, addr+1, h);
+}
+
+void ram_read_bytes(const ram_t *ram, uint16_t addr, uint16_t len, uint8_t *buf)
+{
+	for(uint16_t i=0;i<len;i++)
+		buf[i]=ram_read(ram, addr+i);
+}
+
+void ram_write_bytes(ram_t *ram, uint16_t addr, uint16_t len, uint8_t *buf)
+{
+	for(uint16_t i=0;i<len;i++)
+		ram_write(ram, addr+i, buf[i]);
+}
+
+void do_ram(const ram_t *ram, bus_t *bus)
+{
+	if(unlikely(!ram)) return;
+	if(unlikely(!bus)) return;
+	unsigned int page=bus->addr>>14, sel=ram->paged[page];
+	if(likely(sel<ram->banks))
 	{
-		if((wrom||(bus->addr&0xC000))&&likely(bus->addr<ramtop))
-			RAM[bus->addr]=bus->data;
+		if(bus->mreq&&(bus->tris==TRIS_IN))
+		{
+			bus->data=ram->bank[sel][bus->addr&0x3fff];
+		}
+		else if(bus->mreq&&(bus->tris==TRIS_OUT))
+		{
+			if(ram->write[sel])
+			{
+				ram->bank[sel][bus->addr&0x3fff]=bus->data;
+			}
+		}
+	}
+	else if(bus->mreq&&(bus->tris==TRIS_IN))
+	{
+		bus->data=floor(rand()*256.0/RAND_MAX);
 	}
 }
 
@@ -76,7 +155,7 @@ int init_keyboard(void)
 	return(0);
 }
 
-void mapk(unsigned char k, bool kstate[8][5], bool down)
+void mapk(uint8_t k, bool kstate[8][5], bool down)
 {
 	for(unsigned int i=0;i<nkmaps;i++)
 	{

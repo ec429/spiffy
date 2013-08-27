@@ -47,13 +47,13 @@ bool zxp_enabled=false; // Emulate a connected ZX Printer?
 unsigned int filt_mask=0; // Which graphics filters to enable (see filters.h)
 
 // helper fns
-void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula);
-unsigned char scale38(unsigned char v);
+void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, ram_t *ram, bus_t *bus, ula_t *ula);
+uint8_t scale38(uint8_t v);
 void getedge(libspectrum_tape *deck, bool *play, bool stopper, bool *ear, uint32_t *T_to_tape_edge, int *edgeflags, int *oldtapeblock, unsigned int *tapeblocklen);
 void putedge(uint32_t *T_since_tape_edge, unsigned long *trecpuls, FILE *trec);
 void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap);
-void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int *Tstates);
-void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int Tstates);
+void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, ram_t *ram, int *Tstates);
+void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, ram_t *ram, int Tstates);
 
 int main(int argc, char * argv[])
 {
@@ -77,7 +77,7 @@ int main(int argc, char * argv[])
 	bool edgeload=true; // edge loader enabled
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
-	unsigned char filterfactor=52; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
+	uint8_t filterfactor=52; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
 	const char *fn=NULL;
@@ -197,6 +197,7 @@ int main(int argc, char * argv[])
 	z80 _cpu, *cpu=&_cpu; // we want to work with a pointer
 	bus_t _bus, *bus=&_bus;
 	ula_t _ula, *ula=&_ula;
+	ram_t _ram, *ram=&_ram;
 	
 	ui_offsets(showkb, zxp_enabled);
 	SDL_Surface * screen=gf_init(320, y_end);
@@ -212,7 +213,7 @@ int main(int argc, char * argv[])
 	bus->kempbyte=0; // used in Kempston keystick mode
 	bool ear=false; // tape reading EAR
 	bool kstate[8][5]; // keyboard state
-	unsigned char kenc[8]; // encoded keyboard state
+	uint8_t kenc[8]; // encoded keyboard state
 	for(int i=0;i<8;i++)
 	{
 		for(int j=0;j<5;j++)
@@ -241,7 +242,7 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "spiffy: failed to initialise audio subsystem:\tSDL_InitSubSystem:%s\n", SDL_GetError());
 		return(3);
 	}
-	unsigned char *sinc_rate=get_sinc_rate();
+	uint8_t *sinc_rate=get_sinc_rate();
 	SDL_AudioSpec fmt;
 	fmt.freq = SAMPLE_RATE;
 	fmt.format = AUDIO_S16;
@@ -300,19 +301,10 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "Failed to open Spectrum ROM `%s'!\n", ROM_FILE);
 		return(1);
 	}
-	unsigned char RAM[65536];
-	ramtop=65536;
-	unsigned int i;
-	for(i=0;i<ramtop;i++)
+	if(ram_init(ram, fp))
 	{
-		if(i<16384)
-		{
-			RAM[i]=fgetc(fp);
-		}
-		else
-		{
-			RAM[i]=0;
-		}
+		fprintf(stderr, "Failed to set up RAM\n");
+		return(1);
 	}
 	fclose(fp);
 	
@@ -357,7 +349,7 @@ int main(int argc, char * argv[])
 		loadfile(fn, &deck, &snap);
 		if(snap)
 		{
-			loadsnap(snap, cpu, bus, RAM, &Tstates);
+			loadsnap(snap, cpu, bus, ram, &Tstates);
 			fprintf(stderr, "Loaded snap '%s'\n", fn);
 			libspectrum_snap_free(snap);
 			snap=NULL;
@@ -418,7 +410,7 @@ int main(int argc, char * argv[])
 			}
 		}
 		if(bus->mreq)
-			do_ram(RAM, bus, false);
+			do_ram(ram, bus);
 		
 		if(unlikely(trec&&!pause))
 			T_since_tape_edge++;
@@ -480,7 +472,7 @@ int main(int argc, char * argv[])
 		{
 			if(!(bus->addr&0x01)) // ULA
 			{
-				unsigned char hi=bus->addr>>8;
+				uint8_t hi=bus->addr>>8;
 				bus->data=(ear?0x40:0)|0x1f;
 				for(int i=0;i<8;i++)
 					if(!(hi&(1<<i)))
@@ -521,8 +513,9 @@ int main(int argc, char * argv[])
 		if(unlikely(debug&&(((cpu->M==0)&&(cpu->dT==0)&&(cpu->shiftstate==0))||debugcycle)))
 		{
 			SDL_PauseAudio(1);
+			debugctx ctx={.Tstates=Tstates, .cpu=cpu, .bus=bus, .ram=ram, .ula=ula, .ay=&ay};
 			if(trace)
-				show_state(RAM, cpu, Tstates, bus);
+				show_state(ctx);
 			int derrupt=0;
 			static unsigned int blanks=0;
 			while(!derrupt)
@@ -592,7 +585,7 @@ int main(int argc, char * argv[])
 								fprintf(stderr, h_cmds);
 						}
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
-							show_state(RAM, cpu, Tstates, bus);
+							show_state(ctx);
 						else if((strcmp(cmd, "t")==0)||(strcmp(cmd, "trace")==0))
 							trace=true;
 						else if((strcmp(cmd, "!t")==0)||(strcmp(cmd, "!trace")==0))
@@ -609,7 +602,7 @@ int main(int argc, char * argv[])
 								fprintf(stderr, "print: But what do you want to print?\n");
 							else
 							{
-								debugval val=debugger_expr(stderr, drgc-1, (const char *const *)drgv+1, RAM, cpu, ula, &ay);
+								debugval val=debugger_expr(stderr, drgc-1, (const char *const *)drgv+1, ctx);
 								debugval_display(stderr, val);
 							}
 						}
@@ -685,22 +678,26 @@ int main(int argc, char * argv[])
 							bus->nmi=false;
 						else if((strcmp(cmd, "v")==0)||(strcmp(cmd, "vars")==0))
 						{
-							unsigned short int sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_vars, l;
+							uint16_t sv_vars=ram_read_word(ram, sysvarbyname("VARS")->addr), i=sv_vars, l;
 							char *what=drgv[1];
 							size_t wlen=what?strlen(what):0;
 							double num;
 							bool match=!what;
-							while(i&&(RAM[i]!=0x80))
+							while(i)
 							{
-								unsigned char name=(RAM[i]&0x1f)|0x60;
-								unsigned short int addr=i;
-								switch(RAM[i]>>5)
+								uint8_t first=ram_read(ram, i);
+								if(first==0x80) break;
+								uint8_t name=(first&0x1f)|0x60;
+								uint16_t addr=i;
+								uint8_t byte;
+								uint8_t bytes[5];
+								switch(first>>5)
 								{
 									case 2: // String
 										// 010aaaaa Length[2] Text[]
 										if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
 										i++;
-										l=peek16(i);
+										l=ram_read_word(ram, i);
 										i+=2;
 										if(match)
 										{
@@ -713,7 +710,7 @@ int main(int argc, char * argv[])
 													fprintf(stderr, "3 Subscript wrong, 0:1\n");
 												else
 												{
-													unsigned char c=RAM[i+j-1];
+													uint8_t c=ram_read(ram, i+j-1);
 													fprintf(stderr, "%04x $ %c$(%u) = ", i+j-1, name, j);
 													if((c>=32)&&(c<127))
 														fprintf(stderr, "'%c' = ", c);
@@ -732,7 +729,7 @@ int main(int argc, char * argv[])
 														overlong=true;
 														break;
 													}
-													unsigned char c=RAM[i+j];
+													uint8_t c=ram_read(ram, i+j);
 													if((c>=32)&&(c<127))
 													{
 														fputc(c, stderr);
@@ -759,7 +756,8 @@ int main(int argc, char * argv[])
 											fprintf(stderr, "%04x # ", addr+1);
 											fputc(name, stderr);
 										}
-										num=float_decode(RAM, ++i);
+										ram_read_bytes(ram, ++i, 5, bytes);
+										num=float_decode(bytes);
 										if(match) fprintf(stderr, " = %g\n", num);
 										i+=5;
 									break;
@@ -768,14 +766,14 @@ int main(int argc, char * argv[])
 										if(what) match=((wlen==1)&&(*what==name)&&(drgc>2));
 										if(!what) fprintf(stderr, "%04x # %c (array)\n", addr, name);
 										i++;
-										l=peek16(i);
+										l=ram_read_word(ram, i);
 										i+=2;
 										if(what&&match)
 										{
-											unsigned char ndim=RAM[i], sub=0;
-											unsigned short int dims[ndim];
-											for(unsigned char dim=0;dim<ndim;dim++)
-												dims[dim]=peek16(i+1+dim*2);
+											uint8_t ndim=ram_read(ram, i), sub=0;
+											uint16_t dims[ndim];
+											for(uint8_t dim=0;dim<ndim;dim++)
+												dims[dim]=ram_read_word(ram, i+1+dim*2);
 											unsigned int subs[ndim];
 											if((drgc>2)&&(strcmp(drgv[2], "()")!=0))
 											{
@@ -794,38 +792,39 @@ int main(int argc, char * argv[])
 											addr=i+1+ndim*2;
 											if(sub<ndim)
 											{
-												for(unsigned char dim=0;dim<sub;dim++)
+												for(uint8_t dim=0;dim<sub;dim++)
 												{
-													unsigned short int offset=(subs[dim]-1)*5;
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
+													uint16_t offset=(subs[dim]-1)*5;
+													for(uint8_t d2=dim+1;d2<ndim;d2++)
 														offset*=dims[d2];
 													addr+=offset;
 												}
 												fprintf(stderr, "%04x # %c", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
+												for(uint8_t dim=0;dim<sub;dim++)
 												{
 													fprintf(stderr, "(%u)", subs[dim]);
 												}
 												fprintf(stderr, " (array");
-												for(unsigned char dim=sub;dim<ndim;dim++)
+												for(uint8_t dim=sub;dim<ndim;dim++)
 													fprintf(stderr, "[%u]", dims[dim]);
 												fprintf(stderr, ")\n");
 											}
 											else
 											{
-												for(unsigned char dim=0;dim<ndim;dim++)
+												for(uint8_t dim=0;dim<ndim;dim++)
 												{
-													unsigned short int offset=(subs[dim]-1)*5;
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
+													uint16_t offset=(subs[dim]-1)*5;
+													for(uint8_t d2=dim+1;d2<ndim;d2++)
 														offset*=dims[d2];
 													addr+=offset;
 												}
 												fprintf(stderr, "%04x # %c", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
+												for(uint8_t dim=0;dim<sub;dim++)
 												{
 													fprintf(stderr, "(%u)", subs[dim]);
 												}
-												fprintf(stderr, " = %g\n", float_decode(RAM, addr));
+												ram_read_bytes(ram, addr, 5, bytes);
+												fprintf(stderr, " = %g\n", float_decode(bytes));
 											}
 										}
 										i+=l;
@@ -835,10 +834,15 @@ int main(int argc, char * argv[])
 										string fullname=init_string();
 										append_char(&fullname, name);
 										i++;
-										do append_char(&fullname, RAM[i]&0x7F);
-										while(!(RAM[i++]&0x80));
+										do
+										{
+											byte=ram_read(ram, i++);
+											append_char(&fullname, byte&0x7F);
+										}
+										while(!(byte&0x80));
 										if(what) match=!strcmp(fullname.buf, what);
-										num=float_decode(RAM, i);
+										ram_read_bytes(ram, i, 5, bytes);
+										num=float_decode(bytes);
 										if(match) fprintf(stderr, "%04x # %s = %g\n", i, fullname.buf, num);
 										free_string(&fullname);
 										i+=5;
@@ -848,14 +852,14 @@ int main(int argc, char * argv[])
 										if(what) match=((wlen==2)&&(what[0]==name)&&(what[1]=='$'));
 										if(!what) fprintf(stderr, "%04x $ %c$ (array)\n", addr, name);
 										i++;
-										l=peek16(i);
+										l=ram_read_word(ram, i);
 										i+=2;
 										if(what&&match)
 										{
-											unsigned char ndim=RAM[i], sub=0;
-											unsigned short int dims[ndim];
-											for(unsigned char dim=0;dim<ndim;dim++)
-												dims[dim]=peek16(i+1+dim*2);
+											uint8_t ndim=ram_read(ram, i), sub=0;
+											uint16_t dims[ndim];
+											for(uint8_t dim=0;dim<ndim;dim++)
+												dims[dim]=ram_read_word(ram, i+1+dim*2);
 											unsigned int subs[ndim];
 											if((drgc>2)&&(strcmp(drgv[2], "()")!=0))
 											{
@@ -874,20 +878,20 @@ int main(int argc, char * argv[])
 											addr=i+1+ndim*2;
 											if(sub<ndim)
 											{
-												for(unsigned char dim=0;dim<sub;dim++)
+												for(uint8_t dim=0;dim<sub;dim++)
 												{
-													unsigned short int offset=subs[dim]-1;
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
+													uint16_t offset=subs[dim]-1;
+													for(uint8_t d2=dim+1;d2<ndim;d2++)
 														offset*=dims[d2];
 													addr+=offset;
 												}
 												fprintf(stderr, "%04x $ %c$", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
+												for(uint8_t dim=0;dim<sub;dim++)
 												{
 													fprintf(stderr, "(%u)", subs[dim]);
 												}
 												fprintf(stderr, " (array");
-												for(unsigned char dim=sub;dim<ndim;dim++)
+												for(uint8_t dim=sub;dim<ndim;dim++)
 													fprintf(stderr, "[%u]", dims[dim]);
 												fputc(')', stderr);
 												if(sub+1==ndim)
@@ -902,7 +906,7 @@ int main(int argc, char * argv[])
 															overlong=true;
 															break;
 														}
-														unsigned char c=RAM[addr+j];
+														uint8_t c=ram_read(ram, addr+j);
 														if((c>=32)&&(c<127))
 														{
 															fputc(c, stderr);
@@ -922,17 +926,17 @@ int main(int argc, char * argv[])
 											}
 											else
 											{
-												for(unsigned char dim=0;dim<ndim;dim++)
+												for(uint8_t dim=0;dim<ndim;dim++)
 												{
-													unsigned short int offset=(subs[dim]-1);
-													for(unsigned char d2=dim+1;d2<ndim;d2++)
+													uint16_t offset=(subs[dim]-1);
+													for(uint8_t d2=dim+1;d2<ndim;d2++)
 														offset*=dims[d2];
 													addr+=offset;
 												}
 												fprintf(stderr, "%04x $ %c$", addr, name);
-												for(unsigned char dim=0;dim<sub;dim++)
+												for(uint8_t dim=0;dim<sub;dim++)
 													fprintf(stderr, "(%u)", subs[dim]);
-												unsigned char c=RAM[addr];
+												uint8_t c=ram_read(ram, addr);
 												if((c>=32)&&(c<127))
 													fprintf(stderr, " = '%c'", c);
 												fprintf(stderr, " = %u = 0x%02x = '\\%03o'\n", c, c, c);
@@ -943,19 +947,22 @@ int main(int argc, char * argv[])
 									case 7: // Control variable of a FOR-NEXT loop
 										// 111aaaaa Value[5] Limit[5] Step[5] LoopingLine[2] StmtNumber[1]
 										if(what) match=((wlen==1)&&(*what==name));
-										num=float_decode(RAM, ++i);
+										ram_read_bytes(ram, ++i, 5, bytes);
+										num=float_decode(bytes);
 										i+=5;
-										double limit=float_decode(RAM, i);
+										ram_read_bytes(ram, i, 5, bytes);
+										double limit=float_decode(bytes);
 										i+=5;
-										double step=float_decode(RAM, i);
+										ram_read_bytes(ram, i, 5, bytes);
+										double step=float_decode(bytes);
 										i+=5;
-										unsigned short int loop=peek16(i);
+										uint16_t loop=ram_read_word(ram, i);
 										i+=2;
-										unsigned char stmt=RAM[i++];
+										uint8_t stmt=ram_read(ram, i++);
 										if(match) fprintf(stderr, "%04x # %c = %g (<%g %+g @%u:%u)\n", addr+1, name, num, limit, step, loop, stmt);
 									break;
 									default:
-										fprintf(stderr, "Error - unrecognised var type %d\n", RAM[i]>>5);
+										fprintf(stderr, "Error - unrecognised var type %d\n", first>>5);
 										i=0;
 									break;
 								}
@@ -965,7 +972,7 @@ int main(int argc, char * argv[])
 						}
 						else if((strcmp(cmd, "k")==0)||(strcmp(cmd, "kn")==0))
 						{
-							unsigned short int sv_prog=peek16(sysvarbyname("PROG")->addr), sv_vars=peek16(sysvarbyname("VARS")->addr), i=sv_prog;
+							uint16_t sv_prog=ram_read_word(ram, sysvarbyname("PROG")->addr), sv_vars=ram_read_word(ram, sysvarbyname("VARS")->addr), i=sv_prog;
 							bool shownums=!strcmp(cmd, "kn");
 							const char *what=drgv[1];
 							signed int lnum=-1;
@@ -975,16 +982,16 @@ int main(int argc, char * argv[])
 							while(i<sv_vars)
 							{
 								bas_line new;
-								new.number=RAM[i+1]|(RAM[i]<<8); // Big-endian!  Crazy Sinclair ROM!
+								new.number=ram_read(ram, i+1)|(ram_read(ram, i)<<8); // Big-endian!  Crazy Sinclair ROM!
 								new.addr=i;
 								i+=2;
-								new.line.l=peek16(i);
+								new.line.l=ram_read_word(ram, i);
 								i+=2;
 								new.line.i=0;
 								new.line.buf=malloc(new.line.l);
 								while(new.line.i+1<new.line.l)
 								{
-									append_char(&new.line, RAM[i+new.line.i]);
+									append_char(&new.line, ram_read(ram, i+new.line.i));
 								}
 								i+=new.line.l;
 								unsigned int n=nlines++;
@@ -1010,7 +1017,7 @@ int main(int argc, char * argv[])
 									{
 										if((lines[l].line.buf[p]==0x0E)&&(p+5<lines[l].line.i))
 										{
-											if(shownums) fprintf(stderr, "[%g]", float_decode((const unsigned char *)lines[l].line.buf, p+1));
+											if(shownums) fprintf(stderr, "[%g]", float_decode((const uint8_t *)lines[l].line.buf+p+1));
 											p+=5;
 										}
 										else
@@ -1032,7 +1039,7 @@ int main(int argc, char * argv[])
 								if(match)
 								{
 									fprintf(stderr, "%04x %6s", sv[i].addr, sv[i].name);
-									unsigned char c=RAM[sv[i].addr];
+									uint8_t c=ram_read(ram, sv[i].addr);
 									switch(sv[i].type)
 									{
 										case SVT_CHAR:
@@ -1047,14 +1054,14 @@ int main(int argc, char * argv[])
 											fputc('\n', stderr);
 										break;
 										case SVT_ADDR:
-											fprintf(stderr, " = 0x%04x\n", peek16(sv[i].addr));
+											fprintf(stderr, " = 0x%04x\n", ram_read_word(ram, sv[i].addr));
 										break;
 										case SVT_BYTES:
 											fprintf(stderr, " = {");
 											for(unsigned int b=0;b<sv[i].len;b++)
 											{
 												if(b) fputc(' ', stderr);
-												fprintf(stderr, "%02x", RAM[sv[i].addr+b]);
+												fprintf(stderr, "%02x", ram_read(ram, sv[i].addr+b));
 											}
 											fprintf(stderr, "}\n");
 										break;
@@ -1062,13 +1069,13 @@ int main(int argc, char * argv[])
 											fprintf(stderr, " = %u\n", c);
 										break;
 										case SVT_U16:
-											fprintf(stderr, " = %u\n", peek16(sv[i].addr));
+											fprintf(stderr, " = %u\n", ram_read_word(ram, sv[i].addr));
 										break;
 										case SVT_U24:
-											fprintf(stderr, " = %u\n", peek16(sv[i].addr)|(RAM[sv[i].addr+2]<<16));
+											fprintf(stderr, " = %u\n", ram_read_word(ram, sv[i].addr)|(ram_read(ram, sv[i].addr+2)<<16));
 										break;
 										case SVT_XY:
-											fprintf(stderr, " = (%u,%u)\n", c, RAM[sv[i].addr+1]);
+											fprintf(stderr, " = (%u,%u)\n", c, ram_read(ram, sv[i].addr+1));
 										break;
 										default:
 											fprintf(stderr, " has bad type %d\n", sv[i].type);
@@ -1238,8 +1245,8 @@ int main(int argc, char * argv[])
 							getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 						}
 						if(play) T_to_tape_edge-=wait;
-						*PC=RAM[(*SP)++];
-						*PC|=RAM[(*SP)++]<<8;
+						*PC=ram_read(ram, (*SP)++);
+						*PC|=ram_read(ram, (*SP)++)<<8;
 						break;
 					}
 					else
@@ -1253,8 +1260,8 @@ int main(int argc, char * argv[])
 							getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 						}
 						if(play) T_to_tape_edge-=wait;
-						unsigned char hi=0x7f;
-						unsigned char data=(ear?0x40:0)|0x1f;
+						uint8_t hi=0x7f;
+						uint8_t data=(ear?0x40:0)|0x1f;
 						for(int i=0;i<8;i++)
 							if(!(hi&(1<<i)))
 								data&=~kenc[i];
@@ -1279,8 +1286,8 @@ int main(int argc, char * argv[])
 								getedge(deck, &play, stopper, &ear, &T_to_tape_edge, &edgeflags, &oldtapeblock, &tapeblocklen);
 							}
 							if(play) T_to_tape_edge-=wait;
-							*PC=RAM[(*SP)++];
-							*PC|=RAM[(*SP)++]<<8;
+							*PC=ram_read(ram, (*SP)++);
+							*PC|=ram_read(ram, (*SP)++)<<8;
 							break;
 						}
 						else
@@ -1322,8 +1329,8 @@ int main(int argc, char * argv[])
 							if(play) T_to_tape_edge-=wait;
 							bus->portfe=cpu->regs[3];
 							cpu->regs[2]|=FC;
-							*PC=RAM[(*SP)++];
-							*PC|=RAM[(*SP)++]<<8;
+							*PC=ram_read(ram, (*SP)++);
+							*PC|=ram_read(ram, (*SP)++)<<8;
 							wait=15; // 1+4+10
 							while((T_to_tape_edge<wait)&&play)
 							{
@@ -1456,7 +1463,7 @@ int main(int argc, char * argv[])
 					T_since_tape_edge+=10;
 					Tstates+=10;
 					// EX AF,AF'
-					unsigned short int tmp=*AF;
+					uint16_t tmp=*AF;
 					*AF=*AF_;
 					*AF_=tmp;
 					T_since_tape_edge+=4;
@@ -1555,7 +1562,7 @@ int main(int argc, char * argv[])
 			}
 		}
 		if(likely(!pause))
-			scrn_update(screen, Tstates, frames, play?7:0, Fstate, RAM, bus, ula);
+			scrn_update(screen, Tstates, frames, play?7:0, Fstate, ram, bus, ula);
 		if(unlikely(Tstates==32))
 			bus->irq=false;
 		if(zxp_enabled&&!(Tstates%128)) // ZX Printer emulation
@@ -1578,7 +1585,7 @@ int main(int argc, char * argv[])
 							for(unsigned int x=0;x<256;x++)
 							{
 								if(x) fprintf(zxp_output, " ");
-								unsigned char r, g, b;
+								uint8_t r, g, b;
 								pget(screen, x+32, y_prnt+119, &r, &g, &b);
 								bool dark=(r+g+b)<384;
 								fprintf(zxp_output, "%c", dark?'1':'0');
@@ -1597,14 +1604,14 @@ int main(int argc, char * argv[])
 		if(unlikely(Tstates>=69888)) // Frame
 		{
 			unsigned int new_kmode=0;
-			unsigned char mode=RAM[sysvarbyname("MODE")->addr];
-			unsigned char shifts=0;
+			uint8_t mode=ram_read(ram, sysvarbyname("MODE")->addr);
+			uint8_t shifts=0;
 			if(kstate[0][0]) shifts|=1;
 			if(kstate[7][1]) shifts|=2;
 			switch(mode)
 			{
 				case 0:; // K, L, or C
-					unsigned char flags=RAM[sysvarbyname("FLAGS")->addr];
+					uint8_t flags=ram_read(ram, sysvarbyname("FLAGS")->addr);
 					if(flags&8) // L or C
 					{
 						new_kmode=(shifts&2)?5:(shifts&1)?4:3;
@@ -2053,7 +2060,7 @@ int main(int argc, char * argv[])
 											loadfile(fn+1, &deck, &snap);
 											if(snap)
 											{
-												loadsnap(snap, cpu, bus, RAM, &Tstates);
+												loadsnap(snap, cpu, bus, ram, &Tstates);
 												fprintf(stderr, "Loaded snap '%s'\n", fn+1);
 												libspectrum_snap_free(snap);
 												snap=NULL;
@@ -2097,8 +2104,8 @@ int main(int argc, char * argv[])
 										FILE *sf=fopen(fn+1, "wb");
 										if(sf)
 										{
-											savesnap(&snap, cpu, bus, RAM, Tstates);
-											unsigned char *buffer=NULL; size_t l=0;
+											savesnap(&snap, cpu, bus, ram, Tstates);
+											uint8_t *buffer=NULL; size_t l=0;
 											int out_flags;
 											libspectrum_snap_write(&buffer, &l, &out_flags, snap, LIBSPECTRUM_ID_SNAPSHOT_Z80, NULL, 0);
 											fwrite(buffer, 1, l, sf);
@@ -2358,7 +2365,7 @@ int main(int argc, char * argv[])
 	return(0);
 }
 
-void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, const unsigned char *RAM, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
+void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, ram_t *ram, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
 	int line=((Tstates+12)/224)-16;
 	int col=(((Tstates+12)%224)<<1);
@@ -2367,17 +2374,18 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 		bool contend=false;
 		if((col>=0) && (col<screen->w))
 		{
-			unsigned char uladb=0, ulaab=(bus->portfe&0x07)<<3;
+			uint8_t uladb=0, ulaab=(bus->portfe&0x07)<<3;
 			int ccol=(col>>3)-4;
 			int crow=(line>>3)-6;
 			if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
 			{
-				unsigned short int	dbh=0x40|(crow&0x18)|(line%8),
+				uint16_t	dbh=0x40|(crow&0x18)|(line%8),
 									dbl=((crow&0x7)<<5)|ccol,
 									abh=ula->timex_enabled?dbh+0x20:0x58|(crow>>3),
 									abl=dbl;
-				uladb=RAM[(dbh<<8)+dbl];
-				ulaab=RAM[(abh<<8)+abl];
+				/* there should probably be some split bus thing going on here */
+				uladb=ram_read(ram, (dbh<<8)+dbl);
+				ulaab=ram_read(ram, (abh<<8)+abl);
 				contend=!(((Tstates%8)==6)||((Tstates%8)==7));
 			}
 			if(ula->t1)
@@ -2401,14 +2409,14 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 			{
 				int ink=ulaab&0x07;
 				int paper=(ulaab&0x38)>>3;
-				unsigned char r,g,b;
-				unsigned char s=0x80>>(((Tstates+12)%4)<<1);
+				uint8_t r,g,b;
+				uint8_t s=0x80>>(((Tstates+12)%4)<<1);
 				bool d=uladb&s;
 				if(ula->ulaplus_enabled&&(ula->ulaplus_mode&1))
 				{
-					unsigned char clut=ulaab>>6;
-					unsigned char pix=d?ula->ulaplus_regs[(clut<<4)+ink]:ula->ulaplus_regs[(clut<<4)+paper+8];
-					unsigned char pr=(pix>>2)&7,pg=(pix>>5)&7,pb=pix&3;
+					uint8_t clut=ulaab>>6;
+					uint8_t pix=d?ula->ulaplus_regs[(clut<<4)+ink]:ula->ulaplus_regs[(clut<<4)+paper+8];
+					uint8_t pr=(pix>>2)&7,pg=(pix>>5)&7,pb=pix&3;
 					pb=(pb<<1)|(pb&1);
 					r=scale38(pr);
 					g=scale38(pg);
@@ -2429,10 +2437,10 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 				{
 					bool flash=ulaab&0x80;
 					bool bright=ulaab&0x40;
-					unsigned char t=bright?240:200;
+					uint8_t t=bright?240:200;
 					if(flash && (Fstate&0x10))
 						d=!d;
-					unsigned char pix=d?ink:paper;
+					uint8_t pix=d?ink:paper;
 					r=(pix&2)?t:0;
 					g=(pix&4)?t:0;
 					b=(pix&1)?t:0;
@@ -2455,9 +2463,9 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 	}
 }
 
-unsigned char scale38(unsigned char v)
+uint8_t scale38(uint8_t v)
 {
-	unsigned char rv=0;
+	uint8_t rv=0;
 	if(v&4) rv|=0x90;
 	if(v&2) rv|=0x4A;
 	if(v&1) rv|=0x25;
@@ -2535,7 +2543,7 @@ void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap)
 	{
 		string data=sslurp(fp);
 		libspectrum_id_t type;
-		if(libspectrum_identify_file_raw(&type, fn, (unsigned char *)data.buf, data.i))
+		if(libspectrum_identify_file_raw(&type, fn, (uint8_t *)data.buf, data.i))
 		{
 			fn=NULL;
 		}
@@ -2552,7 +2560,7 @@ void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap)
 						if(*deck) libspectrum_tape_free(*deck);
 						if((*deck=libspectrum_tape_alloc()))
 						{
-							if(libspectrum_tape_read(*deck, (unsigned char *)data.buf, data.i, type, fn))
+							if(libspectrum_tape_read(*deck, (uint8_t *)data.buf, data.i, type, fn))
 								libspectrum_tape_free(*deck);
 							else
 								fprintf(stderr, "Mounted tape '%s'\n", fn);
@@ -2560,7 +2568,7 @@ void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap)
 					break;
 					case LIBSPECTRUM_CLASS_SNAPSHOT:
 						*snap=libspectrum_snap_alloc();
-						if(libspectrum_snap_read(*snap, (unsigned char *)data.buf, data.i, type, fn))
+						if(libspectrum_snap_read(*snap, (uint8_t *)data.buf, data.i, type, fn))
 						{
 							fprintf(stderr, "Snap load failed\n");
 							libspectrum_snap_free(*snap);
@@ -2577,7 +2585,7 @@ void loadfile(const char *fn, libspectrum_tape **deck, libspectrum_snap **snap)
 	}
 }
 
-void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int *Tstates)
+void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, ram_t *ram, int *Tstates)
 {
 	if(snap)
 	{
@@ -2606,14 +2614,14 @@ void loadsnap(libspectrum_snap *snap, z80 *cpu, bus_t *bus, unsigned char *RAM, 
 		cpu->halt=libspectrum_snap_halted(snap);
 		cpu->block_ints=libspectrum_snap_last_instruction_ei(snap);
 		bus->portfe=libspectrum_snap_out_ula(snap);
-		memcpy(RAM+0x4000, libspectrum_snap_pages(snap, 5), 0x4000);
-		memcpy(RAM+0x8000, libspectrum_snap_pages(snap, 2), 0x4000);
-		memcpy(RAM+0xC000, libspectrum_snap_pages(snap, 0), 0x4000);
+		memcpy(ram->bank[1], libspectrum_snap_pages(snap, 5), 0x4000);
+		memcpy(ram->bank[2], libspectrum_snap_pages(snap, 2), 0x4000);
+		memcpy(ram->bank[3], libspectrum_snap_pages(snap, 0), 0x4000);
 		// At present we ignore SLT data
 	}
 }
 
-void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, unsigned char *RAM, int Tstates)
+void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, ram_t *ram, int Tstates)
 {
 	if((*snap=libspectrum_snap_alloc()))
 	{
@@ -2641,8 +2649,8 @@ void savesnap(libspectrum_snap **snap, z80 *cpu, bus_t *bus, unsigned char *RAM,
 		libspectrum_snap_set_halted(*snap, cpu->halt);
 		libspectrum_snap_set_last_instruction_ei(*snap, cpu->block_ints);
 		libspectrum_snap_set_out_ula(*snap, bus->portfe);
-		libspectrum_snap_set_pages(*snap, 5, RAM+0x4000);
-		libspectrum_snap_set_pages(*snap, 2, RAM+0x8000);
-		libspectrum_snap_set_pages(*snap, 0, RAM+0xC000);
+		libspectrum_snap_set_pages(*snap, 5, ram->bank[1]);
+		libspectrum_snap_set_pages(*snap, 2, ram->bank[2]);
+		libspectrum_snap_set_pages(*snap, 0, ram->bank[3]);
 	}
 }

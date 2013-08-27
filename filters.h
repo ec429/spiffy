@@ -6,6 +6,7 @@
 */
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define FILT_BW		0x01
 #define FILT_SCAN	0x02
@@ -16,4 +17,4 @@
 #define FILT_PAL	0x40
 
 const char *filter_name(unsigned int filt_id);
-void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char *r, unsigned char *g, unsigned char *b);
+void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, uint8_t *r, uint8_t *g, uint8_t *b);

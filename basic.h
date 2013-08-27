@@ -6,16 +6,17 @@
 */
 
 #include "bits.h"
+#include "vchips.h"
 
 typedef struct
 {
-	unsigned short int number;
+	uint16_t number;
 	string line;
-	unsigned short int addr;
+	uint16_t addr;
 }
 bas_line;
 int compare_bas_line(const void *, const void *);
 
-const char *baschar(unsigned char c);
-double float_decode(const unsigned char *RAM, unsigned int addr);
-void float_encode(unsigned char *RAM, unsigned int addr, double val);
+const char *baschar(uint8_t c);
+double float_decode(const uint8_t *buf);
+void float_encode(uint8_t *buf, double val);

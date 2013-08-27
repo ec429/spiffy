@@ -30,11 +30,11 @@
 #define FC 0x01
 
 // decoding tables (registers)
-unsigned char tbl_r[8];
-unsigned char tbl_rp[4];
-unsigned char tbl_rp2[4];
+uint8_t tbl_r[8];
+uint8_t tbl_rp[4];
+uint8_t tbl_rp2[4];
 // 	(other tables)
-unsigned char tbl_im[4];
+uint8_t tbl_im[4];
 
 // Names/ptrs for the common regs; these tricks rely on the system being little-endian
 #define AREG	cpu->regs[3]
@@ -53,52 +53,52 @@ unsigned char tbl_im[4];
 #define eREG	cpu->regs[22]
 #define hREG	cpu->regs[25]
 #define lREG	cpu->regs[24]
-#define PC (unsigned short int *)cpu->regs
-#define AF (unsigned short int *)(cpu->regs+2)
-#define BC (unsigned short int *)(cpu->regs+4)
-#define DE (unsigned short int *)(cpu->regs+6)
-#define HL (unsigned short int *)(cpu->regs+8)
-#define Ix (unsigned short int *)(cpu->regs+10)
-#define Iy (unsigned short int *)(cpu->regs+12)
-#define Intvec (unsigned char *)(cpu->regs+15)
-#define Refresh (unsigned char *)(cpu->regs+14)
-#define SP (unsigned short int *)(cpu->regs+16)
-#define AF_ (unsigned short int *)(cpu->regs+18)
-#define BC_ (unsigned short int *)(cpu->regs+20)
-#define DE_ (unsigned short int *)(cpu->regs+22)
-#define HL_ (unsigned short int *)(cpu->regs+24)
+#define PC (uint16_t *)cpu->regs
+#define AF (uint16_t *)(cpu->regs+2)
+#define BC (uint16_t *)(cpu->regs+4)
+#define DE (uint16_t *)(cpu->regs+6)
+#define HL (uint16_t *)(cpu->regs+8)
+#define Ix (uint16_t *)(cpu->regs+10)
+#define Iy (uint16_t *)(cpu->regs+12)
+#define Intvec (uint8_t *)(cpu->regs+15)
+#define Refresh (uint8_t *)(cpu->regs+14)
+#define SP (uint16_t *)(cpu->regs+16)
+#define AF_ (uint16_t *)(cpu->regs+18)
+#define BC_ (uint16_t *)(cpu->regs+20)
+#define DE_ (uint16_t *)(cpu->regs+22)
+#define HL_ (uint16_t *)(cpu->regs+24)
 
 #define I16 ((cpu->internal[2]<<8)+cpu->internal[1]) // 16 bit literal from internal registers
-#define IHL (unsigned short int *)((cpu->shiftstate&4)?Ix:(cpu->shiftstate&8)?Iy:HL) // HL except where modified by DD/FD prefixes (pointer to word)
+#define IHL (uint16_t *)((cpu->shiftstate&4)?Ix:(cpu->shiftstate&8)?Iy:HL) // HL except where modified by DD/FD prefixes (pointer to word)
 #define IH	((cpu->shiftstate&4)?0xb:(cpu->shiftstate&8)?0xd:9) // H, IXh or IYh (regs offset)
 #define IL	((cpu->shiftstate&4)?0xa:(cpu->shiftstate&8)?0xc:8) // L, IXl or IYl (regs offset)
 #define IRP(r)	((r==8)?IL:r) // IXYfy an rp offset
 #define IR(r)	((r==8)?IL:(r==9)?IH:r) // IXYfy a regs offset
-#define IRPP(p)		(unsigned short *)(cpu->regs+IRP(tbl_rp[p])) // make a pointer to a 16-bit value from IRP register
-#define IRP2P(p)	(unsigned short *)(cpu->regs+IRP(tbl_rp2[p])) // make a pointer to a 16-bit value from IRP register
+#define IRPP(p)		(uint16_t *)(cpu->regs+IRP(tbl_rp[p])) // make a pointer to a 16-bit value from IRP register
+#define IRP2P(p)	(uint16_t *)(cpu->regs+IRP(tbl_rp2[p])) // make a pointer to a 16-bit value from IRP register
 
 // Helpers
-int parity(unsigned short int num);
-od od_bits(unsigned char opcode);
-bool cc(unsigned char which, unsigned char flags);
+int parity(uint16_t num);
+od od_bits(uint8_t opcode);
+bool cc(uint8_t which, uint8_t flags);
 
 // M-cycle bus sequencers
 void step_od(z80 *cpu, int ernal, bus_t *bus);
-void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus);
-void step_mw(z80 *cpu, unsigned short addr, unsigned char  val, bus_t *bus);
-void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus);
-void step_pw(z80 *cpu, unsigned short addr, unsigned char  val, bus_t *bus);
+void step_mr(z80 *cpu, uint16_t addr, uint8_t *val, bus_t *bus);
+void step_mw(z80 *cpu, uint16_t addr, uint8_t  val, bus_t *bus);
+void step_pr(z80 *cpu, uint16_t addr, uint8_t *val, bus_t *bus);
+void step_pw(z80 *cpu, uint16_t addr, uint8_t  val, bus_t *bus);
 void step_sr(z80 *cpu, int ernal, bus_t *bus);
-void step_sw(z80 *cpu, unsigned char val, bus_t *bus);
+void step_sw(z80 *cpu, uint8_t val, bus_t *bus);
 
 // Opcodes and Opcode Groups
-void op_alu(z80 *cpu, unsigned char operand);
+void op_alu(z80 *cpu, uint8_t operand);
 void op_bli(z80 *cpu, bus_t *bus);
 void op_add16(z80 *cpu);
 void op_adc16(z80 *cpu);
 void op_sbc16(z80 *cpu);
-unsigned char op_inc8(z80 *cpu, unsigned char operand);
-unsigned char op_dec8(z80 *cpu, unsigned char operand);
+uint8_t op_inc8(z80 *cpu, uint8_t operand);
+uint8_t op_dec8(z80 *cpu, uint8_t operand);
 void op_ra(z80 *cpu);
-unsigned char op_r(z80 *cpu, unsigned char operand);
-unsigned char op_s(z80 *cpu, unsigned char operand);
+uint8_t op_r(z80 *cpu, uint8_t operand);
+uint8_t op_s(z80 *cpu, uint8_t operand);

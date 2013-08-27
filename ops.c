@@ -7,7 +7,7 @@
 
 #include "ops.h"
 
-int parity(unsigned short int num)
+int parity(uint16_t num)
 {
 	int p=1;
 	while(num)
@@ -18,7 +18,7 @@ int parity(unsigned short int num)
 	return(p);
 }
 
-od od_bits(unsigned char opcode)
+od od_bits(uint8_t opcode)
 {
 	od rv;
 	rv.x=opcode>>6;
@@ -29,7 +29,7 @@ od od_bits(unsigned char opcode)
 	return(rv);
 }
 
-bool cc(unsigned char which, unsigned char flags)
+bool cc(uint8_t which, uint8_t flags)
 {
 	bool rv;
 	switch(which&6) // if we get a bad which, we'll just assume that only the low three bits matter (bad, I know, but might come in handy)
@@ -81,7 +81,7 @@ void step_od(z80 *cpu, int ernal, bus_t *bus)
 	}
 }
 
-void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
+void step_mr(z80 *cpu, uint16_t addr, uint8_t *val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -110,7 +110,7 @@ void step_mr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 	}
 }
 
-void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
+void step_mw(z80 *cpu, uint16_t addr, uint8_t val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -145,7 +145,7 @@ void step_mw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
 	}
 }
 
-void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
+void step_pr(z80 *cpu, uint16_t addr, uint8_t *val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -180,7 +180,7 @@ void step_pr(z80 *cpu, unsigned short addr, unsigned char *val, bus_t *bus)
 	}
 }
 
-void step_pw(z80 *cpu, unsigned short addr, unsigned char val, bus_t *bus)
+void step_pw(z80 *cpu, uint16_t addr, uint8_t val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -246,7 +246,7 @@ void step_sr(z80 *cpu, int ernal, bus_t *bus)
 	}
 }
 
-void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
+void step_sw(z80 *cpu, uint8_t val, bus_t *bus)
 {
 	switch(cpu->dT)
 	{
@@ -279,7 +279,7 @@ void step_sw(z80 *cpu, unsigned char val, bus_t *bus)
 	}
 }
 
-void op_alu(z80 *cpu, unsigned char operand) // ALU[y] A,operand
+void op_alu(z80 *cpu, uint8_t operand) // ALU[y] A,operand
 {
 	switch(cpu->ods.y)
 	{
@@ -483,8 +483,8 @@ void op_bli(z80 *cpu, bus_t *bus)
 						// P/V flag: parity of (((internal[1] + L) & 7) ^ B)
 						cpu->regs[2]&=(FS|FZ|F5|F3);
 						cpu->regs[2]|=(cpu->internal[1]&0x80)?FN:0;
-						unsigned char mp=(cpu->ods.y&1)?cpu->regs[4]+1:cpu->regs[4]-1;
-						unsigned short r=mp+cpu->internal[1];
+						uint8_t mp=(cpu->ods.y&1)?cpu->regs[4]+1:cpu->regs[4]-1;
+						uint16_t r=mp+cpu->internal[1];
 						if(r>255)
 							cpu->regs[2]|=(FC|FH); // crazy stuff, but that's what http://www.gaby.de/z80/z80undoc3.txt says
 						if(parity((mp&7)^cpu->regs[5]))
@@ -513,7 +513,7 @@ void op_bli(z80 *cpu, bus_t *bus)
 						// P/V flag: parity of (((internal[1] + L) & 7) ^ B)
 						cpu->regs[2]&=(FS|FZ|F5|F3);
 						cpu->regs[2]|=(cpu->internal[1]&0x80)?FN:0;
-						if((unsigned short)cpu->internal[1]+(unsigned short)cpu->regs[8]>0xff) cpu->regs[2]|=(FH|FC);
+						if((uint16_t)cpu->internal[1]+(uint16_t)cpu->regs[8]>0xff) cpu->regs[2]|=(FH|FC);
 						if(parity(((cpu->internal[1]+cpu->regs[8])&7)^cpu->regs[5])) cpu->regs[2]|=FP;
 						if((cpu->ods.y&2) && (cpu->regs[5]))
 						{
@@ -541,8 +541,8 @@ void op_bli(z80 *cpu, bus_t *bus)
 void op_add16(z80 *cpu) // ADD HL(IxIy),rp2[p]
 {
 	// ADD dd,ss: dd+=ss, F=(X   0?)=[  5?3 0C].  Note: It's not the same as ADC
-	unsigned short int *DD = IHL;
-	unsigned short int *SS = (unsigned short int *)(cpu->regs+tbl_rp[cpu->ods.p]);
+	uint16_t *DD = IHL;
+	uint16_t *SS = (uint16_t *)(cpu->regs+tbl_rp[cpu->ods.p]);
 	if(cpu->ods.p==2) SS=DD;
 	signed long int res = (*DD)+(*SS);
 	signed short int hd=((*DD)&0x0fff)+((*SS)&0x0fff);
@@ -566,7 +566,7 @@ void op_adc16(z80 *cpu)
 	cpu->regs[2]|=((res&0x2800)/0x100); // 53 cf bits 13,11 of res
 	cpu->regs[2]|=(hd>0x0fff?FH:0); // H true if half-carry in the high byte (here be dragons)
 	cpu->regs[2]|=((res>0x7fff)||(res<-0x8000)?FV:0); // V if overflow (not sure about this code)
-	cpu->regs[2]|=((long)(unsigned short)*DD+(long)(unsigned short)*SS+(long)C>0xffff?FC:0); // C if carry
+	cpu->regs[2]|=((long)(uint16_t)*DD+(long)(uint16_t)*SS+(long)C>0xffff?FC:0); // C if carry
 	*DD=res&0xffff;
 }
 
@@ -588,10 +588,10 @@ void op_sbc16(z80 *cpu)
 	*DD=res&0xffff;
 }
 
-unsigned char op_inc8(z80 *cpu, unsigned char operand)
+uint8_t op_inc8(z80 *cpu, uint8_t operand)
 {
 	// INC r: Increment r, F=( XVX0X)=[SZ5H3V0 ]
-	unsigned char src=operand+1;
+	uint8_t src=operand+1;
 	cpu->regs[2]&=FC; // retain C (Carry) flag unchanged
 	cpu->regs[2]|=(src&FS); // S = Sign bit
 	cpu->regs[2]|=(src==0?FZ:0); // Z = Zero flag
@@ -601,10 +601,10 @@ unsigned char op_inc8(z80 *cpu, unsigned char operand)
 	return(src);
 }
 
-unsigned char op_dec8(z80 *cpu, unsigned char operand)
+uint8_t op_dec8(z80 *cpu, uint8_t operand)
 {
 	// DEC r: Decrement r, F=( XVX1X)=[SZ5H3V1 ]
-	unsigned char src=operand-1;
+	uint8_t src=operand-1;
 	cpu->regs[2]&=FC; // retain C (Carry) flag unchanged
 	cpu->regs[2]|=(src&FS); // S = Sign bit
 	cpu->regs[2]|=(src==0?FZ:0); // Z = Zero flag
@@ -635,7 +635,7 @@ void op_ra(z80 *cpu)
 	cpu->regs[2]|=(cpu->regs[3]&(F5|F3)); // 5 and 3 from the NEW value of A
 }
 
-unsigned char op_r(z80 *cpu, unsigned char operand)
+uint8_t op_r(z80 *cpu, uint8_t operand)
 {
 	// R{L|R}[C] r[z]: Rotate {Left|Right} [Circular] register, F=SZ503P0C.  5 and 3 from the result
 	bool r=(cpu->ods.y&1);
@@ -657,7 +657,7 @@ unsigned char op_r(z80 *cpu, unsigned char operand)
 	return(operand);
 }
 
-unsigned char op_s(z80 *cpu, unsigned char operand)
+uint8_t op_s(z80 *cpu, uint8_t operand)
 {
 	// S{L|R}{L|A} r[z]: Shift {Left|Right} {Logical|Arithmetic} register, F=SZ503P0C.  5 and 3 from the result
 	bool r=(cpu->ods.y&1);

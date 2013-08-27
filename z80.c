@@ -49,7 +49,7 @@ void z80_init(void)
 
 void z80_reset(z80 *cpu, bus_t *bus)
 {
-	memset(cpu->regs, 0, sizeof(unsigned char[26]));
+	memset(cpu->regs, 0, sizeof(uint8_t[26]));
 	cpu->block_ints=false; // was the last opcode an EI or other INT-blocking opcode?
 	cpu->IFF[0]=cpu->IFF[1]=false;
 	cpu->intmode=0; // Interrupt Mode
@@ -662,7 +662,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 										STEP_MR(*HL, &cpu->internal[1]);
 										if(cpu->M>1)
 										{
-											unsigned char A=cpu->regs[3];
+											uint8_t A=cpu->regs[3];
 											cpu->regs[3]=(cpu->regs[3]&0xf0)|(cpu->internal[1]&0x0f);
 											cpu->internal[1]=((A&0x0f)<<4)|(cpu->internal[1]>>4);
 										}
@@ -671,7 +671,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 										STEP_MR(*HL, &cpu->internal[1]);
 										if(cpu->M>1)
 										{
-											unsigned char A=cpu->regs[3];
+											uint8_t A=cpu->regs[3];
 											cpu->regs[3]=(cpu->regs[3]&0xf0)|(cpu->internal[1]>>4);
 											cpu->internal[1]=(A&0x0f)|(cpu->internal[1]<<4);
 										}
@@ -723,7 +723,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									break;
 									case 1: // x0 z0 y1 == EX AF,AF': M1=IO(0)
 									{
-										unsigned short tmp=*AF;
+										uint16_t tmp=*AF;
 										*AF=*AF_;
 										*AF_=tmp;
 										cpu->M=0;
@@ -891,7 +891,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									break;
 									case 4: // x0 z7 y4 == DAA: M1=IO(0)
 									{
-										unsigned char diff=0, l=cpu->regs[3]&0x0F, h=(cpu->regs[3]&0xF0)>>4;
+										uint8_t diff=0, l=cpu->regs[3]&0x0F, h=(cpu->regs[3]&0xF0)>>4;
 										bool c,hc;
 										if(cpu->regs[2]&FC)
 										{
@@ -1088,7 +1088,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 											case 1: // x3 z1 q1 p1 == EXX: M1=IO(0)
 												for(int i=4;i<10;i++) // BCDEHL
 												{
-													unsigned char tmp=cpu->regs[i];
+													uint8_t tmp=cpu->regs[i];
 													cpu->regs[i]=cpu->regs[i+0x10];
 													cpu->regs[i+0x10]=tmp;
 												}
@@ -1133,7 +1133,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 									break;
 									case 5: // x3 z3 y5 == EX DE,HL: M1=IO(0)
 										cpu->M=0;
-										unsigned short int tmp=*DE;
+										uint16_t tmp=*DE;
 										*DE=*HL;
 										*HL=tmp;
 									break;
@@ -1646,7 +1646,7 @@ int z80_tstep(z80 *cpu, bus_t *bus, int errupt)
 										STEP_SR(2);
 										if(cpu->M>2)
 										{
-											unsigned short tmp=*IHL;
+											uint16_t tmp=*IHL;
 											*IHL=I16;
 											cpu->internal[1]=tmp&0xFF;
 											cpu->internal[2]=tmp>>8;

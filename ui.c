@@ -238,15 +238,15 @@ void ui_init(SDL_Surface *screen, button **buttons, bool edgeload, bool pause, b
 		drawbutton(screen, btn[i]);
 }
 
-__attribute__((gnu_inline)) inline void pset(SDL_Surface * screen, int x, int y, unsigned char r, unsigned char g, unsigned char b)
+__attribute__((gnu_inline)) inline void pset(SDL_Surface * screen, int x, int y, uint8_t r, uint8_t g, uint8_t b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
 	Uint32 pixval = SDL_MapRGB(screen->format, r, g, b),
-		* pixloc = (Uint32 *)(((unsigned char *)screen->pixels)+s_off);
+		* pixloc = (Uint32 *)(((uint8_t *)screen->pixels)+s_off);
 	*pixloc = pixval;
 }
 
-int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b)
+int line(SDL_Surface * screen, int x1, int y1, int x2, int y2, uint8_t r, uint8_t g, uint8_t b)
 {
 	if(x2<x1)
 	{
@@ -331,7 +331,7 @@ void downarrow(SDL_Surface * screen, SDL_Rect where, unsigned long col, unsigned
 	pset(screen, where.x+5, where.y+2, col>>16, col>>8, col);
 }
 
-int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, unsigned char r, unsigned char g, unsigned char b, unsigned char br, unsigned char bg, unsigned char bb)
+int dtext(SDL_Surface * scrn, int x, int y, int w, const char * text, TTF_Font * font, uint8_t r, uint8_t g, uint8_t b, uint8_t br, uint8_t bg, uint8_t bb)
 {
 	SDL_Color clrFg = {r, g, b, 0};
 	SDL_Rect rcDest = {x, y, w, 16};
@@ -356,10 +356,10 @@ void drawbutton(SDL_Surface *screen, button b)
 	if(b.img) SDL_BlitSurface(b.img, NULL, screen, &b.posn);
 }
 
-__attribute__((gnu_inline)) inline void pget(SDL_Surface * screen, int x, int y, unsigned char *r, unsigned char *g, unsigned char *b)
+__attribute__((gnu_inline)) inline void pget(SDL_Surface * screen, int x, int y, uint8_t *r, uint8_t *g, uint8_t *b)
 {
 	long int s_off = (y*screen->pitch) + x*screen->format->BytesPerPixel;
-	Uint32 *pixloc = (Uint32 *)(((unsigned char *)screen->pixels)+s_off),
+	Uint32 *pixloc = (Uint32 *)(((uint8_t *)screen->pixels)+s_off),
 		pixval = *pixloc;
 	SDL_GetRGB(pixval, screen->format, r, g, b);
 }

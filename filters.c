@@ -21,13 +21,13 @@ const char *filter_name(unsigned int filt_id)
 	else return("Error");
 }
 
-void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned char *r, unsigned char *g, unsigned char *b)
+void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, uint8_t *r, uint8_t *g, uint8_t *b)
 {
 	if(!filt_mask) return;
-	static unsigned char lastr, lastg, lastb, misg;
-	static unsigned char rowr[320], rowg[320], rowb[320];
-	static unsigned char old[320][296][3];
-	static unsigned char lumx;
+	static uint8_t lastr, lastg, lastb, misg;
+	static uint8_t rowr[320], rowg[320], rowb[320];
+	static uint8_t old[320][296][3];
+	static uint8_t lumx;
 	static signed int palcr, palcb, palxr, palxb;
 	static signed int oldcr[320], oldcb[320];
 	static bool field;
@@ -40,10 +40,10 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	if((filt_mask&FILT_PAL)&&!(filt_mask&FILT_BW)) // PAL doesn't make sense for a BW set
 	{
 		if(!(x||y)) field=!field;
-		unsigned char luma=(*r+*g+*b)/3;
+		uint8_t luma=(*r+*g+*b)/3;
 		lumx=(lumx>>1)+(luma>>1);
 		signed int cb=*b-luma, cr=*r-luma;
-		unsigned char sc=(x&4)>>1, cc=((x-1)&4)>>1;
+		uint8_t sc=(x&4)>>1, cc=((x-1)&4)>>1;
 		palcr=(palcr>>1)+((sc-1)*(luma-127)<<1);
 		palcb=(palcb>>1)+((cc-1)*(luma-127)<<1);
 		palxr=(palxr>>1)+((sc-1)*(lumx-127)<<1);
@@ -99,7 +99,7 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, unsigned
 	
 	if((filt_mask&FILT_MISG)&&!(filt_mask&FILT_BW)) // MISG doesn't make sense for a BW set
 	{
-		unsigned char tmp=*g;
+		uint8_t tmp=*g;
 		if(x)
 			*g=misg;
 		misg=tmp;

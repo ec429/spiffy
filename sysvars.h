@@ -5,6 +5,8 @@
 	sysvars.h - BASIC system variables
 */
 
+#include <stdint.h>
+
 enum sysvartype
 {
 	SVT_CHAR,
@@ -17,6 +19,6 @@ enum sysvartype
 	SVT_XY
 };
 
-const struct sysvar {unsigned short int addr; unsigned short int len; const char *name; enum sysvartype type;} *sysvarbyname(const char *name);
+const struct sysvar {uint16_t addr; uint16_t len; const char *name; enum sysvartype type;} *sysvarbyname(const char *name);
 
 const struct sysvar *sysvars();
