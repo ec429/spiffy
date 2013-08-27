@@ -237,6 +237,7 @@ int main(int argc, char * argv[])
 	ui_init(screen, &buttons, edgeload, pause, showkb, zxp_enabled);
 	int errupt=0;
 	bus->portfe=0; // used by mixaudio (for the beeper), tape writing (MIC) and the screen update (for the BORDCR)
+	bus->port7ffd=0; // controls paging
 	bus->kempbyte=0; // used in Kempston keystick mode
 	bool ear=false; // tape reading EAR
 	bool kstate[8][5]; // keyboard state
@@ -452,6 +453,15 @@ int main(int argc, char * argv[])
 				{
 					putedge(&T_since_tape_edge, &trecpuls, trec);
 					oldmic=bus->portfe&PORTFE_MIC;
+				}
+			}
+			else if(cap_128_paging(zx_machine)&&!(bus->addr&0x8002)) // 128 Paging
+			{
+				if(!(bus->port7ffd&0x20))
+				{
+					bus->port7ffd=bus->data;
+					ram->paged[0]=(bus->port7ffd&0x10)?1:0;
+					ram->paged[3]=(bus->port7ffd&0x7)+2;
 				}
 			}
 			else if(zxp_enabled&&!(bus->addr&0x04)&&((!zxp_fix)||(bus->addr&0x40))) // ZX Printer
@@ -2395,6 +2405,8 @@ int main(int argc, char * argv[])
 
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, ram_t *ram, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
+	bool p128=cap_128_paging(zx_machine);
+	// TODO these (and other) timings should change for 128
 	int line=((Tstates+12)/224)-16;
 	int col=(((Tstates+12)%224)<<1);
 	if(likely((line>=0) && (line<296)))
@@ -2407,17 +2419,33 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 			int crow=(line>>3)-6;
 			if((ccol>=0) && (ccol<0x20) && (crow>=0) && (crow<0x18))
 			{
-				uint16_t	dbh=0x40|(crow&0x18)|(line%8),
-									dbl=((crow&0x7)<<5)|ccol,
-									abh=ula->timex_enabled?dbh+0x20:0x58|(crow>>3),
-									abl=dbl;
-				/* there should probably be some split bus thing going on here */
-				uladb=ram_read(ram, (dbh<<8)+dbl);
-				ulaab=ram_read(ram, (abh<<8)+abl);
-				contend=!(((Tstates%8)==6)||((Tstates%8)==7));
+				/* there should probably be some split bus thing going on here  *
+				 * - that would presumably make contention behave correctly too */
+				if(p128)
+				{
+					unsigned int vram=bus->port7ffd&8?9:7; // RAM7, RAM5
+					uint16_t	dbh=(crow&0x18)|(line%8),
+								dbl=((crow&0x7)<<5)|ccol,
+								abh=ula->timex_enabled?dbh+0x20:0x18|(crow>>3),
+								abl=dbl;
+					uladb=ram->bank[vram][(dbh<<8)+dbl];
+					ulaab=ram->bank[vram][(abh<<8)+abl];
+					contend=!(((Tstates%8)==6)||((Tstates%8)==7)); // TODO probably wrong
+				}
+				else
+				{
+					uint16_t	dbh=0x40|(crow&0x18)|(line%8),
+								dbl=((crow&0x7)<<5)|ccol,
+								abh=ula->timex_enabled?dbh+0x20:0x58|(crow>>3),
+								abl=dbl;
+					uladb=ram_read(ram, (dbh<<8)+dbl);
+					ulaab=ram_read(ram, (abh<<8)+abl);
+					contend=!(((Tstates%8)==6)||((Tstates%8)==7));
+				}
 			}
 			if(ula->t1)
 			{
+				// TODO this should all be different on the 128
 				if(((bus->addr&0xC000)==0x4000))
 					ula->memwait=true;
 				if((bus->iorq&&!(bus->addr&1))||(ula->ulaplus_enabled&&((bus->addr==0xff3b)||(bus->addr==0xbf3b))))

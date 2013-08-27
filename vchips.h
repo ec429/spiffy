@@ -13,6 +13,7 @@ typedef struct
 	uint8_t ulaplus_regs[64]; // only used when ULAplus enabled
 	uint8_t ulaplus_mode; // only used when ULAplus enabled
 	bool timex_enabled; // 8x1 attribute mode, *rampantly* inaccurate no doubt
+	uint8_t portfffd;
 }
 ula_t;
 

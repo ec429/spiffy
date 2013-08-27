@@ -23,7 +23,7 @@ int ram_init(ram_t *ram, FILE *rom, machine m)
 		if(p128)
 			ram->write[i]=i>1;
 		else
-			ram->write[i]=!!i;
+			ram->write[i]=i>0;
 	if(rom)
 	{
 		if(fread(ram->bank[0], 1, 0x4000, rom)!=0x4000)
@@ -100,14 +100,19 @@ void do_ram(const ram_t *ram, bus_t *bus)
 {
 	if(unlikely(!ram)) return;
 	if(unlikely(!bus)) return;
-	unsigned int page=bus->addr>>14, sel=ram->paged[page];
+	if(!bus->mreq) return;
+	unsigned int page=bus->addr>>14, sel=ram->paged[0];
+	if(page)
+	{
+		sel=ram->paged[page];
+	}
 	if(likely(sel<ram->banks))
 	{
-		if(bus->mreq&&(bus->tris==TRIS_IN))
+		if(bus->tris==TRIS_IN)
 		{
 			bus->data=ram->bank[sel][bus->addr&0x3fff];
 		}
-		else if(bus->mreq&&(bus->tris==TRIS_OUT))
+		else if(bus->tris==TRIS_OUT)
 		{
 			if(ram->write[sel])
 			{
@@ -115,7 +120,7 @@ void do_ram(const ram_t *ram, bus_t *bus)
 			}
 		}
 	}
-	else if(bus->mreq&&(bus->tris==TRIS_IN))
+	else if(bus->tris==TRIS_IN)
 	{
 		bus->data=floor(rand()*256.0/RAND_MAX);
 	}
