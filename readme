@@ -44,7 +44,7 @@ Command line options:
 	--coretest
 		Run the core tests; produces a load of output on stdout.
 	-m128
-		Select 128k Spectrum.  Currently the timings are incorrect (unchanged from 48) and there's limited debugger support; probably plenty of other things are wrong too.
+		Select 128k Spectrum.  Currently the timings are probably extra-inaccurate and there's limited debugger support; probably plenty of other things are wrong too.
 
 UI controls:
 There are three rows of controls: Tape, Audio and Misc.  Each button should have an icon on it; if they're just square boxes of colour, it means Spiffy couldn't find its data files.  You can also get a tooltip by hovering the cursor over a button.
@@ -57,10 +57,10 @@ Tape:
 	Stop at end of block (toggle).  Lilac=on, dark red=off.  When enabled, the tape will be stopped at the end of each block.  Handy for multiload tapes.
 	Rewind (magenta).  Rewinds the tape to the beginning.
 	Record tape (toggle).  Red, brighter when active.  Records tape SAVE to a CSW file.
-	Tape counter.  Only really useful when tape traps are disabled, in which case it displays the number of seconds remaining in the current block.
+	Tape counter.  Displays the number of seconds remaining in the current block.  (If tape traps are enabled, this will be slightly inaccurate, but close enough.)
 Audio:
 	Record audio (toggle).  Red, brighter when active.  Records the filtered beeper audio to a WAV file.  (Note: you can't use this to save tapes.  Use the CSW record on the Tape row, above).
-	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 52 or 76 for most beeper engines.
+	BW: controls the filter bandwidth.  Left-click changes by increments of 1; right-click doubles or halves.  Try 38, 52 or 76 for most beeper engines; AY will usually want 128.
 	SR: controls sinc_rate, the oversampling ratio.  Higher values improve audio but use more CPU.  6 should be plenty.
 Misc:
 	Pause (toggle).  Gold=unpaused, orange=paused.  Pauses the emulation.  Technically, not everything is paused, so timing-critical code may glitch when resuming.
@@ -86,5 +86,5 @@ In debugging information, Spiffy refers to M-cycles, but be warned!  These do no
 
 License:
 Spiffy is copyright (c)Edward Cree, 2010-13, and licensed under the GNU GPL v3+.  (You should have received a copy of the GPL with this software, in the file 'COPYING')
-The ZX Spectrum ROM images (currently just 48.rom) are copyright Amstrad Plc.  Amstrad have kindly given their permission for the redistribution of their copyrighted material but retain that copyright (see http://www.worldofspectrum.org/permits/amstrad-roms.txt).
+The ZX Spectrum ROM images (48.rom, 128.rom) are copyright Amstrad Plc.  Amstrad have kindly given their permission for the redistribution of their copyrighted material but retain that copyright (see http://www.worldofspectrum.org/permits/amstrad-roms.txt).
 Any software (or software images) you run using this emulator remain the property of their respective owners.
