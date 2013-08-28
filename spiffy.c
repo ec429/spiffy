@@ -1247,10 +1247,6 @@ int main(int argc, char * argv[])
 		else if(likely(!pause))
 		{
 			errupt=z80_tstep(cpu, bus, errupt);
-			if(ay_enabled&&!(Tstates&0xf))
-			{
-				ay_tstep(&ay, (Tstates&0xff));
-			}
 			if(unlikely(play&&(*PC==0x05e7)&&(edgeload))) // Magic edge-loader (hard-coded implementation of LD-EDGE-1)
 			{
 				unsigned int wait=358;
@@ -1601,7 +1597,11 @@ int main(int argc, char * argv[])
 			}
 		}
 		if(likely(!pause))
-			scrn_update(screen, Tstates, frames, play?7:1, Fstate, ram, bus, ula);
+		{
+			scrn_update(screen, Tstates, frames, play?7:0, Fstate, ram, bus, ula);
+			if(ay_enabled&&!(Tstates&0xf))
+				ay_tstep(&ay, (Tstates&0xff));
+		}
 		if(unlikely(Tstates==32))
 			bus->irq=false;
 		if(zxp_enabled&&!(Tstates%128)) // ZX Printer emulation
