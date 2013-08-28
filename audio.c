@@ -88,7 +88,7 @@ void mixaudio(void *abuf, Uint8 *stream, int len)
 	}
 }
 
-void update_sinc(uint8_t filterfactor)
+void update_sinc(uint16_t filterfactor)
 {
 	double sinc[SINCBUFLEN];
 	for(unsigned int i=0;i<(unsigned int)SINCBUFLEN;i++)

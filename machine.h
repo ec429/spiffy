@@ -21,6 +21,8 @@ machine machine_from_name(const char *n);
 const char *name_from_machine(machine m);
 
 bool cap_128_paging(machine m);
+bool cap_128_ula_timings(machine m);
 bool cap_ay(machine m);
+int frame_length(machine m);
 int rom_length(machine m);
 const char *default_rom(machine m);

@@ -25,12 +25,14 @@ const char *name_from_machine(machine m)
 	return(NULL);
 }
 
-#define CAP_128_PAGING	0x0001
-#define CAP_AY			0x0002
+#define CAP_128_PAGING		0x0001
+#define CAP_AY				0x0002
+#define CAP_128_ULA_TIMINGS	0x0004
 
 uint32_t capabilities[_MACHINES]={	[MACHINE_48]=0,
-									[MACHINE_128]=CAP_128_PAGING|CAP_AY,
+									[MACHINE_128]=CAP_128_PAGING|CAP_AY|CAP_128_ULA_TIMINGS,
 								};
+int frame_len[_MACHINES]={[MACHINE_48]=69888, [MACHINE_128]=70908};
 int rom_len[_MACHINES]={[MACHINE_48]=1, [MACHINE_128]=2,};
 const char *def_rom[_MACHINES]={[MACHINE_48]="48.rom", [MACHINE_128]="128.rom",};
 
@@ -39,9 +41,19 @@ bool cap_128_paging(machine m)
 	return(capabilities[m]&CAP_128_PAGING);
 }
 
+bool cap_128_ula_timings(machine m)
+{
+	return(capabilities[m]&CAP_128_ULA_TIMINGS);
+}
+
 bool cap_ay(machine m)
 {
 	return(capabilities[m]&CAP_AY);
+}
+
+int frame_length(machine m)
+{
+	return(frame_len[m]);
 }
 
 int rom_length(machine m)

@@ -11,7 +11,7 @@
 #ifdef AUDIO
 #include <SDL.h>
 #define MAX_SINC_RATE	32
-#define SAMPLE_RATE		8000 // Audio sample rate, Hz
+#define SAMPLE_RATE		16000 // Audio sample rate, Hz
 #define AUDIOBUFLEN		(256)
 #define AUDIOBITBUFLEN	((SAMPLE_RATE*MAX_SINC_RATE)/16)
 #define AUDIOBITLEN		((SAMPLE_RATE**sinc_rate)/16)
@@ -21,7 +21,7 @@
 #define AUDIO_WAIT		5e3
 #define AUDIO_MAXWAITS	40
 uint8_t *get_sinc_rate(void);
-void update_sinc(uint8_t filterfactor);
+void update_sinc(uint16_t filterfactor);
 void mixaudio(void *abuf, Uint8 *stream, int len);
 typedef struct
 {

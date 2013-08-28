@@ -82,7 +82,7 @@ int main(int argc, char * argv[])
 	bool edgeload=true; // edge loader enabled
 	#ifdef AUDIO
 	bool delay=true; // attempt to maintain approximately a true Speccy speed, 50fps at 69888 T-states per frame, which is 3.4944MHz
-	uint8_t filterfactor=52; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
+	uint16_t filterfactor=52; // this value minimises noise with various beeper engines (dunno why).  Other good values are 38, 76
 	update_sinc(filterfactor);
 	#endif /* AUDIO */
 	const char *fn=NULL;
@@ -370,6 +370,7 @@ int main(int argc, char * argv[])
 	
 	int frames=0;
 	int Tstates=0;
+	int T_per_frame=frame_length(zx_machine);
 	uint32_t T_to_tape_edge=0;
 	int edgeflags=0;
 	
@@ -400,7 +401,7 @@ int main(int argc, char * argv[])
 		}
 		Tstates++;
 		#ifdef AUDIO
-		if(!(Tstates%(69888*50/(SAMPLE_RATE**sinc_rate))))
+		if(!(Tstates%(T_per_frame*50/(SAMPLE_RATE**sinc_rate))))
 		{
 			abuf.play=play||trec;
 			unsigned int newwp=(abuf.wp+1)%AUDIOBITLEN;
@@ -1600,7 +1601,7 @@ int main(int argc, char * argv[])
 			}
 		}
 		if(likely(!pause))
-			scrn_update(screen, Tstates, frames, play?7:0, Fstate, ram, bus, ula);
+			scrn_update(screen, Tstates, frames, play?7:1, Fstate, ram, bus, ula);
 		if(unlikely(Tstates==32))
 			bus->irq=false;
 		if(zxp_enabled&&!(Tstates%128)) // ZX Printer emulation
@@ -1639,7 +1640,7 @@ int main(int argc, char * argv[])
 				}
 			}
 		}
-		if(unlikely(Tstates>=69888)) // Frame
+		if(unlikely(Tstates>=T_per_frame)) // Frame
 		{
 			unsigned int new_kmode=0;
 			uint8_t mode=ram_read(ram, sysvarbyname("MODE")->addr);
@@ -1676,7 +1677,7 @@ int main(int argc, char * argv[])
 			}
 			bus->reset=false;
 			SDL_Flip(screen);
-			Tstates-=69888;
+			Tstates-=T_per_frame;
 			bus->irq=(Tstates<32); // if we were edgeloading or edgesaving, we might have missed an irq, but we were DI anyway
 			Fstate=(Fstate+1)&0x1f; // flash alternates every 16 frames
 			struct timeval tn;
@@ -2200,10 +2201,10 @@ int main(int argc, char * argv[])
 												fputc(0x1A, trec);
 												fputc(0x02, trec);
 												fputc(0x00, trec);
-												fputc(69888*50, trec);
-												fputc(69888*50>>8, trec);
-												fputc(69888*50>>16, trec);
-												fputc(69888*50>>24, trec);
+												fputc(T_per_frame*50, trec);
+												fputc(T_per_frame*50>>8, trec);
+												fputc(T_per_frame*50>>16, trec);
+												fputc(T_per_frame*50>>24, trec);
 												fputc(0, trec);
 												fputc(0, trec);
 												fputc(0, trec);
@@ -2251,7 +2252,7 @@ int main(int argc, char * argv[])
 								#ifdef AUDIO
 								else if(pos_rect(mouse, aw_up))
 								{
-									filterfactor=min(filterfactor+1,0x80);
+									filterfactor=min(filterfactor+1,0x100);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, aw_down))
@@ -2335,7 +2336,7 @@ int main(int argc, char * argv[])
 								#ifdef AUDIO
 								if(pos_rect(mouse, aw_up))
 								{
-									filterfactor=min(filterfactor<<1,0x80);
+									filterfactor=min(filterfactor<<1,0x100);
 									update_sinc(filterfactor);
 								}
 								else if(pos_rect(mouse, aw_down))
@@ -2406,9 +2407,18 @@ int main(int argc, char * argv[])
 void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, int Fstate, ram_t *ram, bus_t *bus, ula_t *ula) // TODO: Maybe one day generate floating bus & ULA snow, but that will be hard!
 {
 	bool p128=cap_128_paging(zx_machine);
-	// TODO these (and other) timings should change for 128
-	int line=((Tstates+12)/224)-16;
-	int col=(((Tstates+12)%224)<<1);
+	bool t128=cap_128_ula_timings(zx_machine);
+	int line,col;
+	if(t128)
+	{
+		line=((Tstates)/228)-15;
+		col=(((Tstates)%228)<<1);
+	}
+	else
+	{
+		line=((Tstates+12)/224)-16;
+		col=(((Tstates+12)%224)<<1);
+	}
 	if(likely((line>=0) && (line<296)))
 	{
 		bool contend=false;
@@ -2430,7 +2440,7 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 								abl=dbl;
 					uladb=ram->bank[vram][(dbh<<8)+dbl];
 					ulaab=ram->bank[vram][(abh<<8)+abl];
-					contend=!(((Tstates%8)==6)||((Tstates%8)==7)); // TODO probably wrong
+					contend=!(((Tstates%8)==0)||((Tstates%8)==7)); // TODO probably wrong
 				}
 				else
 				{
@@ -2445,9 +2455,16 @@ void scrn_update(SDL_Surface *screen, int Tstates, int frames, int frameskip, in
 			}
 			if(ula->t1)
 			{
-				// TODO this should all be different on the 128
 				if(((bus->addr&0xC000)==0x4000))
 					ula->memwait=true;
+				if(p128)
+				{
+					if((bus->addr&0xC000)==0xC000)
+					{
+						if(ram->paged[3]&1)
+							ula->memwait=true;
+					}
+				}
 				if((bus->iorq&&!(bus->addr&1))||(ula->ulaplus_enabled&&((bus->addr==0xff3b)||(bus->addr==0xbf3b))))
 					ula->iowait=true;
 				ula->t1=false;
