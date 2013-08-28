@@ -28,7 +28,6 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, uint8_t 
 	static uint8_t rowr[320], rowg[320], rowb[320];
 	static uint8_t old[320][296][3];
 	static uint8_t lumx;
-	static signed int palcr, palcb, palxr, palxb;
 	static signed int oldcr[320], oldcb[320];
 	static bool field;
 	
@@ -36,23 +35,22 @@ void filter_pix(unsigned int filt_mask, unsigned int x, unsigned int y, uint8_t 
 	{
 		*r=*g=*b=((*r*2)+(*g*3)+*b)/6;
 	}
-	
-	if((filt_mask&FILT_PAL)&&!(filt_mask&FILT_BW)) // PAL doesn't make sense for a BW set
+	else if(filt_mask&FILT_PAL) // PAL doesn't make sense for a BW set
 	{
 		if(!(x||y)) field=!field;
-		uint8_t luma=(*r+*g+*b)/3;
-		lumx=(lumx>>1)+(luma>>1);
+		uint8_t luma=((*r*2)+(*g*3)+*b)/6;
 		signed int cb=*b-luma, cr=*r-luma;
 		uint8_t sc=(x&4)>>1, cc=((x-1)&4)>>1;
-		palcr=(palcr>>1)+((sc-1)*(luma-127)<<1);
-		palcb=(palcb>>1)+((cc-1)*(luma-127)<<1);
-		palxr=(palxr>>1)+((sc-1)*(lumx-127)<<1);
-		palxb=(palxb>>1)+((cc-1)*(lumx-127)<<1);
+		signed int palcr=((sc-1)*(luma-127)<<2);
+		signed int palcb=((cc-1)*(luma-127)<<2);
+		signed int palxr=((sc-1)*(lumx-127)<<2);
+		signed int palxb=((cc-1)*(lumx-127)<<2);
 		signed int newcr=cr-(((y&1)?field:!field)?palxr-palcr:palcr-palxr), newcb=cb+(field?palxb-palcb:palcb-palxb);
 		*r=min(max(luma+((newcr+oldcr[x])>>1), 0), 255);
 		*b=min(max(luma+((newcb+oldcb[x])>>1), 0), 255);
-		*g=min(max(luma*3-*r-*b, 0), 255);
+		*g=min(max((luma*6-*r*2-*b)/3, 0), 255);
 		oldcr[x]=newcr;oldcb[x]=newcb;
+		lumx=luma;
 	}
 	
 	if(filt_mask&FILT_SCAN)
