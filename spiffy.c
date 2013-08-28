@@ -1237,14 +1237,7 @@ int main(int argc, char * argv[])
 			SDL_PauseAudio(0);
 		}
 		
-		if(cpu->nothing)
-		{
-			cpu->nothing--;	
-			if(cpu->steps)
-				cpu->steps--;
-			cpu->dT++;
-		}
-		else if(likely(!pause))
+		if(likely(!pause))
 		{
 			errupt=z80_tstep(cpu, bus, errupt);
 			if(unlikely(play&&(*PC==0x05e7)&&(edgeload))) // Magic edge-loader (hard-coded implementation of LD-EDGE-1)
