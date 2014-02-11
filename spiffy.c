@@ -371,6 +371,7 @@ int main(int argc, char * argv[])
 	int frames=0;
 	int Tstates=0;
 	int T_per_frame=frame_length(zx_machine);
+	bool debug_screen=false; // should we update the screen when single-stepping?
 	uint32_t T_to_tape_edge=0;
 	int edgeflags=0;
 	
@@ -555,6 +556,8 @@ int main(int argc, char * argv[])
 			debugctx ctx={.Tstates=Tstates, .cpu=cpu, .bus=bus, .ram=ram, .ula=ula, .ay=&ay};
 			if(trace)
 				show_state(ctx);
+			if(debug_screen)
+				SDL_Flip(screen);
 			int derrupt=0;
 			static unsigned int blanks=0;
 			while(!derrupt)
@@ -622,6 +625,25 @@ int main(int argc, char * argv[])
 								fprintf(stderr, h_u);
 							else
 								fprintf(stderr, h_cmds);
+						}
+						else if(strcmp(cmd, "w")==0) // short for 'screen show'
+							SDL_Flip(screen);
+						else if(strcmp(cmd, "screen")==0)
+						{
+							const char *what=drgv[1];
+							if(!what)
+								fprintf(stderr, "screen is: %s\n", debug_screen?"on":"off");
+							else if(strcmp(what, "show")==0)
+								SDL_Flip(screen);
+							else if(strcmp(what, "on")==0)
+							{
+								debug_screen=true;
+								SDL_Flip(screen);
+							}
+							else if(strcmp(what, "off")==0)
+								debug_screen=false;
+							else
+								fprintf(stderr, "usage: screen [on|off|show]\n");
 						}
 						else if((strcmp(cmd, "s")==0)||(strcmp(cmd, "state")==0))
 							show_state(ctx);
