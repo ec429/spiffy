@@ -628,6 +628,8 @@ int main(int argc, char * argv[])
 						}
 						else if(strcmp(cmd, "w")==0) // short for 'screen show'
 							SDL_Flip(screen);
+						else if(strcmp(cmd, "@")==0) // short for 'screen raster'
+							goto dbg_screen_raster;
 						else if(strcmp(cmd, "screen")==0)
 						{
 							const char *what=drgv[1];
@@ -642,6 +644,39 @@ int main(int argc, char * argv[])
 							}
 							else if(strcmp(what, "off")==0)
 								debug_screen=false;
+							else if(strcmp(what, "raster")==0)
+							{
+								dbg_screen_raster:;
+								bool t128=cap_128_ula_timings(zx_machine);
+								int line,col;
+								if(t128)
+								{
+									line=((Tstates)/228)-15;
+									col=(((Tstates)%228)<<1);
+								}
+								else
+								{
+									line=((Tstates+12)/224)-16;
+									col=(((Tstates+12)%224)<<1);
+								}
+								fprintf(stderr, "raster: %d,%d\n", line, col);
+								if(likely((line>=0) && (line<296)))
+								{
+									if((col>=0) && (col<screen->w))
+									{
+										for(unsigned int t=6;;t--)
+										{
+											unsigned char a=(t&1)?255:0, b=(t&1)?0:255;
+											pset(screen, col, line, a, a, a);
+											pset(screen, col+1, line, b, b, b);
+											SDL_Flip(screen);
+											if(t) usleep(4e5);
+											else break;
+										}
+									}
+								}
+								SDL_Flip(screen);
+							}
 							else
 								fprintf(stderr, "usage: screen [on|off|show]\n");
 						}

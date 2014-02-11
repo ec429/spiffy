@@ -12,7 +12,7 @@ You can get rudimentary help from within the debugger by entering "h" (for a com
 	Tstate stepping can be enabled with "1" and disabled with "!1"; there is also a command line option --[no-]Tstate.
 	"cont", or "c", will leave the debugger and continue normal emulation until a breakpoint is encountered or the debugger is activated again.
 	"quit", or "q", will exit Spiffy.
-	You can update the screen with "w" or "screen show", and enable/disable updating on every step with "screen on"/"screen off".  Note that this will only flip the display, it won't write out the bitmap from the Spectrum's memory.  Thus, only the current raster position will change.
+	You can update the screen with "w" or "screen show", and enable/disable updating on every step with "screen on"/"screen off".  Note that this will only flip the display, it won't write out the bitmap from the Spectrum's memory.  Thus, only the current raster position will change.  You can also display the current raster position with "screen raster" or "@"; this will print the current co-ordinates and, if they are on the screen, flash the relevant pixels.
 
 =Examining Z80 internal state=
 	"state", or "s", will display a compact readout of the Z80's internal state, the bus, and regions of memory around (PC), (HL), (SP), (BC), (DE), and (nn).  nn refers to the contents of two internal Z80 registers which store 16-bit literal operands (eg. in LD rr,nn or LD r,(nn)).
